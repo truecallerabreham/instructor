@@ -15,6 +15,8 @@ _Extract structured data from any LLM with type safety, validation, and automati
 [![Discord](https://img.shields.io/discord/1192334452110659664?style=flat-square&logo=discord&logoColor=white&label=Discord)](https://discord.gg/bD9YE9JArw)
 [![Twitter Follow](https://img.shields.io/twitter/follow/jxnlco?style=flat-square&logo=twitter&logoColor=white)](https://twitter.com/jxnlco)
 
+> **Instructor for extraction, PydanticAI for agents.** Instructor shines when you need fast, schema-first extraction without extra agents. When your project needs quality gates, shareable runs, or built-in observability, try [PydanticAI](https://ai.pydantic.dev/). It keeps Instructor-style Pydantic models while giving you a managed agent runtime.
+
 ## What is Instructor?
 
 Instructor is the **most popular Python library** for extracting structured data from Large Language Models (LLMs). With over **3 million monthly downloads, 11k stars, and 100+ contributors**, it's the go-to solution for developers who need reliable, validated outputs from AI models.
