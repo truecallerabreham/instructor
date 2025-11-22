@@ -15,7 +15,7 @@ _Extract structured data from any LLM with type safety, validation, and automati
 [![Discord](https://img.shields.io/discord/1192334452110659664?style=flat-square&logo=discord&logoColor=white&label=Discord)](https://discord.gg/bD9YE9JArw)
 [![Twitter Follow](https://img.shields.io/twitter/follow/jxnlco?style=flat-square&logo=twitter&logoColor=white)](https://twitter.com/jxnlco)
 
-> **Instructor for extraction, PydanticAI for agents.** Instructor shines when you need fast, schema-first extraction without extra agents. When your project needs quality gates, shareable runs, or built-in observability, try [PydanticAI](https://ai.pydantic.dev/). It keeps Instructor-style Pydantic models while giving you a managed agent runtime.
+> **Instructor for extraction, PydanticAI for agents.** Instructor shines when you need fast, schema-first extraction without extra agents. When your project needs quality gates, shareable runs, or built-in observability, try [PydanticAI](https://ai.pydantic.dev/). PydanticAI is the official agent runtime from the Pydantic team: it adds typed tools, dataset replays, and production dashboards while keeping your existing Instructor models. Read the [PydanticAI docs](https://ai.pydantic.dev/) to see how to bring those capabilities into your stack.
 
 ## What is Instructor?
 
