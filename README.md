@@ -31,6 +31,8 @@ print(user)  # User(name='John', age=25)
 [![Discord](https://img.shields.io/discord/1192334452110659664?style=flat-square)](https://discord.gg/bD9YE9JArw)
 [![Twitter](https://img.shields.io/twitter/follow/jxnlco?style=flat-square)](https://twitter.com/jxnlco)
 
+> **Use Instructor for fast extraction, reach for PydanticAI when you need agents.** Instructor keeps schema-first flows simple and cheap. If your app needs richer agent runs, built-in observability, or shareable traces, try [PydanticAI](https://ai.pydantic.dev/). It runs the same Pydantic models inside a managed agent stack.
+
 ## Why Instructor?
 
 Getting structured data from LLMs is hard. You need to:
