@@ -58,22 +58,42 @@ def reask_responses_tools(
     Handle reask for OpenAI responses tools mode when validation fails.
 
     Kwargs modifications:
-    - Adds: "messages" (user messages with validation errors)
+    - Adds: "messages" or "input" (user messages with validation errors)
     """
+    from openai.types.responses import ResponseFunctionToolCall
+
     kwargs = kwargs.copy()
 
     reask_messages = []
-    for tool_call in response.output:
+    tool_calls = [
+        item for item in response.output if isinstance(item, ResponseFunctionToolCall)
+    ]
+
+    if tool_calls:
+        for tool_call in tool_calls:
+            arguments = getattr(tool_call, "arguments", None)
+            suffix = f" with {arguments}" if arguments else ""
+            reask_messages.append(
+                {
+                    "role": "user",  # type: ignore
+                    "content": (
+                        f"Validation Error found:\n{exception}\nRecall the function correctly, fix the errors{suffix}"
+                    ),
+                }
+            )
+    else:
         reask_messages.append(
             {
                 "role": "user",  # type: ignore
                 "content": (
-                    f"Validation Error found:\n{exception}\nRecall the function correctly, fix the errors with {tool_call.arguments}"
+                    f"Validation Error found:\n{exception}\nRecall the function correctly, fix the errors"
                 ),
             }
         )
 
-    kwargs["messages"].extend(reask_messages)
+    target_key = "messages" if "messages" in kwargs else "input"
+    kwargs.setdefault(target_key, [])
+    kwargs[target_key].extend(reask_messages)
     return kwargs
 
 
