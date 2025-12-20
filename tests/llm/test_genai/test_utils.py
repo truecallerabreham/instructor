@@ -201,3 +201,24 @@ def test_update_genai_kwargs_no_thinking_config():
     assert result["temperature"] == 0.7
     # Check that thinking_config is not included when not provided
     assert "thinking_config" not in result
+
+
+def test_update_genai_kwargs_config_thinking_config():
+    """Test that thinking_config inside config is preserved."""
+    kwargs = {"config": {"thinking_config": {"thinking_budget": 2048}}}
+    base_config = {}
+
+    result = update_genai_kwargs(kwargs, base_config)
+
+    assert result["thinking_config"] == {"thinking_budget": 2048}
+
+
+def test_update_genai_kwargs_config_automatic_function_calling():
+    """Test that config fields are merged into the base config."""
+    kwargs = {"config": {"automatic_function_calling": {"disable": True}}}
+    base_config = {"response_mime_type": "application/json"}
+
+    result = update_genai_kwargs(kwargs, base_config)
+
+    assert result["automatic_function_calling"] == {"disable": True}
+    assert result["response_mime_type"] == "application/json"

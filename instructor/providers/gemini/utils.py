@@ -261,6 +261,15 @@ def update_genai_kwargs(
 
     new_kwargs = kwargs.copy()
 
+    config = new_kwargs.pop("config", None)
+    if config is not None:
+        if isinstance(config, dict):
+            base_config = {**config, **base_config}
+        elif hasattr(config, "model_dump"):
+            base_config = {**config.model_dump(exclude_none=True), **base_config}
+        elif hasattr(config, "to_dict"):
+            base_config = {**config.to_dict(), **base_config}
+
     OPENAI_TO_GEMINI_MAP = {
         "max_tokens": "max_output_tokens",
         "temperature": "temperature",
@@ -310,6 +319,11 @@ def update_genai_kwargs(
     thinking_config = new_kwargs.pop("thinking_config", None)
     if thinking_config is not None:
         base_config["thinking_config"] = thinking_config
+
+    # Handle automatic_function_calling parameter - pass through directly since it's already in genai format
+    automatic_function_calling = new_kwargs.pop("automatic_function_calling", None)
+    if automatic_function_calling is not None:
+        base_config["automatic_function_calling"] = automatic_function_calling
 
     return base_config
 
