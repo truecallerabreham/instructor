@@ -925,8 +925,8 @@ def openai_schema(cls: type[BaseModel]) -> OpenAISchema:
     Wrap a Pydantic model class to add OpenAISchema functionality.
     """
     if not issubclass(cls, BaseModel):
-        raise ConfigurationError(
-            f"response_model must be a Pydantic BaseModel subclass, got {type(cls).__name__}"
+        raise TypeError(
+            f"response_model must be a subclass of pydantic.BaseModel, got {type(cls).__name__}"
         )
 
     # Create the wrapped model
