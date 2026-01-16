@@ -562,7 +562,8 @@ def test_google_provider_preserves_config_labels_dict_in_request_kwargs():
     assert result is sentinel
     config = captured["config"]
     assert config is not None
-    assert getattr(config, "labels") == {"tenant": "acme", "cost-center": "123"}
+    assert hasattr(config, "labels")
+    assert config.labels == {"tenant": "acme", "cost-center": "123"}  # type: ignore[attr-defined]
 
 
 def test_google_provider_runtime_import_error_propagates():
