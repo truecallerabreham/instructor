@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. The format 
 
 <!-- Add upcoming changes here -->
 
+### Fixed
+- Preserve `google-genai` `config.labels` when `config` is provided as a dict (fixes #1759)
+
 ## [1.14.3] - 2026-01-13
 
 ### Added

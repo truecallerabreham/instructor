@@ -532,6 +532,39 @@ def test_genai_mode_defaults_when_not_provided():
             assert kwargs["mode"] == instructor.Mode.GENAI_TOOLS
 
 
+def test_google_provider_preserves_config_labels_dict_in_request_kwargs():
+    """Ensure dict config labels make it into google.genai request kwargs (issue #1759)."""
+    genai = pytest.importorskip("google.genai")
+    from unittest.mock import patch
+
+    base_client = genai.Client(api_key="test-key")
+    captured = {}
+    sentinel = object()
+
+    def fake_generate_content(*_args, **kwargs):
+        captured["config"] = kwargs.get("config")
+        return sentinel
+
+    # Avoid network calls by stubbing out the underlying SDK method.
+    base_client.models.generate_content = fake_generate_content  # type: ignore[assignment]
+
+    with patch("google.genai.Client", return_value=base_client):
+        client = from_provider("google/gemini-pro", api_key="test-key")
+        result = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hello"},
+            ],
+            response_model=None,
+            config={"labels": {"tenant": "acme", "cost-center": "123"}},
+        )
+
+    assert result is sentinel
+    config = captured["config"]
+    assert config is not None
+    assert getattr(config, "labels") == {"tenant": "acme", "cost-center": "123"}
+
+
 def test_google_provider_runtime_import_error_propagates():
     """Test that ImportError during client initialization is NOT masked.
 

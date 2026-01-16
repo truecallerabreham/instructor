@@ -518,3 +518,42 @@ def test_handle_genai_tools_skips_tools_and_system_instruction_with_cached_conte
     assert result_config.system_instruction is None
     assert result_config.tools is None
     assert result_config.tool_config is None
+
+
+def test_handle_genai_message_conversion_preserves_labels_from_config_dict_with_system_message():
+    """Ensure message conversion does not overwrite config dict labels (issue #1759)."""
+    from instructor.providers.gemini.utils import handle_genai_message_conversion
+
+    new_kwargs = {
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello"},
+        ],
+        "config": {"labels": {"tenant": "acme", "cost-center": "123"}},
+    }
+
+    result_kwargs = handle_genai_message_conversion(new_kwargs)
+
+    result_config = result_kwargs["config"]
+    assert result_config.labels == {"tenant": "acme", "cost-center": "123"}
+    assert result_config.system_instruction is not None
+
+
+def test_handle_genai_message_conversion_preserves_labels_from_config_object_with_system_message():
+    """Ensure message conversion does not overwrite config object labels."""
+    from google.genai import types
+
+    from instructor.providers.gemini.utils import handle_genai_message_conversion
+
+    new_kwargs = {
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello"},
+        ],
+        "config": types.GenerateContentConfig(labels={"env": "prod"}),
+    }
+
+    result_kwargs = handle_genai_message_conversion(new_kwargs)
+
+    result_config = result_kwargs["config"]
+    assert result_config.labels == {"env": "prod"}

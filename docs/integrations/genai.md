@@ -32,14 +32,14 @@ We currently have two modes for Gemini
 ## Installation
 
 ```bash
-pip install "instructor[google-genai]"
+uv pip install "instructor[google-genai]"
 ```
 
 ## Basic Usage
 
 !!! warning "Unions and Optionals"
 
-    Gemini doesn't have support for Union and Optional types in the structured outputs and tool calling integrations. We currently throw an error when we detect these in your response model.
+    Gemini support for Union and Optional types depends on the model and SDK version. If you run into schema errors, start with simple field types and add complexity step by step.
 
 Getting started with Instructor and the genai SDK is straightforward. Just create a Pydantic model defining your output structure, patch the genai client, and make your request with a response_model parameter:
 
@@ -63,6 +63,45 @@ response = client.create(
 )
 
 print(response)  # User(name='Jason', age=25)
+```
+
+## Billing and monitoring labels (GCP)
+
+If you use Google Cloud billing or monitoring labels, you can pass them through `config`. Instructor will keep these labels when it builds the final GenAI request.
+
+```python
+import instructor
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+
+client.create(
+    messages=[{"role": "user", "content": "Say hello"}],
+    response_model=None,
+    config={
+        "labels": {
+            "tenant": "acme",
+            "cost-center": "123",
+            "env": "prod",
+        }
+    },
+)
+```
+
+You can also use the GenAI SDK config object:
+
+```python
+import instructor
+from google.genai import types
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+
+client.create(
+    messages=[{"role": "user", "content": "Say hello"}],
+    response_model=None,
+    config=types.GenerateContentConfig(
+        labels={"tenant": "acme", "cost-center": "123", "env": "prod"}
+    ),
+)
 ```
 
 ## Message Formatting

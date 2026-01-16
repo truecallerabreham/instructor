@@ -760,13 +760,43 @@ def handle_genai_message_conversion(
         new_kwargs["contents"], autodetect_images
     )
 
-    # Handle system message for GenAI
-    if "system" not in new_kwargs:
+    # Handle system message for GenAI.
+    #
+    # Important: Do not overwrite user-provided config (dict or object),
+    # otherwise fields like labels (used for billing/monitoring) can be lost.
+    system_message = new_kwargs.pop("system", None)
+    if system_message is None:
         system_message = extract_genai_system_message(messages)
-        if system_message:
-            new_kwargs["config"] = types.GenerateContentConfig(
-                system_instruction=system_message
-            )
+
+    existing_config = new_kwargs.get("config")
+    config_dict: dict[str, Any] | None = None
+    if isinstance(existing_config, dict):
+        config_dict = existing_config.copy()
+    elif existing_config is not None and hasattr(existing_config, "model_dump"):
+        # google.genai types are pydantic models in recent SDKs
+        config_dict = existing_config.model_dump(exclude_none=True)  # type: ignore[assignment]
+    elif existing_config is not None:
+        # Best-effort fallback for config-like objects
+        config_dict = {}
+        for field in (
+            "labels",
+            "cached_content",
+            "automatic_function_calling",
+            "thinking_config",
+            "system_instruction",
+        ):
+            if hasattr(existing_config, field):
+                value = getattr(existing_config, field)
+                if value is not None:
+                    config_dict[field] = value
+
+    if system_message:
+        if config_dict is None:
+            config_dict = {}
+        config_dict.setdefault("system_instruction", system_message)
+
+    if config_dict is not None:
+        new_kwargs["config"] = types.GenerateContentConfig(**config_dict)
 
     # Remove messages since we converted to contents
     new_kwargs.pop("messages", None)
