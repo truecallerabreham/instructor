@@ -153,6 +153,40 @@ def test_update_genai_kwargs_no_config_object():
     assert result["temperature"] == 0.7
 
 
+def test_update_genai_kwargs_never_includes_image_harm_categories():
+    """Regression test for issue #1773.
+
+    The google-genai SDK exposes IMAGE_* harm categories in the HarmCategory enum,
+    but the GenAI API rejects them in `safety_settings` for many models/requests
+    (400 INVALID_ARGUMENT). We must never send IMAGE_* categories.
+    """
+    from google.genai.types import HarmBlockThreshold, HarmCategory
+
+    kwargs = {
+        "safety_settings": {
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+            # Even if a user provides IMAGE_* categories, filter them out.
+            HarmCategory.HARM_CATEGORY_IMAGE_HATE: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+            HarmCategory.HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+        }
+    }
+    base_config: dict[str, object] = {}
+
+    result = update_genai_kwargs(kwargs, base_config)
+    categories = [setting["category"] for setting in result["safety_settings"]]
+
+    category_names = [
+        getattr(category, "name", None)
+        or getattr(category, "value", None)
+        or str(category)
+        for category in categories
+    ]
+
+    assert all("HARM_CATEGORY_IMAGE_" not in str(name) for name in category_names)
+    assert HarmCategory.HARM_CATEGORY_IMAGE_HATE not in categories
+    assert HarmCategory.HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT not in categories
+
+
 def test_update_genai_kwargs_config_object_with_no_thinking_config():
     """Test that function works when config object has no thinking_config."""
 
