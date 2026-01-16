@@ -341,8 +341,7 @@ def update_genai_kwargs(
     supported_categories = [
         c
         for c in HarmCategory
-        if c not in excluded_categories
-        and not _is_image_harm_category(c)
+        if c not in excluded_categories and not _is_image_harm_category(c)
     ]
 
     for category in supported_categories:
