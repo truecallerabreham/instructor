@@ -10,6 +10,7 @@ from pydantic import (
     ConfigDict,
     Field,
     TypeAdapter,
+    ValidationError,
     create_model,
 )
 
@@ -88,14 +89,19 @@ def _validate_model_from_json(
     try:
         if hasattr(cls, "model_validate_json"):
             if strict:
-                # For strict mode, prefer type-aware coercion of nested JSON strings
-                # (e.g. OpenRouter+Gemini sometimes returns nested objects as JSON strings).
-                parsed_strict = json.loads(json_str, strict=False)
-                if isinstance(parsed_strict, dict) and hasattr(cls, "model_fields"):
-                    parsed_strict = _coerce_nested_json_strings(cls, parsed_strict)
-                return cls.model_validate(
-                    parsed_strict, context=validation_context, strict=True
-                )
+                # Keep strict parsing behavior, but fall back to type-aware coercion
+                # when providers return nested objects as JSON strings.
+                try:
+                    return cls.model_validate_json(
+                        json_str, context=validation_context, strict=True
+                    )
+                except ValidationError:
+                    parsed_strict = json.loads(json_str, strict=False)
+                    if isinstance(parsed_strict, dict) and hasattr(cls, "model_fields"):
+                        parsed_strict = _coerce_nested_json_strings(cls, parsed_strict)
+                    return cls.model_validate(
+                        parsed_strict, context=validation_context, strict=True
+                    )
             # Allow control characters
             parsed = json.loads(json_str, strict=False)
             if isinstance(parsed, dict) and hasattr(cls, "model_fields"):
@@ -104,10 +110,15 @@ def _validate_model_from_json(
 
         adapter = TypeAdapter(cls)
         if strict:
-            parsed_strict = json.loads(json_str, strict=False)
-            return adapter.validate_python(
-                parsed_strict, context=validation_context, strict=True
-            )
+            try:
+                return adapter.validate_json(
+                    json_str, context=validation_context, strict=True
+                )
+            except ValidationError:
+                parsed_strict = json.loads(json_str, strict=False)
+                return adapter.validate_python(
+                    parsed_strict, context=validation_context, strict=True
+                )
         parsed = json.loads(json_str, strict=False)
         return adapter.validate_python(parsed, context=validation_context, strict=False)
     except json.JSONDecodeError as e:
