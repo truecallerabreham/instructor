@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from functools import wraps
-from typing import Annotated, Any, Optional, TypeVar, cast
+from typing import Annotated, Any, Optional, TypeVar, Union, cast, get_args, get_origin
 from openai.types.chat import ChatCompletion
 from pydantic import (
     BaseModel,
@@ -88,17 +88,25 @@ def _validate_model_from_json(
     try:
         if hasattr(cls, "model_validate_json"):
             if strict:
-                return cls.model_validate_json(
-                    json_str, context=validation_context, strict=True
+                # For strict mode, prefer type-aware coercion of nested JSON strings
+                # (e.g. OpenRouter+Gemini sometimes returns nested objects as JSON strings).
+                parsed_strict = json.loads(json_str, strict=False)
+                if isinstance(parsed_strict, dict) and hasattr(cls, "model_fields"):
+                    parsed_strict = _coerce_nested_json_strings(cls, parsed_strict)
+                return cls.model_validate(
+                    parsed_strict, context=validation_context, strict=True
                 )
             # Allow control characters
             parsed = json.loads(json_str, strict=False)
+            if isinstance(parsed, dict) and hasattr(cls, "model_fields"):
+                parsed = _coerce_nested_json_strings(cls, parsed)
             return cls.model_validate(parsed, context=validation_context, strict=False)
 
         adapter = TypeAdapter(cls)
         if strict:
-            return adapter.validate_json(
-                json_str, context=validation_context, strict=True
+            parsed_strict = json.loads(json_str, strict=False)
+            return adapter.validate_python(
+                parsed_strict, context=validation_context, strict=True
             )
         parsed = json.loads(json_str, strict=False)
         return adapter.validate_python(parsed, context=validation_context, strict=False)
@@ -108,6 +116,125 @@ def _validate_model_from_json(
     except Exception as e:
         logger.debug(f"Model validation error: {e}")
         raise
+
+
+def _looks_like_json(value: str) -> bool:
+    s = value.strip()
+    if not s:
+        return False
+    return (s.startswith("{") and s.endswith("}")) or (s.startswith("[") and s.endswith("]"))
+
+
+def _try_json_loads(value: str) -> Any | None:
+    if not _looks_like_json(value):
+        return None
+    try:
+        return json.loads(value, strict=False)
+    except Exception:
+        return None
+
+
+def _unwrap_annotated(tp: Any) -> Any:
+    if get_origin(tp) is Annotated:
+        args = get_args(tp)
+        return args[0] if args else tp
+    return tp
+
+
+def _coerce_value_to_expected_type(expected_type: Any, value: Any, *, depth: int) -> Any:
+    """
+    Coerce nested JSON strings into real Python objects based on expected type.
+
+    This is primarily to support providers that return nested objects as JSON strings
+    (notably Gemini via OpenRouter).
+    """
+    if depth <= 0:
+        return value
+    if value is None:
+        return None
+
+    expected_type = _unwrap_annotated(expected_type)
+    origin = get_origin(expected_type)
+    args = get_args(expected_type)
+
+    # Optional / Union handling
+    if origin is Union:
+        union_args = [a for a in args if a is not type(None)]  # noqa: E721
+        # Try complex types first so JSON strings get decoded when possible
+        for candidate in union_args:
+            coerced = _coerce_value_to_expected_type(candidate, value, depth=depth - 1)
+            if coerced is not value:
+                return coerced
+        return value
+
+    # BaseModel subclasses
+    if isinstance(expected_type, type) and issubclass(expected_type, BaseModel):
+        if isinstance(value, str):
+            loaded = _try_json_loads(value)
+            if isinstance(loaded, dict):
+                return _coerce_nested_json_strings(expected_type, loaded, depth=depth - 1)
+            return value
+        if isinstance(value, dict):
+            return _coerce_nested_json_strings(expected_type, value, depth=depth - 1)
+        return value
+
+    # list[T]
+    if origin in {list}:
+        item_type = args[0] if args else Any
+        if isinstance(value, str):
+            loaded = _try_json_loads(value)
+            if isinstance(loaded, list):
+                return [
+                    _coerce_value_to_expected_type(item_type, v, depth=depth - 1)
+                    for v in loaded
+                ]
+            return value
+        if isinstance(value, list):
+            return [
+                _coerce_value_to_expected_type(item_type, v, depth=depth - 1)
+                for v in value
+            ]
+        return value
+
+    # dict[K, V]
+    if origin in {dict}:
+        value_type = args[1] if len(args) == 2 else Any
+        if isinstance(value, str):
+            loaded = _try_json_loads(value)
+            if isinstance(loaded, dict):
+                return {
+                    k: _coerce_value_to_expected_type(value_type, v, depth=depth - 1)
+                    for k, v in loaded.items()
+                }
+            return value
+        if isinstance(value, dict):
+            return {
+                k: _coerce_value_to_expected_type(value_type, v, depth=depth - 1)
+                for k, v in value.items()
+            }
+        return value
+
+    return value
+
+
+def _coerce_nested_json_strings(
+    model_cls: type[BaseModel], data: dict[str, Any], depth: int = 8
+) -> dict[str, Any]:
+    """Coerce nested JSON strings for a Pydantic model's fields."""
+    if depth <= 0:
+        return data
+    if not hasattr(model_cls, "model_fields"):
+        return data
+
+    coerced: dict[str, Any] = dict(data)
+    for field_name, field_info in model_cls.model_fields.items():  # type: ignore[attr-defined]
+        if field_name not in coerced:
+            continue
+        annotation = getattr(field_info, "annotation", Any)
+        coerced[field_name] = _coerce_value_to_expected_type(
+            annotation, coerced[field_name], depth=depth
+        )
+    return coerced
 
 
 class OpenAISchema(BaseModel):
@@ -685,10 +812,11 @@ class OpenAISchema(BaseModel):
         assert (
             message.function_call.name == cls.openai_schema["name"]  # type: ignore[index]
         ), "Function name does not match"
-        return cls.model_validate_json(
+        return _validate_model_from_json(
+            cls,
             message.function_call.arguments,  # type: ignore[attr-defined]
-            context=validation_context,
-            strict=strict,
+            validation_context,
+            strict,
         )
 
     @classmethod
@@ -713,10 +841,11 @@ class OpenAISchema(BaseModel):
                 raw_response=completion,
             )
 
-        return cls.model_validate_json(
+        return _validate_model_from_json(
+            cls,
             tool_call_message.arguments,  # type: ignore[attr-defined]
-            context=validation_context,
-            strict=strict,
+            validation_context,
+            strict,
         )
 
     @classmethod
@@ -741,10 +870,11 @@ class OpenAISchema(BaseModel):
         assert (
             tool_call.function.name == cls.openai_schema["name"]  # type: ignore[index]
         ), "Tool name does not match"
-        return cls.model_validate_json(
+        return _validate_model_from_json(
+            cls,
             tool_call.function.arguments,  # type: ignore
-            context=validation_context,
-            strict=strict,
+            validation_context,
+            strict,
         )
 
     @classmethod

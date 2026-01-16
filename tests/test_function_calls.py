@@ -331,3 +331,65 @@ def test_missing_refusal_attribute(test_model: type[OpenAISchema]):
     resp = cast(Any, test_model.from_response(completion, mode=instructor.Mode.TOOLS))
     assert resp.data == "test_data"
     assert resp.name == "TestModel"
+
+
+def test_openrouter_gemini_nested_objects_as_json_strings_are_coerced() -> None:
+    import json
+
+    class Address(BaseModel):
+        street: str
+        city: str
+
+    class User(OpenAISchema):  # type: ignore[misc]
+        name: str
+        age: int
+        address: Address
+        addresses: list[Address]
+
+    arguments = json.dumps(
+        {
+            "name": "Jason",
+            "age": 25,
+            # Simulate Gemini via OpenRouter returning nested objects as JSON strings
+            "address": json.dumps({"street": "123 Main St", "city": "New York"}),
+            "addresses": json.dumps(
+                [
+                    {"street": "456 Beach Rd", "city": "Miami"},
+                    {"street": "789 Hill St", "city": "Denver"},
+                ]
+            ),
+        }
+    )
+
+    completion = ChatCompletion(
+        id="test_id",
+        created=1234567890,
+        model="google/gemini-2.0-flash-lite-001",
+        object="chat.completion",
+        choices=[
+            Choice(
+                index=0,
+                message=ChatCompletionMessage(
+                    content="test_content",
+                    refusal=None,
+                    role="assistant",
+                    tool_calls=[
+                        ChatCompletionMessageToolCall(
+                            id="tool_call_id",
+                            function=Function(name="User", arguments=arguments),
+                            type="function",
+                        )
+                    ],
+                ),
+                finish_reason="stop",
+                logprobs=None,
+            )
+        ],
+    )
+
+    user = cast(Any, User.from_response(completion, mode=instructor.Mode.TOOLS, strict=True))
+    assert user.name == "Jason"
+    assert user.age == 25
+    assert user.address.street == "123 Main St"
+    assert user.address.city == "New York"
+    assert [a.city for a in user.addresses] == ["Miami", "Denver"]
