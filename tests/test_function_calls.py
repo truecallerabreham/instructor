@@ -8,6 +8,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
+import json
 from pydantic import BaseModel, ValidationError
 
 import instructor
@@ -331,3 +332,63 @@ def test_missing_refusal_attribute(test_model: type[OpenAISchema]):
     resp = cast(Any, test_model.from_response(completion, mode=instructor.Mode.TOOLS))
     assert resp.data == "test_data"
     assert resp.name == "TestModel"
+
+
+def test_tools_mode_decodes_nested_json_strings_in_arguments() -> None:
+    class DateContext(BaseModel):
+        end_date: str
+        start_date: str
+        incomplete_date: bool
+
+    class DateContextData(OpenAISchema):  # type: ignore[misc]
+        chain_of_thought: str
+        relevant_dates: list[DateContext]
+
+    # Mimic OpenRouter+Gemini: nested objects are JSON strings inside arguments JSON.
+    inner = {
+        "start_date": "2024-01-01",
+        "end_date": "2025-01-12",
+        "incomplete_date": False,
+    }
+    outer = {
+        "chain_of_thought": "Let's think step by step.",
+        "relevant_dates": [json.dumps(inner)],
+    }
+    arguments = json.dumps(outer)
+
+    completion = ChatCompletion(
+        id="test_id",
+        created=1234567890,
+        model="google/gemini-2.0-flash-001",
+        object="chat.completion",
+        choices=[
+            Choice(
+                index=0,
+                message=ChatCompletionMessage(
+                    content=None,
+                    role="assistant",
+                    tool_calls=[
+                        ChatCompletionMessageToolCall(
+                            id="test_id",
+                            function=Function(
+                                name="DateContextData",
+                                arguments=arguments,
+                            ),
+                            type="function",
+                        )
+                    ],
+                ),
+                finish_reason="stop",
+                logprobs=None,
+            )
+        ],
+    )
+
+    resp = cast(
+        Any, DateContextData.from_response(completion, mode=instructor.Mode.TOOLS)
+    )
+    assert resp.chain_of_thought == "Let's think step by step."
+    assert len(resp.relevant_dates) == 1
+    assert resp.relevant_dates[0].start_date == "2024-01-01"
+    assert resp.relevant_dates[0].end_date == "2025-01-12"
+    assert resp.relevant_dates[0].incomplete_date is False

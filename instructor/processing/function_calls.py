@@ -39,6 +39,44 @@ logger = logging.getLogger("instructor")
 
 
 # Utility functions for common JSON parsing operations
+def _looks_like_json_container(text: str) -> bool:
+    """Return True if the string looks like a JSON object/array.
+
+    This is intentionally conservative. It's used to detect cases where providers
+    (notably OpenRouter+Gemini tool calling) return nested objects as JSON-encoded
+    strings inside the tool arguments payload.
+    """
+    stripped = text.strip()
+    if len(stripped) < 2:
+        return False
+    if stripped[0] not in ("{", "["):
+        return False
+    if stripped[-1] not in ("}", "]"):
+        return False
+    return True
+
+
+def _coerce_nested_json_strings(value: Any) -> Any:
+    """Recursively decode JSON strings that contain objects/arrays.
+
+    Example:
+        {"items": ["{\"a\": 1}", "{\"b\": 2}"]} -> {"items": [{"a": 1}, {"b": 2}]}
+    """
+    if isinstance(value, dict):
+        return {k: _coerce_nested_json_strings(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_coerce_nested_json_strings(v) for v in value]
+    if isinstance(value, str) and _looks_like_json_container(value):
+        try:
+            parsed = json.loads(value, strict=False)
+        except json.JSONDecodeError:
+            return value
+        if isinstance(parsed, (dict, list)):
+            return _coerce_nested_json_strings(parsed)
+        return value
+    return value
+
+
 def _handle_incomplete_output(completion: Any) -> None:
     """Check if a completion was incomplete and raise appropriate exception."""
     if (
@@ -741,11 +779,30 @@ class OpenAISchema(BaseModel):
         assert (
             tool_call.function.name == cls.openai_schema["name"]  # type: ignore[index]
         ), "Tool name does not match"
-        return cls.model_validate_json(
-            tool_call.function.arguments,  # type: ignore
-            context=validation_context,
-            strict=strict,
-        )
+        arguments = tool_call.function.arguments  # type: ignore
+        try:
+            return cls.model_validate_json(
+                arguments,
+                context=validation_context,
+                strict=strict,
+            )
+        except Exception as original_exc:
+            # Some providers (OpenRouter + Gemini) may serialize nested objects as JSON strings
+            # within the tool arguments payload. If we detect and fix that, retry validation.
+            try:
+                parsed = json.loads(arguments, strict=False)
+            except Exception:
+                raise original_exc from None
+
+            coerced = _coerce_nested_json_strings(parsed)
+            if coerced == parsed:
+                raise original_exc from None
+
+            return cls.model_validate(
+                coerced,
+                context=validation_context,
+                strict=strict,
+            )
 
     @classmethod
     def parse_mistral_structured_outputs(
@@ -795,8 +852,8 @@ def openai_schema(cls: type[BaseModel]) -> OpenAISchema:
     Wrap a Pydantic model class to add OpenAISchema functionality.
     """
     if not issubclass(cls, BaseModel):
-        raise ConfigurationError(
-            f"response_model must be a Pydantic BaseModel subclass, got {type(cls).__name__}"
+        raise TypeError(
+            f"response_model must be a subclass of pydantic.BaseModel, got {type(cls).__name__}"
         )
 
     # Create the wrapped model
