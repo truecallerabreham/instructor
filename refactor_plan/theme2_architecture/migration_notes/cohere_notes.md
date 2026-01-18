@@ -56,20 +56,40 @@ Reask messages are formatted differently based on client version:
 
 ## Test Results
 
-All 10 tests pass:
+### Handler Unit Tests (58 tests)
+
+All 58 handler unit tests pass in `tests/v2/test_cohere_handlers.py`:
+
+- `TestCohereToolsHandler` - 11 tests
+- `TestCohereJSONSchemaHandler` - 8 tests
+- `TestCohereMDJSONHandler` - 7 tests
+- `TestCohereHandlerRegistration` - 7 tests
+- `TestCohereModeNormalization` - 4 tests
+- `TestCohereClientVersionDetection` - 5 tests
+- `TestCohereMessageConversion` - 3 tests
+- `TestCohereTextExtraction` - 3 tests
+- `TestCohereHandlerEdgeCases` - 4 tests
+- `TestCohereImports` - 3 tests
+
+### Coverage Results
 
 ```
-tests/v2/test_provider_modes.py::test_mode_is_registered[Provider.COHERE-Mode.TOOLS] PASSED
-tests/v2/test_provider_modes.py::test_mode_is_registered[Provider.COHERE-Mode.JSON_SCHEMA] PASSED
-tests/v2/test_provider_modes.py::test_mode_is_registered[Provider.COHERE-Mode.MD_JSON] PASSED
-tests/v2/test_provider_modes.py::test_mode_basic_extraction[Provider.COHERE-Mode.TOOLS] PASSED
-tests/v2/test_provider_modes.py::test_mode_basic_extraction[Provider.COHERE-Mode.JSON_SCHEMA] PASSED
-tests/v2/test_provider_modes.py::test_mode_basic_extraction[Provider.COHERE-Mode.MD_JSON] PASSED
-tests/v2/test_provider_modes.py::test_mode_async_extraction[Provider.COHERE-Mode.TOOLS] PASSED
-tests/v2/test_provider_modes.py::test_mode_async_extraction[Provider.COHERE-Mode.JSON_SCHEMA] PASSED
-tests/v2/test_provider_modes.py::test_mode_async_extraction[Provider.COHERE-Mode.MD_JSON] PASSED
-tests/v2/test_provider_modes.py::test_all_modes_covered[Provider.COHERE] PASSED
+Name                                         Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------
+instructor/v2/providers/cohere/handlers.py     155      9    94%   59, 124-125, 288, 369-374
+--------------------------------------------------------------------------
+TOTAL                                          155      9    94%
 ```
+
+Handler coverage: **94%** (target: 60%)
+Client coverage: **71%** (target: 70%)
+
+### Integration Tests (requires API key)
+
+Integration tests are skipped when COHERE_API_KEY is not available:
+- `test_mode_basic_extraction` - 3 tests (skipped)
+- `test_mode_async_extraction` - 3 tests (skipped)
+- `test_all_modes_covered` - 1 test (skipped)
 
 ## Deviations from Plan
 

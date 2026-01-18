@@ -870,10 +870,10 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
 - [x] Add import to `instructor/v2/__init__.py`
 - [x] Add legacy normalizations (COHERE_TOOLS -> TOOLS) - already in registry.py
 - [x] Add to `PROVIDER_CONFIGS` in tests
-- [x] Run: `pytest tests/v2/ -v -k "cohere"` - All 10 tests pass
-- [ ] Handler test coverage ≥60% (`handlers.py`) - Current: 46%
-- [ ] Client test coverage ≥70% (`client.py`) - Current: 71% ✅
-- [ ] Add handler unit tests for all methods
+- [x] Run: `pytest tests/v2/ -v -k "cohere"` - All 79 tests pass
+- [x] Handler test coverage ≥60% (`handlers.py`) - Current: 94% ✅
+- [x] Client test coverage ≥70% (`client.py`) - Current: 71% ✅
+- [x] Add handler unit tests for all methods - 58 tests in `tests/v2/test_cohere_handlers.py`
 
 ### Test Checklist
 
