@@ -37,6 +37,11 @@ def normalize_mode(_provider: Provider, mode: Mode) -> Mode:
         Mode.GENAI_TOOLS: Mode.TOOLS,
         Mode.GENAI_JSON: Mode.JSON,
         Mode.GENAI_STRUCTURED_OUTPUTS: Mode.JSON,
+        # OpenAI legacy modes
+        Mode.FUNCTIONS: Mode.TOOLS,
+        Mode.TOOLS_STRICT: Mode.TOOLS,
+        Mode.JSON_O1: Mode.JSON_SCHEMA,
+        Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS: Mode.RESPONSES_TOOLS,
         # Keep ANTHROPIC_REASONING_TOOLS as-is since it's deprecated but still used
     }
 

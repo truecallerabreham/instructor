@@ -37,6 +37,11 @@ try:
 except ImportError:
     from_genai = None  # type: ignore
 
+try:
+    from instructor.v2.providers.openai import from_openai
+except ImportError:
+    from_openai = None  # type: ignore
+
 __all__ = [
     # Core types
     "Provider",
@@ -55,4 +60,5 @@ __all__ = [
     # Providers
     "from_anthropic",
     "from_genai",
+    "from_openai",
 ]
