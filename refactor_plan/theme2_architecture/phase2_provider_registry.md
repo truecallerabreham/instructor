@@ -804,7 +804,7 @@ uv run pytest tests/llm/test_anthropic/ -v
 uv run pytest tests/llm/test_openai/ -v
 
 # Test auto_client with registry
-uv run pytest tests/test_auto_client.py -v
+uv run pytest tests/providers/test_auto_client.py -v
 ```
 
 ---

@@ -713,19 +713,130 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
     assert response.answer == 4.0
 ```
 
-### Tests to Run
+### Test Checklist
 
-```bash
-# Unit tests (no API key)
-pytest tests/v2/test_openai_modes.py -v -k "not requires_api_key"
+#### Unit Tests (No API Key Required)
 
-# Integration tests (need OPENAI_API_KEY)
-OPENAI_API_KEY=... pytest tests/v2/test_openai_modes.py -v -m requires_api_key
+- [ ] **Handler Registration Tests**:
+  ```bash
+  pytest tests/v2/test_provider_modes.py -v -k "openai and test_mode_is_registered"
+  ```
 
-# Existing tests (ensure no regressions)
-pytest tests/llm/test_openai/ -v
-pytest tests/test_patch.py -v
-```
+- [ ] **Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_openai_handlers.py -v -k "not requires_api_key"
+  ```
+  - [ ] `OpenAIToolsHandler.prepare_request()` - Test with/without response_model, strict parameter
+  - [ ] `OpenAIToolsHandler.parse_response()` - Test tool call extraction
+  - [ ] `OpenAIToolsHandler.handle_reask()` - Test reask logic
+  - [ ] `OpenAIJSONSchemaHandler.prepare_request()` - Test response_format setup
+  - [ ] `OpenAIJSONSchemaHandler.parse_response()` - Test JSON parsing
+  - [ ] `OpenAIMDJSONHandler.prepare_request()` - Test markdown instruction injection
+  - [ ] `OpenAIMDJSONHandler.parse_response()` - Test code block extraction
+  - [ ] `OpenAIParallelToolsHandler.prepare_request()` - Test parallel tool setup
+  - [ ] `OpenAIParallelToolsHandler.parse_response()` - Test multiple tool call parsing
+  - [ ] `OpenAIResponsesToolsHandler` - Test Responses API format
+
+- [ ] **Client Factory Tests**:
+  ```bash
+  pytest tests/v2/test_openai_client.py -v -k "not requires_api_key"
+  ```
+  - [ ] `from_openai()` sync client creation
+  - [ ] `from_openai()` async client creation
+  - [ ] Invalid client type error handling
+  - [ ] Invalid mode error handling
+  - [ ] Legacy mode normalization with deprecation warnings
+  - [ ] Mode validation for unsupported modes
+
+- [ ] **Mode Normalization Tests**:
+  ```bash
+  pytest tests/v2/test_mode_normalization.py -v -k "openai"
+  ```
+  - [ ] `Mode.FUNCTIONS` -> `Mode.TOOLS`
+  - [ ] `Mode.TOOLS_STRICT` -> `Mode.TOOLS`
+  - [ ] `Mode.JSON` -> `Mode.JSON_SCHEMA`
+  - [ ] `Mode.JSON_O1` -> `Mode.JSON_SCHEMA`
+  - [ ] Generic modes pass through unchanged
+
+#### Integration Tests (Requires OPENAI_API_KEY)
+
+- [ ] **Basic Extraction Tests**:
+  ```bash
+  OPENAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "openai and test_mode_basic_extraction"
+  ```
+  - [ ] `Mode.TOOLS` extraction
+  - [ ] `Mode.JSON_SCHEMA` extraction
+  - [ ] `Mode.MD_JSON` extraction
+  - [ ] `Mode.PARALLEL_TOOLS` extraction
+  - [ ] `Mode.RESPONSES_TOOLS` extraction
+
+- [ ] **Streaming Tests**:
+  ```bash
+  OPENAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "openai and streaming"
+  ```
+  - [ ] Streaming with `Mode.TOOLS`
+  - [ ] Streaming with `Mode.JSON_SCHEMA`
+  - [ ] Partial streaming with `Partial[T]`
+  - [ ] Iterable streaming
+
+- [ ] **Async Tests**:
+  ```bash
+  OPENAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "openai and async"
+  ```
+  - [ ] Async extraction with all modes
+  - [ ] Async streaming
+
+- [ ] **Advanced Features**:
+  ```bash
+  OPENAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "openai"
+  ```
+  - [ ] List extraction
+  - [ ] Nested models
+  - [ ] Validation errors and retries
+  - [ ] Union types
+  - [ ] Enum types
+  - [ ] Vision/image input
+
+#### Coverage Tests
+
+- [ ] **Handler Coverage**:
+  ```bash
+  pytest tests/v2/ -k "openai" --cov=instructor.v2.providers.openai.handlers --cov-report=term-missing
+  ```
+  - [ ] Target: ≥70% coverage
+  - [ ] All handler methods covered
+  - [ ] Edge cases covered (None response_model, invalid responses)
+
+- [ ] **Client Coverage**:
+  ```bash
+  pytest tests/v2/ -k "openai" --cov=instructor.v2.providers.openai.client --cov-report=term-missing
+  ```
+  - [ ] Target: ≥60% coverage
+  - [ ] Sync/async paths covered
+  - [ ] Error handling covered
+
+#### Regression Tests
+
+- [ ] **Existing OpenAI Tests**:
+  ```bash
+  pytest tests/llm/test_openai/ -v
+  ```
+  - [ ] All existing tests pass
+  - [ ] No regressions introduced
+
+- [ ] **Patch Tests**:
+  ```bash
+  pytest tests/core/test_patch.py -v
+  ```
+  - [ ] v2 patch works correctly
+  - [ ] Backward compatibility maintained
+
+- [ ] **Auto Client Tests**:
+  ```bash
+  pytest tests/providers/test_auto_client.py -v -k "openai"
+  ```
+  - [ ] `from_provider()` works with OpenAI
+  - [ ] Provider detection correct
 
 ### Success Criteria
 
@@ -764,6 +875,108 @@ pytest tests/test_patch.py -v
 - [ ] Client test coverage ≥70% (`client.py`) - Current: 71% ✅
 - [ ] Add handler unit tests for all methods
 
+### Test Checklist
+
+#### Unit Tests (No API Key Required)
+
+- [ ] **Handler Registration Tests**:
+  ```bash
+  pytest tests/v2/test_provider_modes.py -v -k "cohere and test_mode_is_registered"
+  ```
+
+- [ ] **Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_cohere_handlers.py -v -k "not requires_api_key"
+  ```
+  - [ ] `CohereToolsHandler.prepare_request()` - Test tool format
+  - [ ] `CohereToolsHandler.parse_response()` - Test tool call extraction
+  - [ ] `CohereToolsHandler.handle_reask()` - Test reask logic
+  - [ ] `CohereJSONSchemaHandler.prepare_request()` - Test structured outputs setup
+  - [ ] `CohereJSONSchemaHandler.parse_response()` - Test JSON parsing
+  - [ ] `CohereMDJSONHandler.prepare_request()` - Test markdown instruction
+  - [ ] `CohereMDJSONHandler.parse_response()` - Test code block extraction
+
+- [ ] **Client Factory Tests**:
+  ```bash
+  pytest tests/v2/test_cohere_client.py -v -k "not requires_api_key"
+  ```
+  - [ ] `from_cohere()` sync client creation
+  - [ ] `from_cohere()` async client creation
+  - [ ] Invalid client type error handling
+  - [ ] Invalid mode error handling
+  - [ ] Legacy mode normalization (`COHERE_TOOLS` -> `TOOLS`)
+
+- [ ] **Mode Normalization Tests**:
+  ```bash
+  pytest tests/v2/test_mode_normalization.py -v -k "cohere"
+  ```
+  - [ ] `Mode.COHERE_TOOLS` -> `Mode.TOOLS`
+  - [ ] `Mode.COHERE_JSON_SCHEMA` -> `Mode.JSON_SCHEMA`
+  - [ ] Generic modes pass through unchanged
+
+#### Integration Tests (Requires COHERE_API_KEY)
+
+- [ ] **Basic Extraction Tests**:
+  ```bash
+  COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cohere and test_mode_basic_extraction"
+  ```
+  - [ ] `Mode.TOOLS` extraction
+  - [ ] `Mode.JSON_SCHEMA` extraction
+  - [ ] `Mode.MD_JSON` extraction
+
+- [ ] **Streaming Tests**:
+  ```bash
+  COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cohere and streaming"
+  ```
+  - [ ] Streaming with all supported modes
+  - [ ] Partial streaming with `Partial[T]`
+
+- [ ] **Async Tests**:
+  ```bash
+  COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cohere and async"
+  ```
+  - [ ] Async extraction with all modes
+  - [ ] Async streaming
+
+- [ ] **Advanced Features**:
+  ```bash
+  COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cohere"
+  ```
+  - [ ] List extraction
+  - [ ] Nested models
+  - [ ] Validation errors and retries
+
+#### Coverage Tests
+
+- [ ] **Handler Coverage**:
+  ```bash
+  pytest tests/v2/ -k "cohere" --cov=instructor.v2.providers.cohere.handlers --cov-report=term-missing
+  ```
+  - [ ] Target: ≥60% coverage
+  - [ ] All handler methods covered
+
+- [ ] **Client Coverage**:
+  ```bash
+  pytest tests/v2/ -k "cohere" --cov=instructor.v2.providers.cohere.client --cov-report=term-missing
+  ```
+  - [ ] Target: ≥70% coverage
+  - [ ] Sync/async paths covered
+
+#### Regression Tests
+
+- [ ] **Existing Cohere Tests**:
+  ```bash
+  pytest tests/llm/test_cohere/ -v
+  ```
+  - [ ] All existing tests pass
+  - [ ] No regressions introduced
+
+- [ ] **Auto Client Tests**:
+  ```bash
+  pytest tests/providers/test_auto_client.py -v -k "cohere"
+  ```
+  - [ ] `from_provider()` works with Cohere
+
 ### Modes to Support
 
 | Core Mode | Legacy Mode | Notes |
@@ -796,6 +1009,108 @@ pytest tests/test_patch.py -v
 - [x] Client test coverage ≥50% (`client.py`) - Current: 12% (requires xAI SDK)
 - [x] Add handler unit tests for all methods - 38 tests in `tests/v2/test_xai_handlers.py`
 
+### Test Checklist
+
+#### Unit Tests (No API Key Required)
+
+- [ ] **Handler Registration Tests**:
+  ```bash
+  pytest tests/v2/test_provider_modes.py -v -k "xai and test_mode_is_registered"
+  ```
+
+- [ ] **Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_xai_handlers.py -v -k "not requires_api_key"
+  ```
+  - [ ] `XAIToolsHandler.prepare_request()` - Test tool format
+  - [ ] `XAIToolsHandler.parse_response()` - Test tool call extraction
+  - [ ] `XAIToolsHandler.handle_reask()` - Test reask logic
+  - [ ] `XAIJSONSchemaHandler.prepare_request()` - Test structured outputs setup
+  - [ ] `XAIJSONSchemaHandler.parse_response()` - Test JSON parsing
+  - [ ] `XAIMDJSONHandler.prepare_request()` - Test markdown instruction
+  - [ ] `XAIMDJSONHandler.parse_response()` - Test code block extraction
+
+- [ ] **Client Factory Tests**:
+  ```bash
+  pytest tests/v2/test_xai_client.py -v -k "not requires_api_key"
+  ```
+  - [ ] `from_xai()` sync client creation
+  - [ ] `from_xai()` async client creation
+  - [ ] Invalid client type error handling
+  - [ ] Invalid mode error handling
+  - [ ] Legacy mode normalization (`XAI_TOOLS` -> `TOOLS`, `XAI_JSON` -> `JSON_SCHEMA`)
+
+- [ ] **Mode Normalization Tests**:
+  ```bash
+  pytest tests/v2/test_mode_normalization.py -v -k "xai"
+  ```
+  - [ ] `Mode.XAI_TOOLS` -> `Mode.TOOLS`
+  - [ ] `Mode.XAI_JSON` -> `Mode.JSON_SCHEMA`
+  - [ ] Generic modes pass through unchanged
+
+#### Integration Tests (Requires XAI_API_KEY)
+
+- [ ] **Basic Extraction Tests**:
+  ```bash
+  XAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "xai and test_mode_basic_extraction"
+  ```
+  - [ ] `Mode.TOOLS` extraction
+  - [ ] `Mode.JSON_SCHEMA` extraction
+  - [ ] `Mode.MD_JSON` extraction (may have model-specific issues)
+
+- [ ] **Streaming Tests**:
+  ```bash
+  XAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "xai and streaming"
+  ```
+  - [ ] Streaming with all supported modes
+  - [ ] Partial streaming with `Partial[T]`
+
+- [ ] **Async Tests**:
+  ```bash
+  XAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "xai and async"
+  ```
+  - [ ] Async extraction with all modes
+  - [ ] Async streaming
+
+- [ ] **Advanced Features**:
+  ```bash
+  XAI_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "xai"
+  ```
+  - [ ] Nested models
+  - [ ] Validation errors and retries
+  - [ ] Note: list_extraction may have issues with tool_calls
+
+#### Coverage Tests
+
+- [ ] **Handler Coverage**:
+  ```bash
+  pytest tests/v2/ -k "xai" --cov=instructor.v2.providers.xai.handlers --cov-report=term-missing
+  ```
+  - [ ] Target: ≥60% coverage (Current: 77% ✅)
+  - [ ] All handler methods covered
+
+- [ ] **Client Coverage**:
+  ```bash
+  pytest tests/v2/ -k "xai" --cov=instructor.v2.providers.xai.client --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% coverage (Current: 12% - requires xAI SDK)
+  - [ ] Sync/async paths covered
+
+#### Regression Tests
+
+- [ ] **Existing xAI Tests**:
+  ```bash
+  pytest tests/llm/test_xai/ -v
+  ```
+  - [ ] All existing tests pass
+  - [ ] No regressions introduced
+
+- [ ] **Auto Client Tests**:
+  ```bash
+  pytest tests/providers/test_auto_client.py -v -k "xai"
+  ```
+  - [ ] `from_provider()` works with xAI
+
 ### Modes to Support
 
 | Core Mode | Legacy Mode | Notes |
@@ -826,6 +1141,98 @@ pytest tests/test_patch.py -v
 - [x] Client test coverage ≥50% (`client.py`) - Current: 48% (close to target)
 - [x] Add handler unit tests for all methods - 24 tests in `tests/v2/test_groq_handlers.py`
 - [x] Add client factory tests - 15 tests in `tests/v2/test_groq_client.py`
+
+### Test Checklist
+
+#### Unit Tests (No API Key Required)
+
+- [ ] **Handler Registration Tests**:
+  ```bash
+  pytest tests/v2/test_provider_modes.py -v -k "groq and test_mode_is_registered"
+  ```
+
+- [ ] **Handler Unit Tests** (Groq reuses OpenAI handlers):
+  ```bash
+  pytest tests/v2/test_groq_handlers.py -v -k "not requires_api_key"
+  ```
+  - [ ] `GroqToolsHandler` extends `OpenAIToolsHandler` correctly
+  - [ ] `GroqMDJSONHandler` extends `OpenAIMDJSONHandler` correctly
+  - [ ] Handler registration works
+  - [ ] Mode assignment correct
+
+- [ ] **Client Factory Tests**:
+  ```bash
+  pytest tests/v2/test_groq_client.py -v -k "not requires_api_key"
+  ```
+  - [ ] `from_groq()` sync client creation
+  - [ ] `from_groq()` async client creation
+  - [ ] Invalid client type error handling
+  - [ ] Invalid mode error handling (JSON_SCHEMA not supported)
+  - [ ] Mode validation for unsupported modes
+
+- [ ] **Mode Normalization Tests**:
+  ```bash
+  pytest tests/v2/test_mode_normalization.py -v -k "groq"
+  ```
+  - [ ] Generic modes pass through unchanged
+  - [ ] Unsupported modes raise appropriate errors
+
+#### Integration Tests (Requires GROQ_API_KEY - Optional)
+
+- [ ] **Basic Extraction Tests** (if API key available):
+  ```bash
+  GROQ_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "groq and test_mode_basic_extraction"
+  ```
+  - [ ] `Mode.TOOLS` extraction
+  - [ ] `Mode.MD_JSON` extraction
+  - [ ] `Mode.JSON_SCHEMA` should fail gracefully (not supported)
+
+- [ ] **Streaming Tests** (if API key available):
+  ```bash
+  GROQ_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "groq and streaming"
+  ```
+  - [ ] Streaming with `Mode.TOOLS`
+  - [ ] Streaming with `Mode.MD_JSON`
+  - [ ] Partial streaming with `Partial[T]`
+
+- [ ] **Async Tests** (if API key available):
+  ```bash
+  GROQ_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "groq and async"
+  ```
+  - [ ] Async extraction with all supported modes
+  - [ ] Async streaming
+
+#### Coverage Tests
+
+- [ ] **Handler Coverage**:
+  ```bash
+  pytest tests/v2/ -k "groq" --cov=instructor.v2.providers.groq.handlers --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% coverage (Current: 100% ✅)
+  - [ ] All handler methods covered
+
+- [ ] **Client Coverage**:
+  ```bash
+  pytest tests/v2/ -k "groq" --cov=instructor.v2.providers.groq.client --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% coverage (Current: 48% - close to target)
+  - [ ] Sync/async paths covered
+  - [ ] Error handling covered
+
+#### Regression Tests
+
+- [ ] **Existing Groq Tests**:
+  ```bash
+  pytest tests/llm/test_groq/ -v
+  ```
+  - [ ] All existing tests pass
+  - [ ] No regressions introduced
+
+- [ ] **Auto Client Tests**:
+  ```bash
+  pytest tests/providers/test_auto_client.py -v -k "groq"
+  ```
+  - [ ] `from_provider()` works with Groq
 
 ### Modes to Support
 
@@ -1210,12 +1617,107 @@ def test_normalize_mode(provider: Provider, mode: Mode, expected: Mode):
     assert result == expected
 ```
 
-### Tests to Run
+### Test Checklist
 
-```bash
-pytest tests/v2/test_provider_modes.py -v -k "mistral"
-MISTRAL_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "mistral"
-```
+#### Unit Tests (No API Key Required)
+
+- [ ] **Handler Registration Tests**:
+  ```bash
+  pytest tests/v2/test_provider_modes.py -v -k "mistral and test_mode_is_registered"
+  ```
+
+- [ ] **Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_mistral_handlers.py -v -k "not requires_api_key"
+  ```
+  - [ ] `MistralToolsHandler.prepare_request()` - Test Mistral tool format
+  - [ ] `MistralToolsHandler.parse_response()` - Test tool call extraction
+  - [ ] `MistralToolsHandler.handle_reask()` - Test reask logic
+  - [ ] `MistralJSONSchemaHandler.prepare_request()` - Test structured outputs setup
+  - [ ] `MistralJSONSchemaHandler.parse_response()` - Test JSON parsing
+  - [ ] `MistralMDJSONHandler.prepare_request()` - Test markdown instruction
+  - [ ] `MistralMDJSONHandler.parse_response()` - Test code block extraction
+
+- [ ] **Client Factory Tests**:
+  ```bash
+  pytest tests/v2/test_mistral_client.py -v -k "not requires_api_key"
+  ```
+  - [ ] `from_mistral()` sync client creation
+  - [ ] `from_mistral()` async client creation
+  - [ ] Invalid client type error handling
+  - [ ] Invalid mode error handling
+  - [ ] Legacy mode normalization (`MISTRAL_TOOLS` -> `TOOLS`, `MISTRAL_STRUCTURED_OUTPUTS` -> `JSON_SCHEMA`)
+
+- [ ] **Mode Normalization Tests**:
+  ```bash
+  pytest tests/v2/test_mode_normalization.py -v -k "mistral"
+  ```
+  - [ ] `Mode.MISTRAL_TOOLS` -> `Mode.TOOLS`
+  - [ ] `Mode.MISTRAL_STRUCTURED_OUTPUTS` -> `Mode.JSON_SCHEMA`
+  - [ ] Generic modes pass through unchanged
+
+#### Integration Tests (Requires MISTRAL_API_KEY - Optional)
+
+- [ ] **Basic Extraction Tests** (if API key available):
+  ```bash
+  MISTRAL_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "mistral and test_mode_basic_extraction"
+  ```
+  - [ ] `Mode.TOOLS` extraction
+  - [ ] `Mode.JSON_SCHEMA` extraction
+  - [ ] `Mode.MD_JSON` extraction
+
+- [ ] **Streaming Tests** (if API key available):
+  ```bash
+  MISTRAL_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "mistral and streaming"
+  ```
+  - [ ] Streaming with all supported modes
+  - [ ] Partial streaming with `Partial[T]`
+
+- [ ] **Async Tests** (if API key available):
+  ```bash
+  MISTRAL_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "mistral and async"
+  ```
+  - [ ] Async extraction with all modes
+  - [ ] Async streaming
+
+- [ ] **Advanced Features** (if API key available):
+  ```bash
+  MISTRAL_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "mistral"
+  ```
+  - [ ] List extraction
+  - [ ] Nested models
+  - [ ] Validation errors and retries
+
+#### Coverage Tests
+
+- [ ] **Handler Coverage**:
+  ```bash
+  pytest tests/v2/ -k "mistral" --cov=instructor.v2.providers.mistral.handlers --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% coverage
+  - [ ] All handler methods covered
+
+- [ ] **Client Coverage**:
+  ```bash
+  pytest tests/v2/ -k "mistral" --cov=instructor.v2.providers.mistral.client --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% coverage
+  - [ ] Sync/async paths covered
+
+#### Regression Tests
+
+- [ ] **Existing Mistral Tests**:
+  ```bash
+  pytest tests/llm/test_mistral/ -v
+  ```
+  - [ ] All existing tests pass
+  - [ ] No regressions introduced
+
+- [ ] **Auto Client Tests**:
+  ```bash
+  pytest tests/providers/test_auto_client.py -v -k "mistral"
+  ```
+  - [ ] `from_provider()` works with Mistral
 
 ---
 
@@ -1234,6 +1736,29 @@ All these providers have missing API keys. Implement with unit tests only.
 - [ ] Add to `PROVIDER_CONFIGS`
 - [ ] Run unit tests only
 
+#### Test Checklist
+
+- [ ] **Unit Tests**:
+  ```bash
+  pytest tests/v2/ -v -k "fireworks and not requires_api_key"
+  ```
+  - [ ] Handler registration tests
+  - [ ] Handler unit tests (reuses OpenAI handlers)
+  - [ ] Client factory tests
+  - [ ] Mode normalization tests
+
+- [ ] **Coverage Tests**:
+  ```bash
+  pytest tests/v2/ -k "fireworks" --cov=instructor.v2.providers.fireworks --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% handler coverage
+  - [ ] Target: ≥50% client coverage
+
+- [ ] **Integration Tests** (if API key becomes available):
+  ```bash
+  FIREWORKS_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "fireworks"
+  ```
+
 ### Phase 7: Cerebras
 
 **API Key**: `CEREBRAS_API_KEY` - MISSING
@@ -1242,6 +1767,29 @@ All these providers have missing API keys. Implement with unit tests only.
 - [ ] Handlers: `TOOLS`, `MD_JSON` (OpenAI-compatible)
 - [ ] Add to `PROVIDER_CONFIGS`
 - [ ] Run unit tests only
+
+#### Test Checklist
+
+- [ ] **Unit Tests**:
+  ```bash
+  pytest tests/v2/ -v -k "cerebras and not requires_api_key"
+  ```
+  - [ ] Handler registration tests
+  - [ ] Handler unit tests (reuses OpenAI handlers)
+  - [ ] Client factory tests
+  - [ ] Mode normalization tests
+
+- [ ] **Coverage Tests**:
+  ```bash
+  pytest tests/v2/ -k "cerebras" --cov=instructor.v2.providers.cerebras --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% handler coverage
+  - [ ] Target: ≥50% client coverage
+
+- [ ] **Integration Tests** (if API key becomes available):
+  ```bash
+  CEREBRAS_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cerebras"
+  ```
 
 ### Phase 8: Writer
 
@@ -1252,6 +1800,29 @@ All these providers have missing API keys. Implement with unit tests only.
 - [ ] Add to `PROVIDER_CONFIGS`
 - [ ] Run unit tests only
 
+#### Test Checklist
+
+- [ ] **Unit Tests**:
+  ```bash
+  pytest tests/v2/ -v -k "writer and not requires_api_key"
+  ```
+  - [ ] Handler registration tests
+  - [ ] Handler unit tests
+  - [ ] Client factory tests
+  - [ ] Mode normalization tests
+
+- [ ] **Coverage Tests**:
+  ```bash
+  pytest tests/v2/ -k "writer" --cov=instructor.v2.providers.writer --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% handler coverage
+  - [ ] Target: ≥50% client coverage
+
+- [ ] **Integration Tests** (if API key becomes available):
+  ```bash
+  WRITER_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "writer"
+  ```
+
 ### Phase 9: Perplexity
 
 **API Key**: `PERPLEXITY_API_KEY` - MISSING
@@ -1260,6 +1831,31 @@ All these providers have missing API keys. Implement with unit tests only.
 - [ ] Handlers: `MD_JSON` only (no tool calling support)
 - [ ] Add to `PROVIDER_CONFIGS`
 - [ ] Run unit tests only
+
+#### Test Checklist
+
+- [ ] **Unit Tests**:
+  ```bash
+  pytest tests/v2/ -v -k "perplexity and not requires_api_key"
+  ```
+  - [ ] Handler registration tests (MD_JSON only)
+  - [ ] Handler unit tests
+  - [ ] Client factory tests
+  - [ ] Mode normalization tests
+  - [ ] Verify TOOLS mode raises appropriate error
+
+- [ ] **Coverage Tests**:
+  ```bash
+  pytest tests/v2/ -k "perplexity" --cov=instructor.v2.providers.perplexity --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% handler coverage
+  - [ ] Target: ≥50% client coverage
+
+- [ ] **Integration Tests** (if API key becomes available):
+  ```bash
+  PERPLEXITY_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "perplexity"
+  ```
+  - [ ] Note: Perplexity has limited streaming support
 
 ### Phase 10: Bedrock
 
@@ -1270,6 +1866,30 @@ All these providers have missing API keys. Implement with unit tests only.
 - [ ] Add to `PROVIDER_CONFIGS`
 - [ ] Run unit tests only
 
+#### Test Checklist
+
+- [ ] **Unit Tests**:
+  ```bash
+  pytest tests/v2/ -v -k "bedrock and not requires_api_key"
+  ```
+  - [ ] Handler registration tests
+  - [ ] Handler unit tests
+  - [ ] Client factory tests
+  - [ ] Mode normalization tests
+  - [ ] AWS credentials handling tests
+
+- [ ] **Coverage Tests**:
+  ```bash
+  pytest tests/v2/ -k "bedrock" --cov=instructor.v2.providers.bedrock --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% handler coverage
+  - [ ] Target: ≥50% client coverage
+
+- [ ] **Integration Tests** (if AWS credentials become available):
+  ```bash
+  AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "bedrock"
+  ```
+
 ### Phase 11: VertexAI
 
 **API Key**: `GOOGLE_APPLICATION_CREDENTIALS` - MISSING
@@ -1278,6 +1898,32 @@ All these providers have missing API keys. Implement with unit tests only.
 - [ ] Handlers: `TOOLS`, `JSON_SCHEMA`, `MD_JSON`, `PARALLEL_TOOLS`
 - [ ] Add to `PROVIDER_CONFIGS`
 - [ ] Run unit tests only
+
+#### Test Checklist
+
+- [ ] **Unit Tests**:
+  ```bash
+  pytest tests/v2/ -v -k "vertexai and not requires_api_key"
+  ```
+  - [ ] Handler registration tests (all 4 modes)
+  - [ ] Handler unit tests
+  - [ ] Client factory tests
+  - [ ] Mode normalization tests
+  - [ ] Google Cloud credentials handling tests
+
+- [ ] **Coverage Tests**:
+  ```bash
+  pytest tests/v2/ -k "vertexai" --cov=instructor.v2.providers.vertexai --cov-report=term-missing
+  ```
+  - [ ] Target: ≥50% handler coverage
+  - [ ] Target: ≥50% client coverage
+
+- [ ] **Integration Tests** (if Google Cloud credentials become available):
+  ```bash
+  GOOGLE_APPLICATION_CREDENTIALS=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "vertexai"
+  ```
+  - [ ] Test all 4 modes: TOOLS, JSON_SCHEMA, MD_JSON, PARALLEL_TOOLS
+  - [ ] Test streaming and async capabilities
 
 ---
 
@@ -1488,6 +2134,15 @@ For each provider migration, ensure:
   - [ ] Async extraction (if supported)
   - [ ] Error handling and retries
   - [ ] Mode normalization in practice
+
+### Parameterized Handler Tests
+
+The shared handler tests live in `tests/v2/test_handlers_parametrized.py`.
+Run them with:
+
+```bash
+uv run pytest tests/v2/test_handlers_parametrized.py -v
+```
 
 ### Critical Coverage Gaps
 
@@ -1908,7 +2563,7 @@ tests/llm/test_vertexai/util.py
   - models = ["gemini-2.5-flash-lite"]
 
 # Auto client tests
-tests/test_auto_client.py
+tests/providers/test_auto_client.py
   - Update model strings throughout
 ```
 ```
@@ -2126,8 +2781,8 @@ ANTHROPIC_API_KEY=... pytest tests/v2/ -v -m requires_api_key -k "anthropic"
 
 # Regression tests
 pytest tests/llm/ -v
-pytest tests/test_patch.py -v
-pytest tests/test_auto_client.py -v
+pytest tests/core/test_patch.py -v
+pytest tests/providers/test_auto_client.py -v
 ```
 
 ---

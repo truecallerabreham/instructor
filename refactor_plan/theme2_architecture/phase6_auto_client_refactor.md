@@ -287,7 +287,7 @@ def is_provider_available(provider: str) -> bool:
 **Update existing tests**:
 
 ```python
-# tests/test_auto_client.py
+# tests/providers/test_auto_client.py
 
 def test_from_provider_openai():
     """Test from_provider with OpenAI."""
@@ -330,7 +330,7 @@ def test_list_providers_verbose():
 
 ```bash
 # Should all pass with new implementation
-uv run pytest tests/test_auto_client.py -v
+uv run pytest tests/providers/test_auto_client.py -v
 uv run pytest tests/ -k "not llm" -v  # All unit tests
 ```
 
@@ -414,7 +414,7 @@ Ensure all existing functionality works:
 
 ```bash
 # All auto_client tests should pass
-uv run pytest tests/test_auto_client.py -v
+uv run pytest tests/providers/test_auto_client.py -v
 
 # All provider tests should work via auto_client
 uv run pytest tests/llm/ -v
