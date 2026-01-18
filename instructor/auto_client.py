@@ -6,8 +6,6 @@ from instructor.models import KnownModelName
 from instructor.cache import BaseCache
 import warnings
 import logging
-import json
-import time
 
 # Type alias for the return type
 InstructorType = Union[Instructor, AsyncInstructor]
@@ -456,7 +454,7 @@ def from_provider(
         # Import google-genai package - catch ImportError only for actual imports
         try:
             import google.genai as genai
-            from instructor.v2 import from_genai
+            from instructor import from_genai  # type: ignore[attr-defined]
         except ImportError as e:
             from .core.exceptions import ConfigurationError
 
@@ -565,27 +563,6 @@ def from_provider(
             import cohere
             from instructor.v2 import from_cohere
 
-            # region agent log
-            with open("/Users/jasonliu/dev/instructor/.cursor/debug.log", "a") as _log:
-                _log.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "streaming-pre",
-                            "hypothesisId": "H5",
-                            "location": "instructor/auto_client.py:from_provider",
-                            "message": "cohere_client_construction",
-                            "data": {
-                                "async_client": bool(async_client),
-                                "has_async_client_v2": hasattr(cohere, "AsyncClientV2"),
-                                "has_client_v2": hasattr(cohere, "ClientV2"),
-                            },
-                            "timestamp": int(time.time() * 1000),
-                        }
-                    )
-                    + "\n"
-                )
-            # endregion agent log
             client = (
                 cohere.AsyncClientV2(api_key=api_key)
                 if async_client

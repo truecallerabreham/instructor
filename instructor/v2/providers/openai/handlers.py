@@ -20,7 +20,11 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from openai.types.chat import ChatCompletion
 
 from instructor import Mode, Provider
-from instructor.core.exceptions import ConfigurationError, IncompleteOutputException
+from instructor.core.exceptions import (
+    ConfigurationError,
+    IncompleteOutputException,
+    ResponseParsingError,
+)
 from instructor.dsl.iterable import IterableBase
 from instructor.dsl.parallel import ParallelBase, ParallelModel, get_types_array
 from instructor.dsl.partial import PartialBase
@@ -536,7 +540,14 @@ class OpenAIParallelToolsHandler(OpenAIHandlerBase):
         type_registry = {t.__name__: t for t in the_types}
 
         results = []
-        for tool_call in response.choices[0].message.tool_calls:
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ResponseParsingError(
+                "No tool calls in response",
+                mode="PARALLEL_TOOLS",
+                raw_response=response,
+            )
+        for tool_call in tool_calls:
             name = tool_call.function.name
             args = tool_call.function.arguments
             if name in type_registry:

@@ -667,6 +667,12 @@ class AnthropicJSONHandler(AnthropicHandlerBase):
             if response.stop_reason == "max_tokens":
                 raise IncompleteOutputException(last_completion=response)
             text_blocks = [c for c in response.content if c.type == "text"]
+            if not text_blocks:
+                raise ResponseParsingError(
+                    "No text content in response",
+                    mode="MD_JSON",
+                    raw_response=response,
+                )
             last_block = text_blocks[-1]
             text = re.sub(r"[\u0000-\u001F]", "", last_block.text)
 
