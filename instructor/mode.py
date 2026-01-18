@@ -51,7 +51,9 @@ class Mode(enum.Enum):
     GEMINI_TOOLS = "gemini_tools"
     GENAI_TOOLS = "genai_tools"
     GENAI_JSON = "genai_json"
-    GENAI_STRUCTURED_OUTPUTS = "genai_json"  # Backwards compatibility alias
+    GENAI_STRUCTURED_OUTPUTS = (
+        "genai_structured_outputs"  # Backwards compatibility alias
+    )
 
     # Cohere modes
     COHERE_TOOLS = "cohere_tools"

@@ -7,8 +7,6 @@ instead of v1's process_response.
 from __future__ import annotations
 
 import logging
-import json
-import time
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -110,12 +108,13 @@ def retry_sync_v2(
 
                 # Parse response using registry
                 try:
+                    stream = kwargs.get("stream", False)
                     parsed = handlers.response_parser(
                         response=response,
                         response_model=response_model,
                         validation_context=context,
                         strict=strict,
-                        stream=False,
+                        stream=stream,
                         is_async=False,
                     )
                     logger.debug(
@@ -266,34 +265,6 @@ async def retry_async_v2(
                     if inspect.isclass(response_model) and issubclass(
                         response_model, (IterableBase, PartialBase)
                     ):
-                        # region agent log
-                        with open(
-                            "/Users/jasonliu/dev/instructor/.cursor/debug.log", "a"
-                        ) as _log:
-                            _log.write(
-                                json.dumps(
-                                    {
-                                        "sessionId": "debug-session",
-                                        "runId": "streaming-pre",
-                                        "hypothesisId": "H3",
-                                        "location": "instructor/v2/core/retry.py:retry_async_v2",
-                                        "message": "retry_async_streaming_short_circuit",
-                                        "data": {
-                                            "provider": str(provider),
-                                            "mode": str(mode),
-                                            "response_model": getattr(
-                                                response_model,
-                                                "__name__",
-                                                str(response_model),
-                                            ),
-                                            "stream": bool(stream),
-                                        },
-                                        "timestamp": int(time.time() * 1000),
-                                    }
-                                )
-                                + "\n"
-                            )
-                        # endregion agent log
                         # Map mode for streaming: Anthropic TOOLS mode needs ANTHROPIC_TOOLS
                         # for extract_json to work correctly (checks for Mode.ANTHROPIC_TOOLS)
                         streaming_mode = mode
@@ -309,34 +280,6 @@ async def retry_async_v2(
 
                 # Parse response using registry
                 try:
-                    # region agent log
-                    with open(
-                        "/Users/jasonliu/dev/instructor/.cursor/debug.log", "a"
-                    ) as _log:
-                        _log.write(
-                            json.dumps(
-                                {
-                                    "sessionId": "debug-session",
-                                    "runId": "streaming-pre",
-                                    "hypothesisId": "H4",
-                                    "location": "instructor/v2/core/retry.py:retry_async_v2",
-                                    "message": "retry_async_parse_response",
-                                    "data": {
-                                        "provider": str(provider),
-                                        "mode": str(mode),
-                                        "response_model": getattr(
-                                            response_model,
-                                            "__name__",
-                                            str(response_model),
-                                        ),
-                                        "stream": bool(stream),
-                                    },
-                                    "timestamp": int(time.time() * 1000),
-                                }
-                            )
-                            + "\n"
-                        )
-                    # endregion agent log
                     parsed = handlers.response_parser(
                         response=response,
                         response_model=response_model,
