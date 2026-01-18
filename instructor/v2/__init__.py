@@ -4,10 +4,11 @@ This module provides the v2 implementation with a registry-based handler system.
 
 Usage:
     from instructor import Mode
-    from instructor.v2 import from_anthropic, from_openai
+    from instructor.v2 import from_anthropic, from_openai, from_genai
 
     client = from_anthropic(anthropic_client, mode=Mode.TOOLS)
     client = from_openai(openai_client, mode=Mode.TOOLS)
+    client = from_genai(genai_client, mode=Mode.TOOLS)
 """
 
 from instructor import Mode, Provider
@@ -33,6 +34,21 @@ try:
 except ImportError:
     from_openai = None  # type: ignore
 
+try:
+    from instructor.v2.providers.genai import from_genai
+except ImportError:
+    from_genai = None  # type: ignore
+
+try:
+    from instructor.v2.providers.cohere import from_cohere
+except ImportError:
+    from_cohere = None  # type: ignore
+
+try:
+    from instructor.v2.providers.mistral import from_mistral
+except ImportError:
+    from_mistral = None  # type: ignore
+
 __all__ = [
     # Re-exports from instructor
     "Mode",
@@ -51,5 +67,8 @@ __all__ = [
     "ResponseParser",
     # Providers
     "from_anthropic",
+    "from_cohere",
+    "from_genai",
+    "from_mistral",
     "from_openai",
 ]
