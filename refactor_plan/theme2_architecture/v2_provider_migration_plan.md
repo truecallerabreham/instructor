@@ -2,8 +2,30 @@
 
 **Status**: In Progress
 **Already Migrated**: Anthropic, GenAI
-**Remaining**: 12 providers
-**Est. Total Duration**: 8-12 weeks
+**Remaining**: 10 providers
+
+---
+
+## Available API Keys (Environment Check)
+
+Based on environment variables, prioritize providers with available keys:
+
+| Priority | Provider | API Key | Status |
+|----------|----------|---------|--------|
+| P0 | OpenAI | `OPENAI_API_KEY` | Available |
+| P0 | Anthropic | `ANTHROPIC_API_KEY` | Available (already migrated) |
+| P0 | GenAI/Gemini | `GOOGLE_API_KEY` | Available (already migrated) |
+| P1 | Cohere | `COHERE_API_KEY` | Available |
+| P1 | xAI | `XAI_API_KEY` | Available |
+| P1 | Azure OpenAI | `AZURE_OPENAI_KEY` | Available |
+| P2 | Groq | `GROQ_API_KEY` | Missing |
+| P2 | Mistral | `MISTRAL_API_KEY` | Missing |
+| P2 | Fireworks | `FIREWORKS_API_KEY` | Missing |
+| P2 | Cerebras | `CEREBRAS_API_KEY` | Missing |
+| P2 | Writer | `WRITER_API_KEY` | Missing |
+| P2 | Perplexity | `PERPLEXITY_API_KEY` | Missing |
+| P3 | Bedrock | `AWS_ACCESS_KEY_ID` | Missing |
+| P3 | VertexAI | `GOOGLE_APPLICATION_CREDENTIALS` | Missing |
 
 ---
 
@@ -175,7 +197,6 @@ Each provider supports different core modes:
 ## Phase 1: OpenAI
 
 **Priority**: P0 (Most used provider)
-**Est. Duration**: 1-2 weeks
 **API Key**: `OPENAI_API_KEY`
 
 ### Modes to Support (5 Core Modes)
@@ -717,18 +738,88 @@ pytest tests/test_patch.py -v
 
 ---
 
-## Phase 2: Groq
+## Phase 2: Cohere
 
-**Priority**: P0 (OpenAI-compatible)
-**Est. Duration**: 3-5 days
-**API Key**: `GROQ_API_KEY`
+**Priority**: P1 (API key available)
+**Est. Duration**: 3-4 days
+**API Key**: `COHERE_API_KEY` - AVAILABLE
+
+### Phase 2 Checklist
+
+- [ ] Create `instructor/v2/providers/cohere/` directory
+- [ ] Create `__init__.py` with exports
+- [ ] Create `handlers.py`:
+  - [ ] `CohereToolsHandler` - TOOLS mode
+  - [ ] `CohereJSONSchemaHandler` - JSON_SCHEMA mode
+  - [ ] `CohereMDJSONHandler` - MD_JSON mode
+- [ ] Create `client.py` with `from_cohere()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (COHERE_TOOLS -> TOOLS)
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run: `pytest tests/v2/ -v -k "cohere"`
 
 ### Modes to Support
 
-| Generic Mode | Notes |
-|--------------|-------|
+| Core Mode | Legacy Mode | Notes |
+|-----------|-------------|-------|
+| `TOOLS` | `COHERE_TOOLS` | Tool calling |
+| `JSON_SCHEMA` | `COHERE_JSON_SCHEMA` | Native structured outputs |
+| `MD_JSON` | - | Text extraction fallback |
+
+---
+
+## Phase 3: xAI
+
+**Priority**: P1 (API key available)
+**Est. Duration**: 3-4 days
+**API Key**: `XAI_API_KEY` - AVAILABLE
+
+### Phase 3 Checklist
+
+- [ ] Create `instructor/v2/providers/xai/` directory
+- [ ] Create `handlers.py` (OpenAI-compatible):
+  - [ ] `XAIToolsHandler` - TOOLS mode
+  - [ ] `XAIJSONSchemaHandler` - JSON_SCHEMA mode
+  - [ ] `XAIMDJSONHandler` - MD_JSON mode
+- [ ] Create `client.py` with `from_xai()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (XAI_TOOLS -> TOOLS)
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run: `pytest tests/v2/ -v -k "xai"`
+
+### Modes to Support
+
+| Core Mode | Legacy Mode | Notes |
+|-----------|-------------|-------|
+| `TOOLS` | `XAI_TOOLS` | Tool calling |
+| `JSON_SCHEMA` | `XAI_JSON` | Structured outputs |
+| `MD_JSON` | - | Text extraction fallback |
+
+---
+
+## Phase 4: Groq
+
+**Priority**: P2 (API key NOT available - unit tests only)
+**Est. Duration**: 2-3 days
+**API Key**: `GROQ_API_KEY` - MISSING
+
+### Phase 4 Checklist
+
+- [ ] Create `instructor/v2/providers/groq/` directory
+- [ ] Create `handlers.py` (reuse OpenAI - compatible API):
+  - [ ] `GroqToolsHandler` extends `OpenAIToolsHandler`
+  - [ ] `GroqMDJSONHandler` extends `OpenAIMDJSONHandler`
+- [ ] Create `client.py` with `from_groq()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run unit tests only: `pytest tests/v2/ -v -k "groq and not requires_api_key"`
+
+### Modes to Support
+
+| Core Mode | Notes |
+|-----------|-------|
 | `TOOLS` | OpenAI-compatible |
-| `JSON` | OpenAI-compatible |
+| `MD_JSON` | OpenAI-compatible |
 
 ### Files to Create
 
@@ -884,11 +975,24 @@ GROQ_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -
 
 ---
 
-## Phase 3: Mistral
+## Phase 5: Mistral
 
-**Priority**: P1
-**Est. Duration**: 1 week
-**API Key**: `MISTRAL_API_KEY`
+**Priority**: P2 (API key NOT available - unit tests only)
+**Est. Duration**: 3-4 days
+**API Key**: `MISTRAL_API_KEY` - MISSING
+
+### Phase 5 Checklist
+
+- [ ] Create `instructor/v2/providers/mistral/` directory
+- [ ] Create `handlers.py`:
+  - [ ] `MistralToolsHandler` - TOOLS mode
+  - [ ] `MistralJSONSchemaHandler` - JSON_SCHEMA mode
+  - [ ] `MistralMDJSONHandler` - MD_JSON mode
+- [ ] Create `client.py` with `from_mistral()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (MISTRAL_TOOLS -> TOOLS)
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run unit tests only: `pytest tests/v2/ -v -k "mistral and not requires_api_key"`
 
 ### Modes to Support
 
@@ -1098,23 +1202,85 @@ MISTRAL_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_ke
 
 ---
 
-## Phase 4-12: Remaining Providers
+## Phase 6-12: Remaining Providers (API Keys Missing)
 
-Each provider gets the core modes they support. Here's a summary:
+All these providers have missing API keys. Implement with unit tests only.
 
-| Phase | Provider | Core Modes Supported | Legacy Modes to Deprecate | API Key |
-|-------|----------|---------------------|---------------------------|---------|
-| 4 | Cohere | TOOLS, JSON_SCHEMA, MD_JSON | COHERE_TOOLS, COHERE_JSON_SCHEMA | `COHERE_API_KEY` |
-| 5 | Bedrock | TOOLS, MD_JSON | BEDROCK_TOOLS, BEDROCK_JSON | `AWS_*` |
-| 6 | Fireworks | TOOLS, MD_JSON | FIREWORKS_TOOLS, FIREWORKS_JSON | `FIREWORKS_API_KEY` |
-| 7 | Cerebras | TOOLS, MD_JSON | CEREBRAS_TOOLS, CEREBRAS_JSON | `CEREBRAS_API_KEY` |
-| 8 | Writer | TOOLS, MD_JSON | WRITER_TOOLS, WRITER_JSON | `WRITER_API_KEY` |
-| 9 | xAI | TOOLS, JSON_SCHEMA, MD_JSON | XAI_TOOLS, XAI_JSON | `XAI_API_KEY` |
-| 10 | Perplexity | MD_JSON only | PERPLEXITY_JSON | `PERPLEXITY_API_KEY` |
-| 11 | VertexAI | TOOLS, JSON_SCHEMA, MD_JSON, PARALLEL_TOOLS | VERTEXAI_* | `GOOGLE_APPLICATION_CREDENTIALS` |
-| 12 | Gemini | TOOLS, JSON_SCHEMA, MD_JSON | GEMINI_TOOLS, GEMINI_JSON | `GOOGLE_API_KEY` |
+---
 
-**Note**: Only OpenAI supports `RESPONSES_TOOLS` mode.
+### Phase 6: Fireworks
+
+**API Key**: `FIREWORKS_API_KEY` - MISSING
+
+- [ ] Create `instructor/v2/providers/fireworks/` directory
+- [ ] Handlers: `TOOLS`, `MD_JSON` (OpenAI-compatible)
+- [ ] Add to `PROVIDER_CONFIGS`
+- [ ] Run unit tests only
+
+### Phase 7: Cerebras
+
+**API Key**: `CEREBRAS_API_KEY` - MISSING
+
+- [ ] Create `instructor/v2/providers/cerebras/` directory
+- [ ] Handlers: `TOOLS`, `MD_JSON` (OpenAI-compatible)
+- [ ] Add to `PROVIDER_CONFIGS`
+- [ ] Run unit tests only
+
+### Phase 8: Writer
+
+**API Key**: `WRITER_API_KEY` - MISSING
+
+- [ ] Create `instructor/v2/providers/writer/` directory
+- [ ] Handlers: `TOOLS`, `MD_JSON`
+- [ ] Add to `PROVIDER_CONFIGS`
+- [ ] Run unit tests only
+
+### Phase 9: Perplexity
+
+**API Key**: `PERPLEXITY_API_KEY` - MISSING
+
+- [ ] Create `instructor/v2/providers/perplexity/` directory
+- [ ] Handlers: `MD_JSON` only (no tool calling support)
+- [ ] Add to `PROVIDER_CONFIGS`
+- [ ] Run unit tests only
+
+### Phase 10: Bedrock
+
+**API Key**: `AWS_ACCESS_KEY_ID` - MISSING
+
+- [ ] Create `instructor/v2/providers/bedrock/` directory
+- [ ] Handlers: `TOOLS`, `MD_JSON`
+- [ ] Add to `PROVIDER_CONFIGS`
+- [ ] Run unit tests only
+
+### Phase 11: VertexAI
+
+**API Key**: `GOOGLE_APPLICATION_CREDENTIALS` - MISSING
+
+- [ ] Create `instructor/v2/providers/vertexai/` directory
+- [ ] Handlers: `TOOLS`, `JSON_SCHEMA`, `MD_JSON`, `PARALLEL_TOOLS`
+- [ ] Add to `PROVIDER_CONFIGS`
+- [ ] Run unit tests only
+
+---
+
+## Summary Table
+
+| Phase | Provider | API Key | Status | Modes |
+|-------|----------|---------|--------|-------|
+| 1 | OpenAI | `OPENAI_API_KEY` | AVAILABLE | TOOLS, JSON_SCHEMA, MD_JSON, PARALLEL, RESPONSES |
+| 2 | Cohere | `COHERE_API_KEY` | AVAILABLE | TOOLS, JSON_SCHEMA, MD_JSON |
+| 3 | xAI | `XAI_API_KEY` | AVAILABLE | TOOLS, JSON_SCHEMA, MD_JSON |
+| 4 | Groq | `GROQ_API_KEY` | Missing | TOOLS, MD_JSON |
+| 5 | Mistral | `MISTRAL_API_KEY` | Missing | TOOLS, JSON_SCHEMA, MD_JSON |
+| 6 | Fireworks | `FIREWORKS_API_KEY` | Missing | TOOLS, MD_JSON |
+| 7 | Cerebras | `CEREBRAS_API_KEY` | Missing | TOOLS, MD_JSON |
+| 8 | Writer | `WRITER_API_KEY` | Missing | TOOLS, MD_JSON |
+| 9 | Perplexity | `PERPLEXITY_API_KEY` | Missing | MD_JSON |
+| 10 | Bedrock | `AWS_*` | Missing | TOOLS, MD_JSON |
+| 11 | VertexAI | `GOOGLE_APPLICATION_*` | Missing | TOOLS, JSON_SCHEMA, MD_JSON, PARALLEL |
+
+**Note**: Anthropic and GenAI are already migrated to v2.
 
 ---
 
@@ -1538,6 +1704,39 @@ Other providers (Groq, Mistral, Cohere, etc.) use:
 - OpenAI: ~$0.19
 - Anthropic: ~$1.50
 - Gemini: ~$0.13
+
+### Files to Update with New Models
+
+These files currently use older model names and should be updated:
+
+```bash
+# v2 test config (main update)
+tests/v2/test_provider_modes.py
+  - "anthropic/claude-3-5-haiku-latest" -> "anthropic/claude-haiku-4-5-20241022"
+  - "google/gemini-2.0-flash" -> "google/gemini-2.5-flash-lite"
+
+# Shared test config
+tests/llm/shared_config.py
+  - "anthropic/claude-3-5-haiku-latest" -> "anthropic/claude-haiku-4-5-20241022"
+  - (Add google/gemini-2.5-flash-lite)
+
+# Provider-specific util files
+tests/llm/test_anthropic/util.py
+  - models = ["anthropic/claude-haiku-4-5-20241022"]
+
+tests/llm/test_genai/util.py
+  - models = ["google/gemini-2.5-flash-lite"]
+
+tests/llm/test_gemini/util.py
+  - models = ["google/gemini-2.5-flash-lite"]
+
+tests/llm/test_vertexai/util.py
+  - models = ["gemini-2.5-flash-lite"]
+
+# Auto client tests
+tests/test_auto_client.py
+  - Update model strings throughout
+```
 ```
 
 ### Helper Functions
@@ -1759,6 +1958,26 @@ pytest tests/test_auto_client.py -v
 
 ---
 
+## Timeline (Prioritized by API Key Availability)
+
+| Week | Phase | Tasks | API Key Status |
+|------|-------|-------|----------------|
+| 1-2 | **Phase 1** | OpenAI (foundation + all 5 modes) | AVAILABLE |
+| 3 | **Phase 2-3** | Cohere + xAI | AVAILABLE |
+| 4 | **Phase 4-5** | Groq + Mistral (unit tests only) | Missing |
+| 5 | **Phase 6-9** | Fireworks, Cerebras, Writer, Perplexity (unit tests only) | Missing |
+| 6 | **Phase 10-11** | Bedrock, VertexAI (unit tests only) | Missing |
+| 7 | - | Mode deprecation infrastructure + documentation | N/A |
+| 8 | - | Integration testing + final cleanup | All |
+
+### Implementation Priority
+
+1. **P0 - OpenAI**: Foundation for all other providers (Week 1-2)
+2. **P1 - Cohere, xAI**: API keys available, full testing possible (Week 3)
+3. **P2 - Others**: API keys missing, unit tests only (Week 4-6)
+
+---
+
 ## Implementation Checklist
 
 ### Per Phase Checklist
@@ -1781,20 +2000,6 @@ pytest tests/test_auto_client.py -v
 - [ ] Ensure all 5 core modes are implemented per provider capability
 - [ ] Create migration guide documentation
 - [ ] Update all examples to use generic modes (TOOLS, JSON_SCHEMA, etc.)
-
----
-
-## Timeline
-
-| Week | Tasks |
-|------|-------|
-| 1-2 | Phase 1: OpenAI (foundation) |
-| 3 | Phase 2: Groq + Phase 3: Mistral |
-| 4 | Phase 4: Cohere + Phase 5: Bedrock |
-| 5 | Phase 6-8: Fireworks, Cerebras, Writer |
-| 6 | Phase 9: xAI + Phase 10: Perplexity |
-| 7 | Phase 11-12: VertexAI, Gemini (deprecated) |
-| 8 | Integration testing + documentation |
 
 ---
 

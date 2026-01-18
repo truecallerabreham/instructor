@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "editor": {
+    "vimMode": false
+  },
+  "permissions": {
+    "allow": [
+      "Shell(git)",
+      "Shell(gt)",
+      "Shell(graphite)",
+      "Shell(bash)",
+      "Shell(pytest)",
+      "Shell(uv)",
+      "Shell(python)",
+      "Shell(ls)",
+      "Shell(cat)",
+      "Shell(grep)",
+      "Shell(find)",
+      "Shell(mkdir)",
+      "Shell(cd)",
+      "Shell(pwd)",
+      "Shell(echo)",
+      "Shell(chmod)",
+      "Write(instructor/**/*)",
+      "Write(tests/**/*)",
+      "Write(refactor_plan/**/*)",
+      "Write(examples/**/*)",
+      "Write(docs/**/*)",
+      "Read(**/*)"
+    ],
+    "deny": [
+      "Shell(rm -rf /)",
+      "Shell(dd)",
+      "Shell(mkfs)",
+      "Write(.env)",
+      "Write(secrets.json)",
+      "Write(.git/config)"
+    ]
+  }
+}
