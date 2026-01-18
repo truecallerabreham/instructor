@@ -5,198 +5,82 @@ description: Compare different modes available in Instructor and understand when
 
 # Instructor Mode Comparison Guide
 
-Instructor supports multiple "modes" for different LLM providers. This guide helps you understand when to use each mode and what their trade-offs are.
+Instructor uses **core modes** that work across providers. Provider-specific
+modes still work, but they are deprecated and will show warnings.
 
-## Overview of Available Modes
+## Core Modes
 
-Instructor's modes determine how structured data is requested from and extracted from LLM responses. The right mode depends on your provider, model, and specific needs.
+| Mode | Description | Best For |
+|------|-------------|----------|
+| `TOOLS` | Tool or function calling | Most structured extraction |
+| `JSON_SCHEMA` | Native schema support | Providers with built-in schema |
+| `MD_JSON` | JSON from text or code blocks | Simple or fallback cases |
+| `PARALLEL_TOOLS` | Multiple tool calls | Multi-task extraction |
+| `RESPONSES_TOOLS` | OpenAI Responses API tools | OpenAI-only features |
 
-Here's a quick comparison:
+## Legacy Modes (Deprecated)
 
-| Mode | Description | Best For | Providers |
-|------|-------------|----------|-----------|
-| `TOOLS` | Uses function/tool calling API | Most OpenAI use cases | OpenAI, Azure, LiteLLM, etc. |
-| `JSON` | Asks for direct JSON output | Models without tool calling | Most providers |
-| `FUNCTIONS` (Legacy) | Legacy OpenAI function calling | Backward compatibility | OpenAI, Azure |
-| `PARALLEL_TOOLS` | Runs multiple tools in parallel | Complex, multi-step tasks | OpenAI, Anthropic, Vertex AI |
-| `MD_JSON` | JSON in Markdown code blocks | Cleaner prompts | Most providers |
-| `TOOLS_STRICT` | Stricter version of TOOLS | Production systems | OpenAI, Azure |
-| `JSON_O1` | One-shot completion with JSON | Simple extractions | OpenAI, Azure |
-| `ANTHROPIC_TOOLS` | Anthropic's tool calling | Claude models | Anthropic |
-| `ANTHROPIC_JSON` | Direct JSON with Claude | Claude models | Anthropic |
-| `TOOLS` | Google's function calling (new) | Gemini models | Google |
-| `JSON` | Direct JSON with Gemini (new) | Gemini models | Google |
-| `GENAI_TOOLS` | **Deprecated** - Use TOOLS | Gemini models | Google |
-| `GENAI_JSON` | **Deprecated** - Use JSON | Gemini models | Google |
-| `GENAI_STRUCTURED_OUTPUTS` | **Deprecated** - Use JSON | Gemini models | Google |
-| `GEMINI_TOOLS` | **Deprecated** - Use TOOLS | Gemini models | Google |
-| `GEMINI_JSON` | **Deprecated** - Use JSON | Gemini models | Google |
-| `VERTEXAI_TOOLS` | Vertex AI function calling | Vertex AI models | Vertex AI |
-| `VERTEXAI_JSON` | Direct JSON with Vertex AI | Vertex AI models | Vertex AI |
-| `COHERE_TOOLS` | Cohere's tool calling | Cohere models | Cohere |
+These legacy modes map to core modes:
 
-## Detailed Mode Explanations
+| Legacy Mode | Core Mode |
+|------------|-----------|
+| `FUNCTIONS` | `TOOLS` |
+| `TOOLS_STRICT` | `TOOLS` |
+| `ANTHROPIC_TOOLS` | `TOOLS` |
+| `ANTHROPIC_JSON` | `MD_JSON` |
+| `GENAI_TOOLS` | `TOOLS` |
+| `GENAI_JSON` | `JSON` |
+| `MISTRAL_TOOLS` | `TOOLS` |
+| `MISTRAL_STRUCTURED_OUTPUTS` | `JSON_SCHEMA` |
+| `BEDROCK_TOOLS` | `TOOLS` |
+| `BEDROCK_JSON` | `MD_JSON` |
 
-### OpenAI-Compatible Modes
+## Mode Selection Tips
 
-#### `TOOLS` Mode
+- Use `TOOLS` for most structured output cases.
+- Use `JSON_SCHEMA` when the provider supports native schema enforcement.
+- Use `MD_JSON` if tools are not supported or outputs are simple.
+- Use `PARALLEL_TOOLS` for multiple tasks in one response.
 
-```python
-client = instructor.from_provider("openai/gpt-5-nano", mode=instructor.Mode.TOOLS)
-```
+## Examples
 
-This is the **recommended mode** for OpenAI models. It uses OpenAI's tool calling API to:
-
-- Provide a clear schema to the model
-- Ensure proper formatting
-- Enable validation and retries
-
-**Best for**: Most OpenAI use cases, especially with GPT-3.5 and GPT-4 models.
-
-**Advantages**:
-- Most reliable
-- Best for complex structures
-- Works with all current OpenAI models
-
-#### `JSON` Mode
+### TOOLS Mode (Recommended)
 
 ```python
-client = instructor.from_provider("openai/gpt-5-nano", mode=instructor.Mode.JSON)
-```
+import instructor
+from instructor import Mode
 
-This mode instructs the model to output direct JSON. It:
-- Works with almost any model
-- Is slightly less reliable than TOOLS
-- May be better for very simple structures
-
-**Best for**: Models that don't support tool calling or simple extractions.
-
-**Advantages**:
-- Works with more models
-- Can be more token-efficient
-- Simpler prompting
-
-#### `MD_JSON` Mode
-
-```python
-client = instructor.from_provider("openai/gpt-5-nano", mode=instructor.Mode.MD_JSON)
-```
-
-This mode instructs the model to output JSON inside a Markdown code block. It:
-- Works with most models
-- Can make prompts more readable
-- May lead to cleaner outputs
-
-**Best for**: Simple structures when you want cleaner outputs.
-
-### Anthropic Modes
-
-#### `ANTHROPIC_TOOLS` Mode
-
-```python
-client = instructor.from_provider("anthropic/claude-3-5-haiku-latest", mode=instructor.Mode.ANTHROPIC_TOOLS)
-```
-
-This mode uses Anthropic's Tool Calling API, available on Claude 3+ models. It:
-- Provides structured tool definitions
-- Ensures proper response format
-- Works well with complex structures
-
-**Best for**: Complex structured outputs with Claude 3+ models.
-
-#### `ANTHROPIC_JSON` Mode
-
-```python
-client = instructor.from_provider("anthropic/claude-3-5-haiku-latest", mode=instructor.Mode.ANTHROPIC_JSON)
-```
-
-This mode requests direct JSON output from Anthropic models. It:
-- Works with all Claude models
-- Is less structured than tool calling
-- May be more flexible for simple cases
-
-**Best for**: Simple structures or with older Claude models.
-
-### Google/Gemini Modes
-
-#### `TOOLS` Mode (Recommended)
-
-```python
 client = instructor.from_provider(
-    "google/gemini-2.5-flash",
-    mode=instructor.Mode.TOOLS
+    "openai/gpt-4o-mini",
+    mode=Mode.TOOLS,
 )
 ```
 
-This mode uses Google's function calling for Gemini models. It:
-- Provides structured tool definitions
-- Works similarly to OpenAI's tool calling
-- Has some Google-specific adaptations
-
-**Best for**: Complex structured outputs with Gemini models.
-
-**Note**: Cannot be used with multi-modal inputs.
-
-#### `JSON` Mode (Recommended)
+### MD_JSON Mode (Fallback)
 
 ```python
+import instructor
+from instructor import Mode
+
 client = instructor.from_provider(
-    "google/gemini-2.5-flash",
-    mode=instructor.Mode.JSON
+    "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
+    mode=Mode.MD_JSON,
 )
 ```
 
-This mode requests direct JSON from Gemini models. It:
-- Works with all Gemini models
-- Works with multi-modal inputs (images, audio)
-- May be less reliable for complex structures
-
-**Best for**: Simple structures or when using multi-modal inputs.
-
-!!! note "Backwards Compatibility"
-
-    The provider-specific modes (`Mode.GENAI_TOOLS`, `Mode.GENAI_JSON`, `Mode.GENAI_STRUCTURED_OUTPUTS`) are still supported and automatically map to the generic modes (`Mode.TOOLS`, `Mode.JSON`).
-
-## Mode Selection Guidelines
-
-### When to Use Tool-based Modes
-
-- For complex, nested data structures
-- When reliability is critical
-- When working with modern models that support tool calling
-- In production systems where validation is important
-
-### When to Use JSON-based Modes
-
-- For simple data structures
-- When working with models that don't support tool calling
-- When token efficiency is important
-- When working with multi-modal inputs (for providers that don't support tools with multi-modal)
-
-## Provider-Specific Recommendations
-
-### OpenAI
+### JSON_SCHEMA Mode (Native Schema)
 
 ```python
-# Best for most OpenAI use cases
-client = instructor.from_provider("openai/gpt-5-nano", mode=instructor.Mode.TOOLS)
+import instructor
+from instructor import Mode
 
-# For very simple extractions
-client = instructor.from_provider("openai/gpt-5-nano", mode=instructor.Mode.JSON)
-
-# For complex, multi-step processes
-client = instructor.from_provider("openai/gpt-5-nano", mode=instructor.Mode.PARALLEL_TOOLS)
+client = instructor.from_provider(
+    "openai/gpt-4o-mini",
+    mode=Mode.JSON_SCHEMA,
+)
 ```
 
-### Anthropic
-
-```python
-# For Claude 3+ with complex structures
-client = instructor.from_provider("anthropic/claude-3-5-haiku-latest", mode=instructor.Mode.ANTHROPIC_TOOLS)
-
-# For simpler extractions or older Claude models
-client = instructor.from_provider("anthropic/claude-3-5-haiku-latest", mode=instructor.Mode.ANTHROPIC_JSON)
-```
+See the [Mode Migration Guide](concepts/mode-migration.md) for more details.
 
 ### Google/Gemini
 

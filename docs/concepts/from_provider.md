@@ -189,13 +189,16 @@ client = instructor.from_provider(
 
 ## Default Modes
 
-Each provider uses a recommended default mode:
+Each provider uses a recommended default **core** mode:
 
-- **OpenAI**: `Mode.TOOLS` (function calling)
-- **Anthropic**: `Mode.ANTHROPIC_TOOLS` (tool use)
-- **Google**: `Mode.GENAI_TOOLS` (function calling)
-- **Ollama**: `Mode.TOOLS` (if model supports it) or `Mode.JSON`
-- **Others**: Provider-specific defaults
+- **OpenAI**: `Mode.TOOLS`
+- **Anthropic**: `Mode.TOOLS`
+- **Google**: `Mode.TOOLS` or `Mode.JSON` based on the model
+- **Ollama**: `Mode.TOOLS` (if supported) or `Mode.JSON`
+- **Others**: `Mode.TOOLS` or `Mode.MD_JSON` depending on capability
+
+Legacy provider-specific modes still work, but they are deprecated.
+See the [Mode Migration Guide](./mode-migration.md) for details.
 
 You can override these defaults with the `mode` parameter.
 

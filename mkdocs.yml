@@ -137,6 +137,7 @@ nav:
     - Debugging: 'debugging.md'
     - Repository Overview: 'repository-overview.md'
     - Mode Comparison: 'modes-comparison.md'
+    - Mode Migration: 'concepts/mode-migration.md'
     - Philosophy: 'concepts/philosophy.md'
     - API Reference: 'api.md'
     - FAQ: 'faq.md'
