@@ -87,8 +87,8 @@ class ModeRegistry:
 
     def __init__(self) -> None:
         """Initialize empty registry."""
-        self._handlers: dict[Mode, ModeHandlers] = {}
-        self._lazy_loaders: dict[Mode, Callable[[], ModeHandlers]] = {}
+        self._handlers: dict[tuple[Provider, Mode], ModeHandlers] = {}
+        self._lazy_loaders: dict[tuple[Provider, Mode], Callable[[], ModeHandlers]] = {}
 
     def register(
         self,
@@ -291,7 +291,7 @@ class ModeRegistry:
                 providers.append(p)
         return sorted(set(providers), key=lambda p: p.value)
 
-    def list_modes(self) -> list[Mode]:
+    def list_modes(self) -> list[tuple[Provider, Mode]]:
         """List all registered modes.
 
         Returns:
@@ -328,8 +328,9 @@ class ModeRegistry:
 
         # The handlers are bound methods, so we need to get the class
         # We can inspect the handler's __self__ to get the instance, then __class__
-        if hasattr(handlers.request_handler, "__self__"):
-            return handlers.request_handler.__self__.__class__
+        self_obj = getattr(handlers.request_handler, "__self__", None)
+        if self_obj is not None:
+            return self_obj.__class__
 
         # If it's a function, we can't easily get the class
         # Return None to indicate we couldn't determine it

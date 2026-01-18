@@ -84,7 +84,7 @@ def from_cerebras(
         from instructor.core.exceptions import ClientError
 
         raise ClientError(
-            "cerebras-cloud-sdk is not installed. Install it with: pip install cerebras-cloud-sdk"
+            "cerebras is not installed. Install it with: pip install cerebras-cloud-sdk"
         )
 
     # Normalize provider-specific modes to generic modes
