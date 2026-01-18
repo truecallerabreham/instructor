@@ -288,6 +288,12 @@ class MockResponseBuilder:
             return SimpleNamespace(
                 content=[_AnthropicContent(type="text", text="Invalid response")]
             )
+        if self.provider == Provider.GENAI:
+            function_call = SimpleNamespace(name="Answer", args={"answer": "invalid"})
+            part = SimpleNamespace(function_call=function_call)
+            content = SimpleNamespace(parts=[part])
+            candidate = SimpleNamespace(content=content)
+            return SimpleNamespace(candidates=[candidate])
         # Mistral expects OpenAI-compatible format with choices
         # For reask tests, we create a simple message without tool_calls
         # to avoid issues with dump_message expecting Pydantic models
@@ -475,7 +481,12 @@ def test_handle_reask_adds_message(provider: Provider, mode: Mode) -> None:
         _skip_if_missing("google.genai")
     handlers = _get_handlers(provider, mode)
     builder = MockResponseBuilder(provider)
-    kwargs = {"messages": [{"role": "user", "content": "Original"}]}
+    if provider == Provider.GENAI:
+        kwargs = {"contents": []}
+        expected_key = "contents"
+    else:
+        kwargs = {"messages": [{"role": "user", "content": "Original"}]}
+        expected_key = "messages"
     response = builder.reask_response()
     exception = ValueError("Validation failed")
 
@@ -486,5 +497,5 @@ def test_handle_reask_adds_message(provider: Provider, mode: Mode) -> None:
     )
 
     assert isinstance(result, dict)
-    assert "messages" in result
-    assert len(result["messages"]) >= 1
+    assert expected_key in result
+    assert len(result[expected_key]) >= 1

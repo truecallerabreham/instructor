@@ -3,49 +3,43 @@ title: Mode Comparison Guide
 description: Compare different modes available in Instructor and understand when to use each
 ---
 
-<!-- markdownlint-disable MD025 MD060 MD047 -->
-
-# Instructor Mode Comparison Guide
+## Instructor Mode Comparison Guide
 
 Instructor uses **core modes** that work across providers. Provider-specific
 modes still work, but they are deprecated and will show warnings.
 
 ## Core Modes
 
-| Mode | Description | Best For |
-| --- | --- | --- |
-| `TOOLS` | Tool or function calling | Most structured extraction |
-| `JSON_SCHEMA` | Native schema support | Providers with built-in schema |
-| `MD_JSON` | JSON from text or code blocks | Simple or fallback cases |
-| `PARALLEL_TOOLS` | Multiple tool calls | Multi-task extraction |
-| `RESPONSES_TOOLS` | OpenAI Responses API tools | OpenAI-only features |
+- `TOOLS`: Tool or function calling for structured extraction.
+- `JSON_SCHEMA`: Native schema support when a provider has it.
+- `MD_JSON`: JSON from text or code blocks for simple or fallback cases.
+- `PARALLEL_TOOLS`: Multiple tool calls in one response.
+- `RESPONSES_TOOLS`: OpenAI Responses API tools.
 
 ## Legacy Modes (Deprecated)
 
 These legacy modes map to core modes:
 
-| Legacy Mode | Core Mode |
-| --- | --- |
-| `FUNCTIONS` | `TOOLS` |
-| `TOOLS_STRICT` | `TOOLS` |
-| `ANTHROPIC_TOOLS` | `TOOLS` |
-| `ANTHROPIC_JSON` | `MD_JSON` |
-| `GENAI_TOOLS` | `TOOLS` |
-| `GENAI_JSON` | `JSON` |
-| `MISTRAL_TOOLS` | `TOOLS` |
-| `MISTRAL_STRUCTURED_OUTPUTS` | `JSON_SCHEMA` |
-| `BEDROCK_TOOLS` | `TOOLS` |
-| `BEDROCK_JSON` | `MD_JSON` |
-| `FIREWORKS_TOOLS` | `TOOLS` |
-| `FIREWORKS_JSON` | `MD_JSON` |
-| `CEREBRAS_TOOLS` | `TOOLS` |
-| `CEREBRAS_JSON` | `MD_JSON` |
-| `WRITER_TOOLS` | `TOOLS` |
-| `WRITER_JSON` | `MD_JSON` |
-| `PERPLEXITY_JSON` | `MD_JSON` |
-| `VERTEXAI_TOOLS` | `TOOLS` |
-| `VERTEXAI_JSON` | `MD_JSON` |
-| `VERTEXAI_PARALLEL_TOOLS` | `PARALLEL_TOOLS` |
+- `FUNCTIONS` -> `TOOLS`
+- `TOOLS_STRICT` -> `TOOLS`
+- `ANTHROPIC_TOOLS` -> `TOOLS`
+- `ANTHROPIC_JSON` -> `MD_JSON`
+- `GENAI_TOOLS` -> `TOOLS`
+- `GENAI_JSON` -> `JSON`
+- `MISTRAL_TOOLS` -> `TOOLS`
+- `MISTRAL_STRUCTURED_OUTPUTS` -> `JSON_SCHEMA`
+- `BEDROCK_TOOLS` -> `TOOLS`
+- `BEDROCK_JSON` -> `MD_JSON`
+- `FIREWORKS_TOOLS` -> `TOOLS`
+- `FIREWORKS_JSON` -> `MD_JSON`
+- `CEREBRAS_TOOLS` -> `TOOLS`
+- `CEREBRAS_JSON` -> `MD_JSON`
+- `WRITER_TOOLS` -> `TOOLS`
+- `WRITER_JSON` -> `MD_JSON`
+- `PERPLEXITY_JSON` -> `MD_JSON`
+- `VERTEXAI_TOOLS` -> `TOOLS`
+- `VERTEXAI_JSON` -> `MD_JSON`
+- `VERTEXAI_PARALLEL_TOOLS` -> `PARALLEL_TOOLS`
 
 ## Mode Selection Tips
 
@@ -118,27 +112,25 @@ client = instructor.from_provider(
 )
 ```
 
-## Mode Compatibility Table
+## Mode Compatibility List
 
 Legacy modes are shown for compatibility only. Prefer core modes in new code.
 
-| Provider | Tool-based Modes | JSON-based Modes |
-| --- | --- | --- |
-| OpenAI | TOOLS, TOOLS_STRICT, PARALLEL_TOOLS, FUNCTIONS | JSON, MD_JSON, JSON_O1 |
-| Anthropic | ANTHROPIC_TOOLS, ANTHROPIC_PARALLEL_TOOLS | ANTHROPIC_JSON |
-| Gemini | TOOLS | JSON |
-| Vertex AI | VERTEXAI_TOOLS | VERTEXAI_JSON |
-| Cohere | COHERE_TOOLS | JSON, MD_JSON |
-| Mistral | MISTRAL_TOOLS | MISTRAL_STRUCTURED_OUTPUTS |
-| Anyscale | - | JSON, MD_JSON, JSON_SCHEMA |
-| Databricks | TOOLS | JSON, MD_JSON |
-| Together | - | JSON, MD_JSON |
-| Fireworks | FIREWORKS_TOOLS | FIREWORKS_JSON |
-| Cerebras | - | CEREBRAS_JSON |
-| Writer | WRITER_TOOLS | JSON |
-| Perplexity | - | PERPLEXITY_JSON |
-| GenAI | TOOLS | JSON |
-| LiteLLM | (depends on provider) | (depends on provider) |
+- OpenAI: TOOLS, TOOLS_STRICT, PARALLEL_TOOLS, FUNCTIONS; JSON, MD_JSON, JSON_O1.
+- Anthropic: ANTHROPIC_TOOLS, ANTHROPIC_PARALLEL_TOOLS; ANTHROPIC_JSON.
+- Gemini: TOOLS; JSON.
+- Vertex AI: VERTEXAI_TOOLS; VERTEXAI_JSON.
+- Cohere: COHERE_TOOLS; JSON, MD_JSON.
+- Mistral: MISTRAL_TOOLS; MISTRAL_STRUCTURED_OUTPUTS.
+- Anyscale: (none); JSON, MD_JSON, JSON_SCHEMA.
+- Databricks: TOOLS; JSON, MD_JSON.
+- Together: (none); JSON, MD_JSON.
+- Fireworks: FIREWORKS_TOOLS; FIREWORKS_JSON.
+- Cerebras: (none); CEREBRAS_JSON.
+- Writer: WRITER_TOOLS; JSON.
+- Perplexity: (none); PERPLEXITY_JSON.
+- GenAI: TOOLS; JSON.
+- LiteLLM: depends on provider for both tool-based and JSON-based modes.
 
 ## Best Practices
 

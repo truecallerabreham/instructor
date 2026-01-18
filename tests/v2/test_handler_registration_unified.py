@@ -12,6 +12,7 @@ from instructor import Mode, Provider
 from instructor.v2.core.registry import mode_registry
 
 # Import handler loading utilities from existing test
+from tests.v2.conftest import get_registered_provider_mode_pairs
 from tests.v2.test_handlers_parametrized import (
     PROVIDER_HANDLER_MODES,
     _ensure_handlers_loaded,
@@ -20,21 +21,17 @@ from tests.v2.test_handlers_parametrized import (
 
 def _get_provider_mode_params():
     """Generate (provider, mode) parameters for all registered modes."""
-    params = []
-    for provider, modes in PROVIDER_HANDLER_MODES.items():
-        for mode in modes:
-            params.append(
-                pytest.param(provider, mode, id=f"{provider.value}-{mode.value}")
-            )
-    return params
+    pairs = get_registered_provider_mode_pairs()
+    return [
+        pytest.param(provider, mode, id=f"{provider.value}-{mode.value}")
+        for provider, mode in pairs
+    ]
 
 
 def _get_provider_params():
     """Generate provider parameters."""
-    return [
-        pytest.param(provider, id=provider.value)
-        for provider in PROVIDER_HANDLER_MODES.keys()
-    ]
+    providers = {provider for provider, _ in get_registered_provider_mode_pairs()}
+    return [pytest.param(provider, id=provider.value) for provider in providers]
 
 
 # ============================================================================

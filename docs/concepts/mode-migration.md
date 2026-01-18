@@ -103,4 +103,5 @@ client = instructor.from_provider(
 
 - Legacy modes still work but show a deprecation warning.
 - Use core modes for new code and docs.
+- Core tests are parameterized by provider and mode for consistent coverage.
 - See [Mode Comparison](../modes-comparison.md) for details.
