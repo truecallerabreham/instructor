@@ -77,6 +77,11 @@ try:
 except ImportError:
     from_writer = None  # type: ignore
 
+try:
+    from instructor.v2.providers.bedrock import from_bedrock
+except ImportError:
+    from_bedrock = None  # type: ignore
+
 __all__ = [
     # Core types
     "Provider",
@@ -101,6 +106,7 @@ __all__ = [
     "from_groq",
     "from_mistral",
     "from_openai",
+    "from_bedrock",
     "from_writer",
     "from_xai",
 ]
