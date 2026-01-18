@@ -729,11 +729,11 @@ pytest tests/test_patch.py -v
 
 ### Success Criteria
 
-- [ ] All 9 modes registered in v2 registry
-- [ ] Unit tests pass (no API key)
-- [ ] Integration tests pass with API key
-- [ ] Existing OpenAI tests still pass
-- [ ] Generic modes work: `mode=Mode.TOOLS`
+- [x] All 5 core modes registered in v2 registry (TOOLS, JSON_SCHEMA, MD_JSON, PARALLEL_TOOLS, RESPONSES_TOOLS)
+- [x] Unit tests pass (no API key)
+- [x] Integration tests pass with API key
+- [x] Existing OpenAI tests still pass
+- [x] Generic modes work: `mode=Mode.TOOLS`
 - [ ] Legacy modes work with deprecation warning: `mode=Mode.FUNCTIONS`
 
 ---
