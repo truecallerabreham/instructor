@@ -40,6 +40,11 @@ markers = [
     "llm: marks tests that make LLM API calls",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest-cov>=6.3.0",
+]
+
 [project.optional-dependencies]
 dev = [
     "pytest<9.0.0,>=8.3.3",

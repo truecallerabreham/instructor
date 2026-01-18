@@ -13,6 +13,22 @@ from ...processing.schema import generate_openai_schema
 from ...utils.core import dump_message
 
 
+def _extract_reask_message(response: Any) -> dict[str, Any]:
+    """Best-effort extraction of a message dict for Writer reask flows."""
+    if hasattr(response, "choices") and response.choices:
+        message = response.choices[0].message
+        try:
+            return dump_message(message)
+        except Exception:
+            return {
+                "role": getattr(message, "role", "assistant"),
+                "content": getattr(message, "content", ""),
+            }
+    if hasattr(response, "text"):
+        return {"role": "assistant", "content": response.text}
+    return {"role": "assistant", "content": getattr(response, "content", str(response))}
+
+
 def reask_writer_tools(
     kwargs: dict[str, Any],
     response: Any,
@@ -25,7 +41,7 @@ def reask_writer_tools(
     - Adds: "messages" (user instructions to correct tool call)
     """
     kwargs = kwargs.copy()
-    reask_msgs = [dump_message(response.choices[0].message)]
+    reask_msgs = [_extract_reask_message(response)]
     reask_msgs.append(
         {
             "role": "user",
@@ -54,11 +70,12 @@ def reask_writer_json(
     - Adds: "messages" (user message requesting JSON correction)
     """
     kwargs = kwargs.copy()
-    reask_msgs = [dump_message(response.choices[0].message)]
+    base_message = _extract_reask_message(response)
+    reask_msgs = [base_message]
     reask_msgs.append(
         {
             "role": "user",
-            "content": f"Correct your JSON response: {response.choices[0].message.content}, "
+            "content": f"Correct your JSON response: {base_message.get('content', '')}, "
             f"based on the following errors:\n{exception}",
         }
     )

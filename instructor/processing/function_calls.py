@@ -156,13 +156,31 @@ class OpenAISchema(BaseModel):
             cls (OpenAISchema): An instance of the class
         """
 
-        if mode == Mode.ANTHROPIC_TOOLS:
-            return cls.parse_anthropic_tools(completion, validation_context, strict)
-
+        # Anthropic modes are now handled by v2 handlers in instructor/v2/providers/anthropic/handlers.py
+        # These legacy methods are deprecated and will be removed in v2.0.0
+        # Keeping for backward compatibility with v1 code that might still use OpenAISchema.from_response directly
         if mode == Mode.ANTHROPIC_TOOLS or mode == Mode.ANTHROPIC_REASONING_TOOLS:
+            import warnings
+
+            warnings.warn(
+                "Using legacy parse_anthropic_tools via OpenAISchema.from_response is deprecated "
+                "and will be removed in instructor v2.0.0. "
+                "Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             return cls.parse_anthropic_tools(completion, validation_context, strict)
 
         if mode == Mode.ANTHROPIC_JSON:
+            import warnings
+
+            warnings.warn(
+                "Using legacy parse_anthropic_json via OpenAISchema.from_response is deprecated "
+                "and will be removed in instructor v2.0.0. "
+                "Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             return cls.parse_anthropic_json(completion, validation_context, strict)
 
         if mode == Mode.BEDROCK_JSON:
@@ -321,7 +339,6 @@ class OpenAISchema(BaseModel):
             content_items = completion.message.content
             if content_items and len(content_items) > 0:
                 # Find the text content item (skip thinking/other types)
-                # TODO handle these other content types
                 text = None
                 for item in content_items:
                     if (
@@ -361,6 +378,12 @@ class OpenAISchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
+        """Legacy v1 parsing method for Anthropic tools.
+
+        .. deprecated:: 1.13.0
+            This method is deprecated and will be removed in instructor v2.0.0.
+            Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.
+        """
         from anthropic.types import Message
 
         if isinstance(completion, Message) and completion.stop_reason == "max_tokens":
@@ -369,7 +392,7 @@ class OpenAISchema(BaseModel):
         # Anthropic returns arguments as a dict, dump to json for model validation below
         tool_calls = [
             json.dumps(c.input) for c in completion.content if c.type == "tool_use"
-        ]  # TODO update with anthropic specific types
+        ]
 
         tool_calls_validator = TypeAdapter(
             Annotated[list[Any], Field(min_length=1, max_length=1)]
@@ -387,6 +410,12 @@ class OpenAISchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
+        """Legacy v1 parsing method for Anthropic JSON.
+
+        .. deprecated:: 1.13.0
+            This method is deprecated and will be removed in instructor v2.0.0.
+            Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.
+        """
         from anthropic.types import Message
 
         last_block = None

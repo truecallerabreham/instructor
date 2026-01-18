@@ -5,6 +5,10 @@ description: Explore the comprehensive API reference with details on instructors
 
 # API Reference
 
+Core modes are the recommended default. Legacy provider-specific modes still
+work but are deprecated and will show warnings. See the
+[Mode Migration Guide](concepts/mode-migration.md) for details.
+
 ::: instructor.from_provider
 
 ::: instructor.dsl.validators
