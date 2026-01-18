@@ -722,20 +722,29 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
   pytest tests/v2/test_provider_modes.py -v -k "openai and test_mode_is_registered"
   ```
 
-- [ ] **Handler Unit Tests**:
+- [ ] **Parameterized Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_handlers_parametrized.py -v -k "openai"
+  ```
+  - [ ] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
+  - [ ] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
+  - [ ] Verify `MockResponseBuilder` methods support OpenAI response formats
+  - [ ] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
+  - [ ] `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
+  - [ ] `test_prepare_request_with_model()` - Tests `prepare_request()` with response_model
+  - [ ] `test_parse_response()` - Tests `parse_response()` with valid payloads (all modes)
+  - [ ] `test_parse_response_validation_error()` - Tests `parse_response()` with invalid payloads
+  - [ ] `test_handle_reask_adds_message()` - Tests `handle_reask()` adds error messages
+
+- [ ] **Provider-Specific Handler Unit Tests** (if needed for edge cases):
   ```bash
   pytest tests/v2/test_openai_handlers.py -v -k "not requires_api_key"
   ```
-  - [ ] `OpenAIToolsHandler.prepare_request()` - Test with/without response_model, strict parameter
-  - [ ] `OpenAIToolsHandler.parse_response()` - Test tool call extraction
-  - [ ] `OpenAIToolsHandler.handle_reask()` - Test reask logic
-  - [ ] `OpenAIJSONSchemaHandler.prepare_request()` - Test response_format setup
-  - [ ] `OpenAIJSONSchemaHandler.parse_response()` - Test JSON parsing
-  - [ ] `OpenAIMDJSONHandler.prepare_request()` - Test markdown instruction injection
-  - [ ] `OpenAIMDJSONHandler.parse_response()` - Test code block extraction
+  - [ ] `OpenAIToolsHandler.prepare_request()` - Test strict parameter handling
+  - [ ] `OpenAIToolsHandler.parse_response()` - Test tool call extraction edge cases
+  - [ ] `OpenAIJSONSchemaHandler.prepare_request()` - Test response_format setup details
   - [ ] `OpenAIParallelToolsHandler.prepare_request()` - Test parallel tool setup
-  - [ ] `OpenAIParallelToolsHandler.parse_response()` - Test multiple tool call parsing
-  - [ ] `OpenAIResponsesToolsHandler` - Test Responses API format
+  - [ ] `OpenAIResponsesToolsHandler` - Test Responses API format specifics
 
 - [ ] **Client Factory Tests**:
   ```bash
@@ -1731,21 +1740,21 @@ All these providers have missing API keys. Implement with unit tests only.
 
 **API Key**: `FIREWORKS_API_KEY` - MISSING
 
-- [ ] Create `instructor/v2/providers/fireworks/` directory
-- [ ] Handlers: `TOOLS`, `MD_JSON` (OpenAI-compatible)
-- [ ] Add to `PROVIDER_CONFIGS`
-- [ ] Run unit tests only
+- [x] Create `instructor/v2/providers/fireworks/` directory
+- [x] Handlers: `TOOLS`, `MD_JSON` (OpenAI-compatible)
+- [ ] Add to `PROVIDER_CONFIGS` (skipped - no API key)
+- [x] Run unit tests only - 45 passed, 2 skipped
 
 #### Test Checklist
 
-- [ ] **Unit Tests**:
+- [x] **Unit Tests**:
   ```bash
   pytest tests/v2/ -v -k "fireworks and not requires_api_key"
   ```
-  - [ ] Handler registration tests
-  - [ ] Handler unit tests (reuses OpenAI handlers)
-  - [ ] Client factory tests
-  - [ ] Mode normalization tests
+  - [x] Handler registration tests
+  - [x] Handler unit tests (reuses OpenAI handlers)
+  - [x] Client factory tests
+  - [x] Mode normalization tests
 
 - [ ] **Coverage Tests**:
   ```bash
@@ -2228,7 +2237,221 @@ Update this section after each phase completion:
 
 ## Test Suite Summary
 
-The v2 tests are fully parameterized in `tests/v2/test_provider_modes.py`. Each provider just needs an entry in `PROVIDER_CONFIGS`.
+The v2 test suite uses a comprehensive parameterized testing architecture that automatically tests all provider/mode combinations. The tests are split into three main categories:
+
+1. **Handler Unit Tests** (`tests/v2/test_handlers_parametrized.py`) - Tests handler methods with mocks (no API calls)
+2. **Integration Tests** (`tests/v2/test_provider_modes.py`) - Tests actual extraction with real API calls
+3. **Mode Normalization Tests** (`tests/v2/test_mode_normalization.py`) - Tests deprecated mode mappings and warnings
+
+### Parameterized Core Test Architecture
+
+The v2 test infrastructure is designed to automatically test all provider/mode combinations through parameterization. When adding a new provider, you only need to update configuration dictionaries - the tests automatically generate test cases for all combinations.
+
+#### Test File Structure
+
+**1. `tests/v2/test_handlers_parametrized.py` - Handler Unit Tests (No API Key Required)**
+
+This file contains parameterized unit tests that exercise handler methods (`prepare_request`, `parse_response`, `handle_reask`) using mock responses. These tests run fast and don't require API keys.
+
+Key components:
+
+- **`PROVIDER_HANDLER_MODES`** (lines 74-92): Maps each provider to a list of modes that should be tested
+  ```python
+  PROVIDER_HANDLER_MODES: dict[Provider, list[Mode]] = {
+      Provider.OPENAI: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON, Mode.PARALLEL_TOOLS, Mode.RESPONSES_TOOLS],
+      Provider.ANTHROPIC: [Mode.TOOLS, Mode.JSON, Mode.JSON_SCHEMA, Mode.PARALLEL_TOOLS, Mode.ANTHROPIC_REASONING_TOOLS],
+      Provider.GENAI: [Mode.TOOLS, Mode.JSON],
+      Provider.COHERE: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+      Provider.XAI: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+  }
+  ```
+
+- **`PARSE_SCENARIOS`** (lines 95-115): Maps provider/mode combinations to response scenario types
+  ```python
+  PARSE_SCENARIOS: dict[Provider, dict[Mode, str]] = {
+      Provider.OPENAI: {
+          Mode.TOOLS: "tool_call",
+          Mode.JSON_SCHEMA: "text",
+          Mode.MD_JSON: "markdown",
+          Mode.RESPONSES_TOOLS: "responses_output",
+      },
+      Provider.COHERE: {
+          Mode.TOOLS: "tool_call",
+          Mode.JSON_SCHEMA: "text",
+          Mode.MD_JSON: "markdown",
+      },
+      # ... etc
+  }
+  ```
+
+- **`MockResponseBuilder`** (lines 140-190): Builds provider-specific mock responses for testing
+  - `tool_response()` - Creates mock tool call responses
+  - `text_response()` - Creates mock text responses
+  - `markdown_response()` - Creates mock markdown code block responses
+  - `responses_output_response()` - Creates mock Responses API output (OpenAI only)
+
+- **`_provider_mode_params()`** (lines 130-137): Generates all provider/mode combinations from `PROVIDER_HANDLER_MODES` for pytest parameterization
+
+- **`_HANDLER_MODULE_PATHS`** (lines 25-31): Maps providers to their handler module file paths for dynamic loading
+
+- **`_ensure_handlers_loaded()`** (lines 35-53): Dynamically loads handler modules via `importlib` to ensure handlers are registered before testing
+
+Test functions:
+- `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
+- `test_prepare_request_with_model()` - Tests `prepare_request()` with a response_model
+- `test_parse_response()` - Tests `parse_response()` with valid payloads
+- `test_parse_response_validation_error()` - Tests `parse_response()` with invalid payloads
+- `test_handle_reask_adds_message()` - Tests `handle_reask()` adds error messages
+
+**2. `tests/v2/test_provider_modes.py` - Integration Tests (Requires API Keys)**
+
+This file contains parameterized integration tests that make actual API calls to test end-to-end extraction. These tests require API keys and are marked with `@pytest.mark.requires_api_key`.
+
+Key components:
+
+- **`PROVIDER_CONFIGS`** (lines 39-69): Maps providers to their full configuration
+  ```python
+  PROVIDER_CONFIGS = {
+      Provider.ANTHROPIC: {
+          "provider_string": "anthropic/claude-3-5-haiku-latest",
+          "modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.PARALLEL_TOOLS, Mode.ANTHROPIC_REASONING_TOOLS],
+          "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA],
+          "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA],
+      },
+      # ... etc
+  }
+  ```
+
+Test functions:
+- `test_mode_is_registered()` - Verifies each mode is registered (currently hardcoded parameter list)
+- `test_mode_basic_extraction()` - Tests basic extraction with each mode (currently hardcoded parameter list)
+- `test_mode_async_extraction()` - Tests async extraction (currently hardcoded parameter list)
+- `test_all_modes_covered()` - Verifies all registered modes are tested
+
+**Note**: The integration tests currently use hardcoded parameter lists. They should be made dynamic by generating parameters from `PROVIDER_CONFIGS` similar to how handler tests work.
+
+**3. `tests/v2/test_mode_normalization.py` - Mode Normalization Tests**
+
+This file tests deprecated mode mappings and ensures deprecation warnings work correctly.
+
+Key components:
+
+- Parameterized tests for all deprecated mode mappings (lines 29-74)
+- Tests that deprecated modes emit warnings (lines 149-177)
+- Tests that warnings are only shown once (lines 180-195)
+- Tests that generic modes don't emit warnings (lines 198-210)
+- Tests that deprecated mode mapping is complete (lines 213-270)
+
+#### How Tests Are Parameterized
+
+**Handler Tests** (`test_handlers_parametrized.py`):
+- Use `@pytest.mark.parametrize("provider,mode", _provider_mode_params())` decorator
+- `_provider_mode_params()` generates all combinations from `PROVIDER_HANDLER_MODES`
+- Tests automatically skip unsupported combinations using `pytest.skip()`
+- Example: If a provider doesn't support a mode, the test skips with a message
+
+**Integration Tests** (`test_provider_modes.py`):
+- Currently use hardcoded `@pytest.mark.parametrize()` lists
+- Should be refactored to generate parameters dynamically from `PROVIDER_CONFIGS`
+- Example target implementation:
+  ```python
+  def _get_basic_mode_params():
+      params = []
+      for provider, config in PROVIDER_CONFIGS.items():
+          for mode in config["basic_modes"]:
+              params.append((provider, mode))
+      return params
+  
+  @pytest.mark.parametrize("provider,mode", _get_basic_mode_params())
+  def test_mode_basic_extraction(provider: Provider, mode: Mode):
+      # ... test implementation
+  ```
+
+**Mode Normalization Tests** (`test_mode_normalization.py`):
+- Use hardcoded parameter lists for deprecated mode mappings
+- Test all provider-specific modes map to core modes correctly
+
+#### What Needs Updating When Adding a Provider
+
+When migrating a provider to v2, update these configuration dictionaries:
+
+1. **`PROVIDER_HANDLER_MODES`** in `tests/v2/test_handlers_parametrized.py` (line 74)
+   - Add provider entry with list of supported modes
+   - Example: `Provider.NEW_PROVIDER: [Mode.TOOLS, Mode.MD_JSON]`
+
+2. **`PARSE_SCENARIOS`** in `tests/v2/test_handlers_parametrized.py` (line 95)
+   - Add provider entry mapping modes to scenario types
+   - Scenarios: `"tool_call"`, `"text"`, `"markdown"`, `"responses_output"`
+   - Example: `Provider.NEW_PROVIDER: {Mode.TOOLS: "tool_call", Mode.MD_JSON: "markdown"}`
+
+3. **`MockResponseBuilder`** in `tests/v2/test_handlers_parametrized.py` (line 140)
+   - Add methods for provider-specific response formats if needed
+   - Most providers can reuse existing methods (OpenAI-compatible APIs)
+
+4. **`_HANDLER_MODULE_PATHS`** in `tests/v2/test_handlers_parametrized.py` (line 25)
+   - Add provider entry mapping to handler module file path
+   - Example: `Provider.NEW_PROVIDER: _PROJECT_ROOT / "instructor/v2/providers/new_provider/handlers.py"`
+
+5. **`PROVIDER_CONFIGS`** in `tests/v2/test_provider_modes.py` (line 39)
+   - Add provider entry with full configuration
+   - Includes: `provider_string`, `modes`, `basic_modes`, `async_modes`
+
+6. **Mode normalization tests** in `tests/v2/test_mode_normalization.py` (line 29)
+   - Add parameterized test cases for deprecated mode mappings
+   - Example: `(Provider.NEW_PROVIDER, Mode.NEW_PROVIDER_TOOLS, Mode.TOOLS)`
+
+7. **Deprecated mode mapping** in `tests/v2/test_mode_normalization.py` (line 213)
+   - Add provider-specific deprecated modes to `expected_deprecated` set
+
+#### Running Parameterized Tests
+
+**Handler Unit Tests** (No API key required):
+```bash
+# Run all handler unit tests
+pytest tests/v2/test_handlers_parametrized.py -v
+
+# Run tests for specific provider
+pytest tests/v2/test_handlers_parametrized.py -v -k "cohere"
+
+# Run specific test function
+pytest tests/v2/test_handlers_parametrized.py::test_parse_response -v
+
+# Run with coverage
+pytest tests/v2/test_handlers_parametrized.py --cov=instructor.v2.providers.cohere.handlers --cov-report=term-missing
+```
+
+**Integration Tests** (Requires API keys):
+```bash
+# Run all integration tests (needs all API keys)
+pytest tests/v2/test_provider_modes.py -v -m requires_api_key
+
+# Run tests for specific provider
+COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cohere"
+
+# Run specific test function
+COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py::test_mode_basic_extraction -v -m requires_api_key
+```
+
+**Mode Normalization Tests** (No API key required):
+```bash
+# Run all normalization tests
+pytest tests/v2/test_mode_normalization.py -v
+
+# Run specific provider normalization tests
+pytest tests/v2/test_mode_normalization.py -v -k "cohere"
+```
+
+**All v2 Tests**:
+```bash
+# Unit tests only (no API key)
+pytest tests/v2/ -v -k "not requires_api_key"
+
+# Integration tests only (requires API keys)
+pytest tests/v2/ -v -m requires_api_key
+
+# Specific provider (all tests)
+COHERE_API_KEY=... pytest tests/v2/ -v -k "cohere"
+```
 
 ### Existing Capability Systems (To Consolidate)
 

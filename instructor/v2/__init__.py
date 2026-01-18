@@ -62,6 +62,11 @@ try:
 except ImportError:
     from_mistral = None  # type: ignore
 
+try:
+    from instructor.v2.providers.fireworks import from_fireworks
+except ImportError:
+    from_fireworks = None  # type: ignore
+
 __all__ = [
     # Core types
     "Provider",
@@ -80,6 +85,7 @@ __all__ = [
     # Providers
     "from_anthropic",
     "from_cohere",
+    "from_fireworks",
     "from_genai",
     "from_groq",
     "from_mistral",
