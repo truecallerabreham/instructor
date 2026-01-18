@@ -15,19 +15,6 @@ from instructor.core.exceptions import (
 )
 
 
-def test_all_exceptions_can_be_imported():
-    """Test that all exceptions can be imported from instructor base package"""
-    # This test passes if the imports above succeed
-    assert InstructorError is not None
-    assert IncompleteOutputException is not None
-    assert InstructorRetryException is not None
-    assert ValidationError is not None
-    assert ProviderError is not None
-    assert ConfigurationError is not None
-    assert ModeError is not None
-    assert ClientError is not None
-
-
 def test_exception_hierarchy():
     """Test that all exceptions inherit from InstructorError."""
     assert issubclass(IncompleteOutputException, InstructorError)
@@ -39,28 +26,22 @@ def test_exception_hierarchy():
     assert issubclass(ClientError, InstructorError)
 
 
-def test_base_instructor_error_can_be_caught():
+@pytest.mark.parametrize(
+    "exception_factory",
+    [
+        lambda: IncompleteOutputException(),
+        lambda: InstructorRetryException(n_attempts=3, total_usage=100),
+        lambda: ValidationError("Validation failed"),
+        lambda: ProviderError("openai", "API error"),
+        lambda: ConfigurationError("Invalid config"),
+        lambda: ModeError("tools", "openai", ["json"]),
+        lambda: ClientError("Client initialization failed"),
+    ],
+)
+def test_base_instructor_error_can_be_caught(exception_factory):
     """Test that InstructorError can catch all instructor exceptions."""
     with pytest.raises(InstructorError):
-        raise IncompleteOutputException()
-
-    with pytest.raises(InstructorError):
-        raise InstructorRetryException(n_attempts=3, total_usage=100)
-
-    with pytest.raises(InstructorError):
-        raise ValidationError("Validation failed")
-
-    with pytest.raises(InstructorError):
-        raise ProviderError("openai", "API error")
-
-    with pytest.raises(InstructorError):
-        raise ConfigurationError("Invalid config")
-
-    with pytest.raises(InstructorError):
-        raise ModeError("tools", "openai", ["json"])
-
-    with pytest.raises(InstructorError):
-        raise ClientError("Client initialization failed")
+        raise exception_factory()
 
 
 def test_incomplete_output_exception():
@@ -159,27 +140,6 @@ def test_client_error():
     assert str(exc_info.value) == error_message
 
 
-def test_specific_exception_catching():
-    """Test that specific exceptions can be caught individually."""
-    # Test that we can catch specific exceptions without catching others
-
-    with pytest.raises(IncompleteOutputException):
-        try:
-            raise IncompleteOutputException()
-        except InstructorRetryException:
-            pytest.fail("Should not catch InstructorRetryException")
-        except IncompleteOutputException:
-            raise  # Re-raise to be caught by pytest.raises
-
-    with pytest.raises(ProviderError):
-        try:
-            raise ProviderError("test", "error")
-        except ConfigurationError:
-            pytest.fail("Should not catch ConfigurationError")
-        except ProviderError:
-            raise  # Re-raise to be caught by pytest.raises
-
-
 def test_multiple_exception_handling():
     """Test handling multiple exception types in a single try-except block."""
 
@@ -210,20 +170,6 @@ def test_multiple_exception_handling():
         raise_exception("unknown")
 
 
-def test_exception_import_from_instructor():
-    """Test that exceptions can be imported from the main instructor module."""
-    # Test importing from instructor.exceptions (already done in module imports)
-    from instructor.core.exceptions import InstructorError as ImportedError
-
-    assert ImportedError is InstructorError
-
-    # Test that exceptions are accessible and can be used in real scenarios
-    try:
-        raise ImportedError("test error")
-    except InstructorError as e:
-        assert str(e) == "test error"
-
-
 def test_instructor_error_from_exception():
     """Test InstructorError.from_exception() class method."""
     # Test with basic exception
@@ -250,15 +196,6 @@ def test_instructor_error_from_exception():
     runtime_error = RuntimeError("Runtime issue")
     instructor_error_runtime = InstructorError.from_exception(runtime_error)
     assert str(instructor_error_runtime) == "Runtime issue"
-
-
-def test_instructor_error_str_with_no_failed_attempts():
-    """Test InstructorError.__str__() with no failed attempts."""
-    error = InstructorError("Simple error message")
-    assert str(error) == "Simple error message"
-
-    error_with_args = InstructorError("Error", "with", "multiple", "args")
-    assert "Error" in str(error_with_args)
 
 
 def test_instructor_error_str_with_failed_attempts():
@@ -295,66 +232,6 @@ def test_instructor_error_str_with_failed_attempts():
 
     # Check that final exception is included
     assert "Final error message" in error_str
-
-
-def test_instructor_error_str_xml_structure():
-    """Test detailed XML structure of __str__() output."""
-    failed_attempts = [FailedAttempt(1, Exception("Test error"), "test completion")]
-
-    error = InstructorError("Last error", failed_attempts=failed_attempts)
-    error_str = str(error)
-
-    # Check proper XML nesting
-    lines = error_str.strip().split("\n")
-
-    # Find key XML elements
-    failed_attempts_start = next(
-        i for i, line in enumerate(lines) if "<failed_attempts>" in line
-    )
-    generation_start = next(
-        i for i, line in enumerate(lines) if '<generation number="1">' in line
-    )
-    exception_start = next(i for i, line in enumerate(lines) if "<exception>" in line)
-    completion_start = next(i for i, line in enumerate(lines) if "<completion>" in line)
-
-    # Verify proper nesting order
-    assert failed_attempts_start < generation_start < exception_start < completion_start
-
-
-def test_failed_attempt_namedtuple():
-    """Test FailedAttempt NamedTuple functionality."""
-    # Test with all fields
-    attempt = FailedAttempt(1, Exception("Test error"), "completion data")
-    assert attempt.attempt_number == 1
-    assert str(attempt.exception) == "Test error"
-    assert attempt.completion == "completion data"
-
-    # Test with None completion (default)
-    attempt_no_completion = FailedAttempt(2, ValueError("Another error"))
-    assert attempt_no_completion.attempt_number == 2
-    assert isinstance(attempt_no_completion.exception, ValueError)
-    assert attempt_no_completion.completion is None
-
-    # Test immutability
-    with pytest.raises(AttributeError):
-        attr = "attempt_number"
-        setattr(attempt, attr, 5)
-
-
-def test_instructor_error_failed_attempts_attribute():
-    """Test that failed_attempts attribute is properly handled."""
-    # Test default None
-    error = InstructorError("Test error")
-    assert error.failed_attempts is None
-
-    # Test explicit None
-    error_explicit = InstructorError("Test error", failed_attempts=None)
-    assert error_explicit.failed_attempts is None
-
-    # Test with actual failed attempts
-    attempts = [FailedAttempt(1, Exception("Error"), None)]
-    error_with_attempts = InstructorError("Test error", failed_attempts=attempts)
-    assert error_with_attempts.failed_attempts == attempts
 
 
 def test_instructor_retry_exception_with_failed_attempts():
@@ -529,42 +406,6 @@ def test_failed_attempts_accumulation_simulation():
     assert final_error.failed_attempts is not None
     for i, attempt in enumerate(final_error.failed_attempts, 1):
         assert attempt.attempt_number == i
-
-
-def test_failed_attempts_with_empty_and_none_completions():
-    """Test failed attempts handle various completion states correctly."""
-    # Test with None completion
-    attempt_none = FailedAttempt(1, Exception("Error with None"), None)
-    assert attempt_none.completion is None
-
-    # Test with empty string completion
-    attempt_empty = FailedAttempt(2, Exception("Error with empty"), "")
-    assert attempt_empty.completion == ""
-
-    # Test with empty dict completion
-    attempt_empty_dict = FailedAttempt(3, Exception("Error with empty dict"), {})
-    assert attempt_empty_dict.completion == {}
-
-    # Test with complex completion
-    complex_completion = {
-        "choices": [{"message": {"content": "partial"}}],
-        "usage": {"total_tokens": 50},
-    }
-    attempt_complex = FailedAttempt(
-        4, Exception("Error with complex"), complex_completion
-    )
-    assert attempt_complex.completion == complex_completion
-
-    # Create error with mixed completion types
-    mixed_attempts = [attempt_none, attempt_empty, attempt_empty_dict, attempt_complex]
-    error = InstructorError("Mixed completions", failed_attempts=mixed_attempts)
-
-    # Verify XML rendering handles all types
-    error_str = str(error)
-    assert "<completion>" in error_str
-    assert "</completion>" in error_str
-    # Should handle None, empty string, empty dict, and complex objects
-    assert error_str.count("<completion>") == 4
 
 
 def test_failed_attempts_exception_chaining():

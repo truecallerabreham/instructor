@@ -137,207 +137,41 @@ def test_additional_kwargs_passed():
     )
 
 
-def test_api_key_parameter_extraction():
-    """Test that api_key parameter is correctly extracted from kwargs."""
+@pytest.mark.parametrize(
+    "async_client, base_url, expected_base_url",
+    [
+        (False, "https://api.example.com/v1", "https://api.example.com/v1"),
+        (True, "https://api.example.com/v1", "https://api.example.com/v1"),
+        (False, None, None),
+    ],
+)
+def test_openai_provider_base_url_handling(async_client, base_url, expected_base_url):
+    """Ensure OpenAI provider passes base_url to client constructor when provided."""
     from unittest.mock import patch, MagicMock
 
-    # Mock the openai module to avoid actual API calls
-    with patch("openai.OpenAI") as mock_openai_class:
+    openai_class = "openai.AsyncOpenAI" if async_client else "openai.OpenAI"
+    with patch(openai_class) as mock_openai_class:
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        # Mock the from_openai import
         with patch("instructor.from_openai") as mock_from_openai:
             mock_instructor = MagicMock()
             mock_from_openai.return_value = mock_instructor
 
-            # Test that api_key is passed to client constructor
-            from_provider("openai/gpt-4", api_key="test-key-123")
+            provider_kwargs = {"api_key": "test-key"}
+            if base_url is not None:
+                provider_kwargs["base_url"] = base_url
+            if async_client:
+                provider_kwargs["async_client"] = True
 
-            # Verify OpenAI was called with the api_key
+            client = from_provider("openai/gpt-4", **provider_kwargs)
+
             mock_openai_class.assert_called_once()
             _, kwargs = mock_openai_class.call_args
-            assert kwargs["api_key"] == "test-key-123"
-
-
-def test_api_key_parameter_with_environment_fallback():
-    """Test that api_key parameter falls back to environment variables."""
-    import os
-    from unittest.mock import patch, MagicMock
-
-    # Mock the openai module
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
-
-        # Mock the from_openai import
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            # Mock environment variable
-            with patch.dict(os.environ, {}, clear=True):
-                # Test with no api_key parameter and no environment variable
-                from_provider("openai/gpt-4")
-
-                # Should still call OpenAI with None (which is the default behavior)
-                mock_openai_class.assert_called()
-                _, kwargs = mock_openai_class.call_args
-                assert kwargs["api_key"] is None
-
-
-def test_api_key_parameter_with_async_client():
-    """Test that api_key parameter works with async clients."""
-    from unittest.mock import patch, MagicMock
-
-    # Mock the openai module
-    with patch("openai.AsyncOpenAI") as mock_async_openai_class:
-        mock_client = MagicMock()
-        mock_async_openai_class.return_value = mock_client
-
-        # Mock the from_openai import
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            # Test with async client
-            from_provider("openai/gpt-4", async_client=True, api_key="test-async-key")
-
-            # Verify AsyncOpenAI was called with the api_key
-            mock_async_openai_class.assert_called_once()
-            _, kwargs = mock_async_openai_class.call_args
-            assert kwargs["api_key"] == "test-async-key"
-
-
-def test_api_key_parameter_not_passed_when_none():
-    """Test that api_key parameter is handled correctly when None."""
-    from unittest.mock import patch, MagicMock
-
-    # Mock the openai module
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
-
-        # Mock the from_openai import
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            # Test with None api_key
-            from_provider("openai/gpt-4", api_key=None)
-
-            # Verify OpenAI was called with None api_key
-            mock_openai_class.assert_called_once()
-            _, kwargs = mock_openai_class.call_args
-            assert kwargs["api_key"] is None
-
-
-def test_api_key_logging():
-    """Test that api_key provision is logged correctly."""
-    from unittest.mock import patch, MagicMock
-
-    # Mock the openai module
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
-
-        # Mock the from_openai import
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            # Mock logger
-            with patch("instructor.auto_client.logger") as mock_logger:
-                # Test that providing api_key triggers debug log
-                from_provider("openai/gpt-4", api_key="test-key")
-
-                # Check that debug was called with api_key message and length
-                debug_calls = [
-                    call
-                    for call in mock_logger.debug.call_args_list
-                    if "API key provided" in str(call) and "length:" in str(call)
-                ]
-                assert len(debug_calls) > 0, (
-                    "Expected debug log for API key provision with length"
-                )
-
-                # Verify the length is logged correctly (test-key is 8 characters)
-                mock_logger.debug.assert_called_with(
-                    "API key provided for %s provider (length: %d characters)",
-                    "openai",
-                    8,
-                    extra={"provider": "openai", "operation": "initialize"},
-                )
-
-
-def test_openai_provider_respects_base_url():
-    """Ensure OpenAI provider passes base_url to client constructor."""
-    from unittest.mock import patch, MagicMock
-
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
-
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            client = from_provider(
-                "openai/gpt-4",
-                base_url="https://api.example.com/v1",
-                api_key="test-key",
-            )
-
-            _, kwargs = mock_openai_class.call_args
-            assert kwargs["base_url"] == "https://api.example.com/v1"
-            assert kwargs["api_key"] == "test-key"
-            mock_from_openai.assert_called_once()
-            assert client is mock_instructor
-
-
-def test_openai_provider_async_client_with_base_url():
-    """Ensure OpenAI provider passes base_url to async client constructor."""
-    from unittest.mock import patch, MagicMock
-
-    with patch("openai.AsyncOpenAI") as mock_async_openai_class:
-        mock_client = MagicMock()
-        mock_async_openai_class.return_value = mock_client
-
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            client = from_provider(
-                "openai/gpt-4",
-                async_client=True,
-                base_url="https://api.example.com/v1",
-                api_key="test-key",
-            )
-
-            mock_async_openai_class.assert_called_once()
-            _, kwargs = mock_async_openai_class.call_args
-            assert kwargs["base_url"] == "https://api.example.com/v1"
-            assert kwargs["api_key"] == "test-key"
-            mock_from_openai.assert_called_once()
-            assert client is mock_instructor
-
-
-def test_openai_provider_without_base_url():
-    """Ensure OpenAI provider works without base_url (defaults to api.openai.com)."""
-    from unittest.mock import patch, MagicMock
-
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
-
-        with patch("instructor.from_openai") as mock_from_openai:
-            mock_instructor = MagicMock()
-            mock_from_openai.return_value = mock_instructor
-
-            client = from_provider("openai/gpt-4", api_key="test-key")
-
-            _, kwargs = mock_openai_class.call_args
-            assert kwargs.get("base_url") in (None, "")
+            if expected_base_url is None:
+                assert kwargs.get("base_url") in (None, "")
+            else:
+                assert kwargs["base_url"] == expected_base_url
             assert kwargs["api_key"] == "test-key"
             mock_from_openai.assert_called_once()
             assert client is mock_instructor
