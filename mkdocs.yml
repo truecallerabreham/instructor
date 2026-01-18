@@ -249,6 +249,7 @@ nav:
     - Patching: 'concepts/patching.md'
     - from_provider: 'concepts/from_provider.md'
     - Migration Guide: 'concepts/migration.md'
+    - Mode Migration: 'concepts/mode-migration.md'
     - Hooks: 'concepts/hooks.md'
     - Types: 'concepts/types.md'
     - TypedDicts: 'concepts/typeddicts.md'
