@@ -173,13 +173,14 @@ class XAIToolsHandler(XAIHandlerBase):
 
         from instructor.utils.core import prepare_response_model
 
-        response_model = prepare_response_model(response_model)
-        self._register_streaming_from_kwargs(response_model, new_kwargs)
+        prepared_model = prepare_response_model(response_model)
+        assert prepared_model is not None  # Already checked response_model is not None
+        self._register_streaming_from_kwargs(prepared_model, new_kwargs)
 
         # Generate tool schema
-        schema = response_model.model_json_schema()
-        tool_name = getattr(response_model, "__name__", "response")
-        tool_description = response_model.__doc__ or ""
+        schema = prepared_model.model_json_schema()
+        tool_name = getattr(prepared_model, "__name__", "response")
+        tool_description = prepared_model.__doc__ or ""
 
         # Store tool info for xAI SDK
         new_kwargs["_xai_tool"] = {
@@ -188,7 +189,7 @@ class XAIToolsHandler(XAIHandlerBase):
             "parameters": schema,
         }
 
-        return response_model, new_kwargs
+        return prepared_model, new_kwargs
 
     def handle_reask(
         self,

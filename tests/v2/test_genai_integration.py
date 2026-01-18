@@ -20,13 +20,13 @@ class DummyModels:
         self.called = False
         self.stream_called = False
 
-    def generate_content(self, *args, **kwargs):
+    def generate_content(self, *_args, **_kwargs):
         self.called = True
         return types.GenerateContentResponse(
             candidates=[types.Candidate(content=types.Content(role="model", parts=[]))]
         )
 
-    def generate_content_stream(self, *args, **kwargs):
+    def generate_content_stream(self, *_args, **_kwargs):
         self.stream_called = True
         yield types.GenerateContentResponse(
             candidates=[types.Candidate(content=types.Content(role="model", parts=[]))]
@@ -37,18 +37,22 @@ class DummyAsyncModels:
     def __init__(self):
         self.called = False
 
-    async def generate_content(self, *args, **kwargs):
+    async def generate_content(self, *_args, **_kwargs):
         self.called = True
         return types.GenerateContentResponse(
             candidates=[types.Candidate(content=types.Content(role="model", parts=[]))]
         )
 
-    async def generate_content_stream(self, *args, **kwargs):
+    async def generate_content_stream(self, *_args, **_kwargs):
         self.called = True
+
         async def _gen():
             yield types.GenerateContentResponse(
-                candidates=[types.Candidate(content=types.Content(role="model", parts=[]))]
+                candidates=[
+                    types.Candidate(content=types.Content(role="model", parts=[]))
+                ]
             )
+
         return _gen()
 
 
@@ -166,4 +170,3 @@ def test_from_genai_json_backwards_compat(monkeypatch):
     )
 
     assert client.models.called
-

@@ -90,7 +90,7 @@ def from_genai(
         async def async_wrapper(*_args: Any, **call_kwargs: Any) -> Any:
             # Extract model and stream from kwargs
             # default_model will be injected by patch_v2 if not present
-            model_param = call_kwargs.pop("model", None) or model
+            model_param: str = call_kwargs.pop("model", None) or model or ""
             stream = call_kwargs.pop("stream", False)
 
             # contents should be in call_kwargs from handler
@@ -120,7 +120,7 @@ def from_genai(
     def sync_wrapper(*_args: Any, **call_kwargs: Any) -> Any:
         # Extract model and stream from kwargs
         # default_model will be injected by patch_v2 if not present
-        model_param = call_kwargs.pop("model", None) or model
+        model_param: str = call_kwargs.pop("model", None) or model or ""
         stream = call_kwargs.pop("stream", False)
 
         # contents should be in call_kwargs from handler

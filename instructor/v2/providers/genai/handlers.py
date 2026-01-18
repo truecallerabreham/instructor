@@ -196,7 +196,7 @@ class GenAIToolsHandler(GenAIHandlerBase):
             )
 
         prepared_model = self._wrap_streaming_model(prepared_model, stream)
-        schema = gemini_utils.map_to_gemini_function_schema(
+        schema = gemini_utils.map_to_genai_schema(
             gemini_utils._get_model_schema(prepared_model)
         )
         function_decl = types.FunctionDeclaration(
@@ -227,7 +227,7 @@ class GenAIToolsHandler(GenAIHandlerBase):
             "tools": [types.Tool(function_declarations=[function_decl])],
             "tool_config": types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(
-                    mode="ANY",
+                    mode=types.FunctionCallingConfigMode.ANY,
                     allowed_function_names=[
                         gemini_utils._get_model_name(prepared_model)
                     ],

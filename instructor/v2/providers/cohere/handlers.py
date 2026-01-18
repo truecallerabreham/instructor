@@ -154,18 +154,19 @@ class CohereToolsHandler(CohereHandlerBase):
         # Prepare response model for simple types
         from instructor.utils.core import prepare_response_model
 
-        response_model = prepare_response_model(response_model)
+        prepared_model = prepare_response_model(response_model)
+        assert prepared_model is not None  # Already checked response_model is not None
 
         # Create extraction instruction
         instruction = f"""\
-Extract a valid {response_model.__name__} object based on the chat history and the json schema below.
-{response_model.model_json_schema()}
+Extract a valid {prepared_model.__name__} object based on the chat history and the json schema below.
+{prepared_model.model_json_schema()}
 The JSON schema was obtained by running:
 ```python
-schema = {response_model.__name__}.model_json_schema()
+schema = {prepared_model.__name__}.model_json_schema()
 ```
 
-The output must be a valid JSON object that `{response_model.__name__}.model_validate_json()` can successfully parse.
+The output must be a valid JSON object that `{prepared_model.__name__}.model_validate_json()` can successfully parse.
 Respond with JSON only. Do not include code fences, markdown, or extra text.
 """
 
@@ -179,7 +180,7 @@ Respond with JSON only. Do not include code fences, markdown, or extra text.
                 {"role": "user", "message": instruction}
             ] + new_kwargs.get("chat_history", [])
 
-        return response_model, new_kwargs
+        return prepared_model, new_kwargs
 
     def handle_reask(
         self,
@@ -257,15 +258,16 @@ class CohereJSONSchemaHandler(CohereHandlerBase):
         # Prepare response model for simple types
         from instructor.utils.core import prepare_response_model
 
-        response_model = prepare_response_model(response_model)
+        prepared_model = prepare_response_model(response_model)
+        assert prepared_model is not None  # Already checked response_model is not None
 
         # Set response_format with JSON schema
         new_kwargs["response_format"] = {
             "type": "json_object",
-            "schema": response_model.model_json_schema(),
+            "schema": prepared_model.model_json_schema(),
         }
 
-        return response_model, new_kwargs
+        return prepared_model, new_kwargs
 
     def handle_reask(
         self,
@@ -330,9 +332,10 @@ class CohereMDJSONHandler(CohereHandlerBase):
         # Prepare response model for simple types
         from instructor.utils.core import prepare_response_model
 
-        response_model = prepare_response_model(response_model)
+        prepared_model = prepare_response_model(response_model)
+        assert prepared_model is not None  # Already checked response_model is not None
 
-        schema = response_model.model_json_schema()
+        schema = prepared_model.model_json_schema()
 
         # Add instruction to return JSON in markdown code block
         instruction = (
@@ -350,7 +353,7 @@ class CohereMDJSONHandler(CohereHandlerBase):
             message = new_kwargs.get("message", "")
             new_kwargs["message"] = f"{message}\n\n{instruction}"
 
-        return response_model, new_kwargs
+        return prepared_model, new_kwargs
 
     def handle_reask(
         self,
