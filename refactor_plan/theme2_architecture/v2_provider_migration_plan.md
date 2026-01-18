@@ -211,6 +211,24 @@ Each provider supports different core modes:
 
 **Note**: `strict=True` is a parameter on `TOOLS` mode, not a separate mode.
 
+### Phase 1 Checklist
+
+- [ ] Create `instructor/v2/providers/openai/` directory
+- [ ] Create `__init__.py` with exports
+- [ ] Create `handlers.py` with all 5 mode handlers:
+  - [ ] `OpenAIToolsHandler` - TOOLS mode
+  - [ ] `OpenAIJSONSchemaHandler` - JSON_SCHEMA mode
+  - [ ] `OpenAIMDJSONHandler` - MD_JSON mode
+  - [ ] `OpenAIParallelToolsHandler` - PARALLEL_TOOLS mode
+  - [ ] `OpenAIResponsesToolsHandler` - RESPONSES_TOOLS mode
+- [ ] Create `client.py` with `from_openai()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (FUNCTIONS -> TOOLS, TOOLS_STRICT -> TOOLS, JSON -> JSON_SCHEMA, etc.)
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run: `pytest tests/v2/ -v -k "openai"`
+- [ ] Handler test coverage ≥70% (`handlers.py`)
+- [ ] Client test coverage ≥60% (`client.py`)
+
 ### Files to Create
 
 ```
@@ -645,73 +663,67 @@ class OpenAIResponsesToolsHandler(OpenAIHandlerBase):
 
 ### Files to Update (Imports)
 
-```python
-# instructor/v2/__init__.py - Add import
-try:
-    from instructor.v2.providers.openai import from_openai
-except ImportError:
-    from_openai = None
+- [ ] **Update `instructor/v2/__init__.py`**:
+  ```python
+  # Add import
+  try:
+      from instructor.v2.providers.openai import from_openai
+  except ImportError:
+      from_openai = None
+  ```
 
-# instructor/v2/core/registry.py - Add normalizations
-# (Already has some, add any missing)
-```
+- [ ] **Update `instructor/v2/core/registry.py`**:
+  - [ ] Add normalizations (FUNCTIONS -> TOOLS, TOOLS_STRICT -> TOOLS, JSON -> JSON_SCHEMA, etc.)
+  - [ ] Verify all legacy modes are mapped
 
 ### Tests: Update `tests/v2/test_provider_modes.py`
 
-The v2 tests are already parameterized. Just add OpenAI to `PROVIDER_CONFIGS`:
+- [ ] **Add OpenAI to `PROVIDER_CONFIGS`**:
+  ```python
+  # Update PROVIDER_CONFIGS in tests/v2/test_provider_modes.py
+  
+  PROVIDER_CONFIGS = {
+      Provider.OPENAI: {
+          "provider_string": "openai/gpt-4o-mini",
+          "modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON, Mode.PARALLEL_TOOLS, Mode.RESPONSES_TOOLS],
+          "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+          "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+      },
+      # ... existing providers ...
+  }
+  ```
 
-```python
-# Update PROVIDER_CONFIGS in tests/v2/test_provider_modes.py
+- [ ] **Update parameterized test decorators** (if not already dynamic):
+  ```python
+  # Generate test params dynamically from PROVIDER_CONFIGS
+  def _get_basic_params():
+      """Generate (provider, mode) tuples for basic tests."""
+      params = []
+      for provider, config in PROVIDER_CONFIGS.items():
+          for mode in config["basic_modes"]:
+              params.append((provider, mode))
+      return params
+  
+  
+  @pytest.mark.parametrize("provider,mode", _get_basic_params())
+  @pytest.mark.requires_api_key
+  def test_mode_basic_extraction(provider: Provider, mode: Mode):
+      """Test basic extraction with each mode."""
+      config = PROVIDER_CONFIGS[provider]
+      client = instructor.from_provider(config["provider_string"], mode=mode)
+      response = client.chat.completions.create(
+          response_model=Answer,
+          messages=[{"role": "user", "content": "What is 2 + 2?"}],
+          max_tokens=1000,
+      )
+      assert isinstance(response, Answer)
+      assert response.answer == 4.0
+  ```
 
-PROVIDER_CONFIGS = {
-    Provider.OPENAI: {
-        "provider_string": "openai/gpt-4o-mini",
-        "modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON, Mode.PARALLEL_TOOLS, Mode.RESPONSES_TOOLS],
-        "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-        "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-    },
-    Provider.ANTHROPIC: {
-        "provider_string": "anthropic/claude-3-5-haiku-latest",
-        "modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON, Mode.PARALLEL_TOOLS],
-        "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-        "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-    },
-    Provider.GENAI: {
-        "provider_string": "google/gemini-2.0-flash",
-        "modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-        "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-        "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
-    },
-}
-```
-
-Then update the parameterized test decorators to include all providers:
-
-```python
-# Generate test params dynamically from PROVIDER_CONFIGS
-def _get_basic_params():
-    """Generate (provider, mode) tuples for basic tests."""
-    params = []
-    for provider, config in PROVIDER_CONFIGS.items():
-        for mode in config["basic_modes"]:
-            params.append((provider, mode))
-    return params
-
-
-@pytest.mark.parametrize("provider,mode", _get_basic_params())
-@pytest.mark.requires_api_key
-def test_mode_basic_extraction(provider: Provider, mode: Mode):
-    """Test basic extraction with each mode."""
-    config = PROVIDER_CONFIGS[provider]
-    client = instructor.from_provider(config["provider_string"], mode=mode)
-    response = client.chat.completions.create(
-        response_model=Answer,
-        messages=[{"role": "user", "content": "What is 2 + 2?"}],
-        max_tokens=1000,
-    )
-    assert isinstance(response, Answer)
-    assert response.answer == 4.0
-```
+- [ ] **Add OpenAI to parameterized handler tests**:
+  - [ ] Add to `PROVIDER_HANDLER_MODES` in `tests/v2/test_handlers_parametrized.py`
+  - [ ] Add to `PARSE_SCENARIOS` in `tests/v2/test_handlers_parametrized.py`
+  - [ ] Add handler module path to `_HANDLER_MODULE_PATHS` in `tests/v2/test_handlers_parametrized.py`
 
 ### Test Checklist
 
@@ -2005,6 +2017,29 @@ All these providers have missing API keys. Implement with unit tests only.
 
 ## Mode Deprecation Implementation
 
+### Implementation Checklist
+
+- [ ] **Update `instructor/mode.py`**:
+  - [ ] Add `DEPRECATED_TO_CORE` mapping dictionary
+  - [ ] Add `_deprecated_modes_warned` set for tracking warnings
+  - [ ] Add `warn_deprecated_mode()` class method
+  - [ ] Ensure all 37 deprecated modes are mapped to core modes
+
+- [ ] **Update `instructor/v2/core/registry.py`**:
+  - [ ] Update `normalize_mode()` to call deprecation warning
+  - [ ] Ensure normalization logic works for all providers
+
+- [ ] **Update tests**:
+  - [ ] Add deprecation warning tests in `tests/v2/test_mode_normalization.py`
+  - [ ] Verify warnings are only shown once per mode
+  - [ ] Verify generic modes don't emit warnings
+  - [ ] Test all deprecated mode mappings
+
+- [ ] **Documentation**:
+  - [ ] Create migration guide showing deprecated -> core mode mappings
+  - [ ] Update examples to use generic modes
+  - [ ] Add deprecation notices to API docs
+
 ### The 5 Core Modes (Target State)
 
 ```python
@@ -2099,20 +2134,24 @@ def warn_deprecated_mode(cls, mode: "Mode") -> None:
 
 ### Update Registry Normalization
 
-```python
-# instructor/v2/core/registry.py
+- [ ] **Update `normalize_mode()` in `instructor/v2/core/registry.py`**:
+  ```python
+  def normalize_mode(provider: Provider, mode: Mode) -> Mode:
+      """Convert deprecated modes to core modes with deprecation warning."""
+      from instructor.mode import DEPRECATED_TO_CORE, Mode as ModeEnum
+      
+      # Check if deprecated and warn
+      if hasattr(ModeEnum, 'warn_deprecated_mode'):
+          ModeEnum.warn_deprecated_mode(mode)
+      
+      # Return the core mode replacement
+      return DEPRECATED_TO_CORE.get(mode, mode)
+  ```
 
-def normalize_mode(provider: Provider, mode: Mode) -> Mode:
-    """Convert deprecated modes to core modes with deprecation warning."""
-    from instructor.mode import DEPRECATED_TO_CORE, Mode as ModeEnum
-    
-    # Check if deprecated and warn
-    if hasattr(ModeEnum, 'warn_deprecated_mode'):
-        ModeEnum.warn_deprecated_mode(mode)
-    
-    # Return the core mode replacement
-    return DEPRECATED_TO_CORE.get(mode, mode)
-```
+- [ ] **Test normalization**:
+  - [ ] Verify deprecated modes trigger warnings
+  - [ ] Verify warnings only appear once per mode
+  - [ ] Verify generic modes pass through unchanged
 
 ---
 
@@ -2158,10 +2197,10 @@ def normalize_mode(provider: Provider, mode: Mode) -> Mode:
 
 **Target Coverage by Phase**:
 
-- **Phase 1 (OpenAI)**: 70%+ handler coverage, 60%+ client coverage
-- **Phase 2-3 (Cohere, xAI)**: 60%+ handler coverage, 70%+ client coverage
-- **Phase 4+ (Others)**: 50%+ handler coverage, 50%+ client coverage
-- **Overall Target**: 70%+ coverage across all v2 modules
+- [ ] **Phase 1 (OpenAI)**: 70%+ handler coverage, 60%+ client coverage
+- [ ] **Phase 2-3 (Cohere, xAI)**: 60%+ handler coverage, 70%+ client coverage
+- [ ] **Phase 4+ (Others)**: 50%+ handler coverage, 50%+ client coverage
+- [ ] **Overall Target**: 70%+ coverage across all v2 modules
 
 ### Coverage Checklist Per Provider
 
@@ -2202,39 +2241,40 @@ uv run pytest tests/v2/test_handlers_parametrized.py -v
 
 ### Critical Coverage Gaps
 
-1. **Anthropic Handlers (0% coverage)**
-   - **Impact**: Critical - Anthropic is a major provider
-   - **Action**: Add comprehensive handler unit tests
-   - **Priority**: P0
+- [ ] **Anthropic Handlers (0% coverage)** - Priority: P0
+  - [ ] Add comprehensive handler unit tests
+  - [ ] Test all handler methods (prepare_request, parse_response, handle_reask)
+  - [ ] Test edge cases and error paths
 
-2. **Anthropic Client (12% coverage)**
-   - **Impact**: Critical - Low coverage for client factory
-   - **Action**: Add client factory tests (sync/async, error handling)
-   - **Priority**: P0
+- [ ] **Anthropic Client (12% coverage)** - Priority: P0
+  - [ ] Add client factory tests (sync/async, error handling)
+  - [ ] Test mode validation and error handling
+  - [ ] Test legacy mode normalization
 
-3. **GenAI Client (8% coverage)**
-   - **Impact**: Critical - Very low coverage for client factory
-   - **Action**: Add comprehensive client factory tests
-   - **Priority**: P0
+- [ ] **GenAI Client (8% coverage)** - Priority: P0
+  - [ ] Add comprehensive client factory tests
+  - [ ] Test sync/async client creation
+  - [ ] Test error handling paths
 
-4. **Handler Error Paths**
-   - Most handlers lack tests for error scenarios
-   - Missing tests for invalid responses, validation failures
-   - **Action**: Add error path tests for all handlers
+- [ ] **Handler Error Paths**
+  - [ ] Add error path tests for all handlers
+  - [ ] Test invalid responses, validation failures
+  - [ ] Test None response_model handling
 
-5. **Client Factory Error Handling**
-   - Limited tests for invalid client types
-   - Missing tests for mode validation errors
-   - **Action**: Add error handling tests for all client factories
+- [ ] **Client Factory Error Handling**
+  - [ ] Add error handling tests for all client factories
+  - [ ] Test invalid client types
+  - [ ] Test mode validation errors
 
-6. **Streaming Response Handling**
-   - Limited coverage for streaming responses
-   - Missing tests for `Iterable[T]` with streaming
-   - **Action**: Add streaming-specific handler tests
+- [ ] **Streaming Response Handling**
+  - [ ] Add streaming-specific handler tests
+  - [ ] Test `Iterable[T]` with streaming
+  - [ ] Test partial streaming with `Partial[T]`
 
-7. **Retry Logic (60% coverage)**
-   - Missing tests for retry edge cases
-   - **Action**: Add retry logic tests, especially async paths
+- [ ] **Retry Logic (60% coverage)**
+  - [ ] Add retry logic tests, especially async paths
+  - [ ] Test retry edge cases
+  - [ ] Test retry with different exception types
 
 ### Running Coverage Reports
 
