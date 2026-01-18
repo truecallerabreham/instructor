@@ -168,9 +168,22 @@ Each provider supports different core modes:
 
 ### Deprecation Timeline
 
-1. **v1.x (now)**: Provider-specific modes work but show deprecation warning
-2. **v2.0**: Provider-specific modes still work with warning, docs updated
-3. **v3.0**: Provider-specific modes removed from enum
+- [x] **v1.x (now)**: Provider-specific modes work but show deprecation warning
+  - [x] Implement deprecation warnings for all provider-specific modes
+  - [x] Add `DEPRECATED_TO_CORE` mapping
+  - [x] Update `normalize_mode()` to emit warnings
+  - [x] Test deprecation warnings work correctly
+
+- [ ] **v2.0**: Provider-specific modes still work with warning, docs updated
+  - [ ] Update all documentation to use generic modes
+  - [ ] Update examples to use generic modes
+  - [ ] Create migration guide
+  - [ ] Ensure backward compatibility maintained
+
+- [ ] **v3.0**: Provider-specific modes removed from enum
+  - [ ] Remove deprecated modes from Mode enum
+  - [ ] Update all code references
+  - [ ] Final migration guide update
 
 ---
 
@@ -213,18 +226,18 @@ Each provider supports different core modes:
 
 ### Phase 1 Checklist
 
-- [ ] Create `instructor/v2/providers/openai/` directory
-- [ ] Create `__init__.py` with exports
-- [ ] Create `handlers.py` with all 5 mode handlers:
-  - [ ] `OpenAIToolsHandler` - TOOLS mode
-  - [ ] `OpenAIJSONSchemaHandler` - JSON_SCHEMA mode
-  - [ ] `OpenAIMDJSONHandler` - MD_JSON mode
-  - [ ] `OpenAIParallelToolsHandler` - PARALLEL_TOOLS mode
-  - [ ] `OpenAIResponsesToolsHandler` - RESPONSES_TOOLS mode
-- [ ] Create `client.py` with `from_openai()` factory
-- [ ] Add import to `instructor/v2/__init__.py`
-- [ ] Add legacy normalizations (FUNCTIONS -> TOOLS, TOOLS_STRICT -> TOOLS, JSON -> JSON_SCHEMA, etc.)
-- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [x] Create `instructor/v2/providers/openai/` directory
+- [x] Create `__init__.py` with exports
+- [x] Create `handlers.py` with all 5 mode handlers:
+  - [x] `OpenAIToolsHandler` - TOOLS mode
+  - [x] `OpenAIJSONSchemaHandler` - JSON_SCHEMA mode
+  - [x] `OpenAIMDJSONHandler` - MD_JSON mode
+  - [x] `OpenAIParallelToolsHandler` - PARALLEL_TOOLS mode
+  - [x] `OpenAIResponsesToolsHandler` - RESPONSES_TOOLS mode
+- [x] Create `client.py` with `from_openai()` factory
+- [x] Add import to `instructor/v2/__init__.py`
+- [x] Add legacy normalizations (FUNCTIONS -> TOOLS, TOOLS_STRICT -> TOOLS, JSON -> JSON_SCHEMA, etc.)
+- [x] Add to `PROVIDER_CONFIGS` in tests
 - [ ] Run: `pytest tests/v2/ -v -k "openai"`
 - [ ] Handler test coverage ≥70% (`handlers.py`)
 - [ ] Client test coverage ≥60% (`client.py`)
@@ -663,7 +676,7 @@ class OpenAIResponsesToolsHandler(OpenAIHandlerBase):
 
 ### Files to Update (Imports)
 
-- [ ] **Update `instructor/v2/__init__.py`**:
+- [x] **Update `instructor/v2/__init__.py`**:
   ```python
   # Add import
   try:
@@ -672,13 +685,13 @@ class OpenAIResponsesToolsHandler(OpenAIHandlerBase):
       from_openai = None
   ```
 
-- [ ] **Update `instructor/v2/core/registry.py`**:
-  - [ ] Add normalizations (FUNCTIONS -> TOOLS, TOOLS_STRICT -> TOOLS, JSON -> JSON_SCHEMA, etc.)
-  - [ ] Verify all legacy modes are mapped
+- [x] **Update `instructor/v2/core/registry.py`**:
+  - [x] Add normalizations (FUNCTIONS -> TOOLS, TOOLS_STRICT -> TOOLS, JSON -> JSON_SCHEMA, etc.)
+  - [x] Verify all legacy modes are mapped
 
 ### Tests: Update `tests/v2/test_provider_modes.py`
 
-- [ ] **Add OpenAI to `PROVIDER_CONFIGS`**:
+- [x] **Add OpenAI to `PROVIDER_CONFIGS`**:
   ```python
   # Update PROVIDER_CONFIGS in tests/v2/test_provider_modes.py
   
@@ -720,10 +733,10 @@ class OpenAIResponsesToolsHandler(OpenAIHandlerBase):
       assert response.answer == 4.0
   ```
 
-- [ ] **Add OpenAI to parameterized handler tests**:
-  - [ ] Add to `PROVIDER_HANDLER_MODES` in `tests/v2/test_handlers_parametrized.py`
-  - [ ] Add to `PARSE_SCENARIOS` in `tests/v2/test_handlers_parametrized.py`
-  - [ ] Add handler module path to `_HANDLER_MODULE_PATHS` in `tests/v2/test_handlers_parametrized.py`
+- [x] **Add OpenAI to parameterized handler tests**:
+  - [x] Add to `PROVIDER_HANDLER_MODES` in `tests/v2/test_handlers_parametrized.py`
+  - [x] Add to `PARSE_SCENARIOS` in `tests/v2/test_handlers_parametrized.py`
+  - [x] Add handler module path to `_HANDLER_MODULE_PATHS` in `tests/v2/test_handlers_parametrized.py`
 
 ### Test Checklist
 
@@ -734,14 +747,14 @@ class OpenAIResponsesToolsHandler(OpenAIHandlerBase):
   pytest tests/v2/test_provider_modes.py -v -k "openai and test_mode_is_registered"
   ```
 
-- [ ] **Parameterized Handler Unit Tests**:
+- [x] **Parameterized Handler Unit Tests**:
   ```bash
   pytest tests/v2/test_handlers_parametrized.py -v -k "openai"
   ```
-  - [ ] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
-  - [ ] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
-  - [ ] Verify `MockResponseBuilder` methods support OpenAI response formats
-  - [ ] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
+  - [x] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
+  - [x] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
+  - [x] Verify `MockResponseBuilder` methods support OpenAI response formats
+  - [x] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
   - [ ] `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
   - [ ] `test_prepare_request_with_model()` - Tests `prepare_request()` with response_model
   - [ ] `test_parse_response()` - Tests `parse_response()` with valid payloads (all modes)
@@ -1863,21 +1876,31 @@ All these providers have missing API keys. Implement with unit tests only.
 
 **API Key**: `WRITER_API_KEY` - MISSING
 
-- [ ] Create `instructor/v2/providers/writer/` directory
-- [ ] Handlers: `TOOLS`, `MD_JSON`
-- [ ] Add to `PROVIDER_CONFIGS`
-- [ ] Run unit tests only
+### Phase 8 Checklist
+
+- [x] Create `instructor/v2/providers/writer/` directory
+- [x] Create `__init__.py` with exports
+- [x] Create `handlers.py`:
+  - [x] `WriterToolsHandler` - TOOLS mode
+  - [x] `WriterMDJSONHandler` - MD_JSON mode
+- [x] Create `client.py` with `from_writer()` factory
+- [x] Add import to `instructor/v2/__init__.py`
+- [x] Add legacy normalizations (WRITER_TOOLS -> TOOLS) - already in registry.py
+- [ ] Add to `PROVIDER_CONFIGS` in tests (skipped - no API key)
+- [x] Run unit tests only: `pytest tests/v2/ -v -k "writer"` - 44 passed, 2 skipped
+- [x] Handler test coverage ≥50% (`handlers.py`) - 29 tests
+- [x] Client test coverage ≥50% (`client.py`) - 17 tests
 
 #### Test Checklist
 
-- [ ] **Unit Tests**:
+- [x] **Unit Tests**:
   ```bash
   pytest tests/v2/ -v -k "writer and not requires_api_key"
   ```
-  - [ ] Handler registration tests
-  - [ ] Handler unit tests
-  - [ ] Client factory tests
-  - [ ] Mode normalization tests
+  - [x] Handler registration tests
+  - [x] Handler unit tests
+  - [x] Client factory tests
+  - [x] Mode normalization tests
 
 - [ ] **Coverage Tests**:
   ```bash
@@ -1895,10 +1918,20 @@ All these providers have missing API keys. Implement with unit tests only.
 
 **API Key**: `PERPLEXITY_API_KEY` - MISSING
 
+### Phase 9 Checklist
+
 - [ ] Create `instructor/v2/providers/perplexity/` directory
-- [ ] Handlers: `MD_JSON` only (no tool calling support)
-- [ ] Add to `PROVIDER_CONFIGS`
-- [ ] Run unit tests only
+- [ ] Create `__init__.py` with exports
+- [ ] Create `handlers.py`:
+  - [ ] `PerplexityMDJSONHandler` - MD_JSON mode only (no tool calling support)
+- [ ] Create `client.py` with `from_perplexity()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (PERPLEXITY_JSON -> MD_JSON) - already in registry.py
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run unit tests only: `pytest tests/v2/ -v -k "perplexity"`
+- [ ] Handler test coverage ≥50% (`handlers.py`)
+- [ ] Client test coverage ≥50% (`client.py`)
+- [ ] Verify TOOLS mode raises appropriate error (not supported)
 
 #### Test Checklist
 
@@ -1929,10 +1962,21 @@ All these providers have missing API keys. Implement with unit tests only.
 
 **API Key**: `AWS_ACCESS_KEY_ID` - MISSING
 
+### Phase 10 Checklist
+
 - [ ] Create `instructor/v2/providers/bedrock/` directory
-- [ ] Handlers: `TOOLS`, `MD_JSON`
-- [ ] Add to `PROVIDER_CONFIGS`
-- [ ] Run unit tests only
+- [ ] Create `__init__.py` with exports
+- [ ] Create `handlers.py`:
+  - [ ] `BedrockToolsHandler` - TOOLS mode
+  - [ ] `BedrockMDJSONHandler` - MD_JSON mode
+- [ ] Create `client.py` with `from_bedrock()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (BEDROCK_TOOLS -> TOOLS) - already in registry.py
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run unit tests only: `pytest tests/v2/ -v -k "bedrock"`
+- [ ] Handler test coverage ≥50% (`handlers.py`)
+- [ ] Client test coverage ≥50% (`client.py`)
+- [ ] AWS credentials handling tests
 
 #### Test Checklist
 
@@ -1962,10 +2006,23 @@ All these providers have missing API keys. Implement with unit tests only.
 
 **API Key**: `GOOGLE_APPLICATION_CREDENTIALS` - MISSING
 
+### Phase 11 Checklist
+
 - [ ] Create `instructor/v2/providers/vertexai/` directory
-- [ ] Handlers: `TOOLS`, `JSON_SCHEMA`, `MD_JSON`, `PARALLEL_TOOLS`
-- [ ] Add to `PROVIDER_CONFIGS`
-- [ ] Run unit tests only
+- [ ] Create `__init__.py` with exports
+- [ ] Create `handlers.py`:
+  - [ ] `VertexAIToolsHandler` - TOOLS mode
+  - [ ] `VertexAIJSONSchemaHandler` - JSON_SCHEMA mode
+  - [ ] `VertexAIMDJSONHandler` - MD_JSON mode
+  - [ ] `VertexAIParallelToolsHandler` - PARALLEL_TOOLS mode
+- [ ] Create `client.py` with `from_vertexai()` factory
+- [ ] Add import to `instructor/v2/__init__.py`
+- [ ] Add legacy normalizations (VERTEXAI_TOOLS -> TOOLS, etc.) - already in registry.py
+- [ ] Add to `PROVIDER_CONFIGS` in tests
+- [ ] Run unit tests only: `pytest tests/v2/ -v -k "vertexai"`
+- [ ] Handler test coverage ≥50% (`handlers.py`)
+- [ ] Client test coverage ≥50% (`client.py`)
+- [ ] Google Cloud credentials handling tests
 
 #### Test Checklist
 
@@ -2306,19 +2363,16 @@ pytest tests/v2/ --cov=instructor.v2.providers --cov-report=term
 
 ### Coverage Tracking
 
-Update this section after each phase completion:
-
-**Last Updated**: [Date]
-**Overall Coverage**: [Percentage]
-
-**Handler Coverage by Provider**: [Update table above]
-**Client Coverage by Provider**: [Update table above]
-
-**Coverage Trends**:
-- Phase 1 (OpenAI): Handler [X]%, Client [X]%
-- Phase 2 (Cohere): Handler [X]%, Client [X]%
-- Phase 3 (xAI): Handler [X]%, Client [X]%
-- Phase 4+ (Others): Handler [X]%, Client [X]%
+- [ ] **Update coverage tracking after each phase**:
+  - [ ] Update "Last Updated" date
+  - [ ] Update overall coverage percentage
+  - [ ] Update handler coverage table by provider
+  - [ ] Update client coverage table by provider
+  - [ ] Update coverage trends:
+    - [ ] Phase 1 (OpenAI): Handler [X]%, Client [X]%
+    - [ ] Phase 2 (Cohere): Handler [X]%, Client [X]%
+    - [ ] Phase 3 (xAI): Handler [X]%, Client [X]%
+    - [ ] Phase 4+ (Others): Handler [X]%, Client [X]%
 
 ---
 
@@ -2486,33 +2540,33 @@ Key components:
 
 When migrating a provider to v2, update these configuration dictionaries:
 
-1. **`PROVIDER_HANDLER_MODES`** in `tests/v2/test_handlers_parametrized.py` (line 74)
-   - Add provider entry with list of supported modes
-   - Example: `Provider.NEW_PROVIDER: [Mode.TOOLS, Mode.MD_JSON]`
+- [ ] **`PROVIDER_HANDLER_MODES`** in `tests/v2/test_handlers_parametrized.py` (line 74)
+  - [ ] Add provider entry with list of supported modes
+  - [ ] Example: `Provider.NEW_PROVIDER: [Mode.TOOLS, Mode.MD_JSON]`
 
-2. **`PARSE_SCENARIOS`** in `tests/v2/test_handlers_parametrized.py` (line 95)
-   - Add provider entry mapping modes to scenario types
-   - Scenarios: `"tool_call"`, `"text"`, `"markdown"`, `"responses_output"`
-   - Example: `Provider.NEW_PROVIDER: {Mode.TOOLS: "tool_call", Mode.MD_JSON: "markdown"}`
+- [ ] **`PARSE_SCENARIOS`** in `tests/v2/test_handlers_parametrized.py` (line 95)
+  - [ ] Add provider entry mapping modes to scenario types
+  - [ ] Scenarios: `"tool_call"`, `"text"`, `"markdown"`, `"responses_output"`
+  - [ ] Example: `Provider.NEW_PROVIDER: {Mode.TOOLS: "tool_call", Mode.MD_JSON: "markdown"}`
 
-3. **`MockResponseBuilder`** in `tests/v2/test_handlers_parametrized.py` (line 140)
-   - Add methods for provider-specific response formats if needed
-   - Most providers can reuse existing methods (OpenAI-compatible APIs)
+- [ ] **`MockResponseBuilder`** in `tests/v2/test_handlers_parametrized.py` (line 140)
+  - [ ] Add methods for provider-specific response formats if needed
+  - [ ] Most providers can reuse existing methods (OpenAI-compatible APIs)
 
-4. **`_HANDLER_MODULE_PATHS`** in `tests/v2/test_handlers_parametrized.py` (line 25)
-   - Add provider entry mapping to handler module file path
-   - Example: `Provider.NEW_PROVIDER: _PROJECT_ROOT / "instructor/v2/providers/new_provider/handlers.py"`
+- [ ] **`_HANDLER_MODULE_PATHS`** in `tests/v2/test_handlers_parametrized.py` (line 25)
+  - [ ] Add provider entry mapping to handler module file path
+  - [ ] Example: `Provider.NEW_PROVIDER: _PROJECT_ROOT / "instructor/v2/providers/new_provider/handlers.py"`
 
-5. **`PROVIDER_CONFIGS`** in `tests/v2/test_provider_modes.py` (line 39)
-   - Add provider entry with full configuration
-   - Includes: `provider_string`, `modes`, `basic_modes`, `async_modes`
+- [ ] **`PROVIDER_CONFIGS`** in `tests/v2/test_provider_modes.py` (line 39)
+  - [ ] Add provider entry with full configuration
+  - [ ] Includes: `provider_string`, `modes`, `basic_modes`, `async_modes`
 
-6. **Mode normalization tests** in `tests/v2/test_mode_normalization.py` (line 29)
-   - Add parameterized test cases for deprecated mode mappings
-   - Example: `(Provider.NEW_PROVIDER, Mode.NEW_PROVIDER_TOOLS, Mode.TOOLS)`
+- [ ] **Mode normalization tests** in `tests/v2/test_mode_normalization.py` (line 29)
+  - [ ] Add parameterized test cases for deprecated mode mappings
+  - [ ] Example: `(Provider.NEW_PROVIDER, Mode.NEW_PROVIDER_TOOLS, Mode.TOOLS)`
 
-7. **Deprecated mode mapping** in `tests/v2/test_mode_normalization.py` (line 213)
-   - Add provider-specific deprecated modes to `expected_deprecated` set
+- [ ] **Deprecated mode mapping** in `tests/v2/test_mode_normalization.py` (line 213)
+  - [ ] Add provider-specific deprecated modes to `expected_deprecated` set
 
 #### Running Parameterized Tests
 
@@ -2870,36 +2924,23 @@ Other providers (Groq, Mistral, Cohere, etc.) use:
 
 ### Files to Update with New Models
 
-These files currently use older model names and should be updated:
-
-```bash
-# v2 test config (main update)
-tests/v2/test_provider_modes.py
-  - "anthropic/claude-3-5-haiku-latest" -> "anthropic/claude-haiku-4-5-20241022"
-  - "google/gemini-2.0-flash" -> "google/gemini-2.5-flash-lite"
-
-# Shared test config
-tests/llm/shared_config.py
-  - "anthropic/claude-3-5-haiku-latest" -> "anthropic/claude-haiku-4-5-20241022"
-  - (Add google/gemini-2.5-flash-lite)
-
-# Provider-specific util files
-tests/llm/test_anthropic/util.py
-  - models = ["anthropic/claude-haiku-4-5-20241022"]
-
-tests/llm/test_genai/util.py
-  - models = ["google/gemini-2.5-flash-lite"]
-
-tests/llm/test_gemini/util.py
-  - models = ["google/gemini-2.5-flash-lite"]
-
-tests/llm/test_vertexai/util.py
-  - models = ["gemini-2.5-flash-lite"]
-
-# Auto client tests
-tests/providers/test_auto_client.py
-  - Update model strings throughout
-```
+- [ ] **Update model names in test configs**:
+  - [ ] `tests/v2/test_provider_modes.py`:
+    - [ ] "anthropic/claude-3-5-haiku-latest" -> "anthropic/claude-haiku-4-5-20241022"
+    - [ ] "google/gemini-2.0-flash" -> "google/gemini-2.5-flash-lite"
+  - [ ] `tests/llm/shared_config.py`:
+    - [ ] "anthropic/claude-3-5-haiku-latest" -> "anthropic/claude-haiku-4-5-20241022"
+    - [ ] Add "google/gemini-2.5-flash-lite"
+  - [ ] `tests/llm/test_anthropic/util.py`:
+    - [ ] models = ["anthropic/claude-haiku-4-5-20241022"]
+  - [ ] `tests/llm/test_genai/util.py`:
+    - [ ] models = ["google/gemini-2.5-flash-lite"]
+  - [ ] `tests/llm/test_gemini/util.py`:
+    - [ ] models = ["google/gemini-2.5-flash-lite"]
+  - [ ] `tests/llm/test_vertexai/util.py`:
+    - [ ] models = ["gemini-2.5-flash-lite"]
+  - [ ] `tests/providers/test_auto_client.py`:
+    - [ ] Update model strings throughout
 ```
 
 ### Helper Functions
@@ -3212,11 +3253,31 @@ pytest tests/providers/test_auto_client.py -v
 
 ### Global Checklist
 
-- [ ] Add deprecation warnings for all provider-specific modes
-- [ ] Update `instructor/mode.py` with `DEPRECATED_TO_CORE` map
-- [ ] Ensure all 5 core modes are implemented per provider capability
-- [ ] Create migration guide documentation
-- [ ] Update all examples to use generic modes (TOOLS, JSON_SCHEMA, etc.)
+- [ ] **Mode Deprecation**:
+  - [ ] Add deprecation warnings for all provider-specific modes
+  - [ ] Update `instructor/mode.py` with `DEPRECATED_TO_CORE` map
+  - [ ] Update `normalize_mode()` to emit warnings
+  - [ ] Add tests for deprecation warnings
+
+- [ ] **Core Mode Implementation**:
+  - [ ] Ensure all 5 core modes are implemented per provider capability
+  - [ ] Verify TOOLS mode works for all providers that support it
+  - [ ] Verify JSON_SCHEMA mode works for providers with native support
+  - [ ] Verify MD_JSON mode works as fallback
+  - [ ] Verify PARALLEL_TOOLS mode works for supported providers
+  - [ ] Verify RESPONSES_TOOLS mode works for OpenAI
+
+- [ ] **Documentation**:
+  - [ ] Create migration guide documentation
+  - [ ] Update all examples to use generic modes (TOOLS, JSON_SCHEMA, etc.)
+  - [ ] Update API documentation with deprecation notices
+  - [ ] Add mode capability matrix to docs
+
+- [ ] **Testing**:
+  - [ ] All parameterized tests pass
+  - [ ] All integration tests pass (where API keys available)
+  - [ ] Coverage targets met for all providers
+  - [ ] Regression tests pass
 
 ---
 
