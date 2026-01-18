@@ -893,17 +893,28 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
   pytest tests/v2/test_provider_modes.py -v -k "cohere and test_mode_is_registered"
   ```
 
-- [ ] **Handler Unit Tests**:
+- [ ] **Parameterized Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_handlers_parametrized.py -v -k "cohere"
+  ```
+  - [ ] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
+  - [ ] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
+  - [ ] Verify `MockResponseBuilder` methods support Cohere response formats
+  - [ ] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
+  - [ ] `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
+  - [ ] `test_prepare_request_with_model()` - Tests `prepare_request()` with response_model
+  - [ ] `test_parse_response()` - Tests `parse_response()` with valid payloads (all modes)
+  - [ ] `test_parse_response_validation_error()` - Tests `parse_response()` with invalid payloads
+  - [ ] `test_handle_reask_adds_message()` - Tests `handle_reask()` adds error messages
+
+- [ ] **Provider-Specific Handler Unit Tests** (if needed for edge cases):
   ```bash
   pytest tests/v2/test_cohere_handlers.py -v -k "not requires_api_key"
   ```
-  - [ ] `CohereToolsHandler.prepare_request()` - Test tool format
-  - [ ] `CohereToolsHandler.parse_response()` - Test tool call extraction
-  - [ ] `CohereToolsHandler.handle_reask()` - Test reask logic
-  - [ ] `CohereJSONSchemaHandler.prepare_request()` - Test structured outputs setup
-  - [ ] `CohereJSONSchemaHandler.parse_response()` - Test JSON parsing
-  - [ ] `CohereMDJSONHandler.prepare_request()` - Test markdown instruction
-  - [ ] `CohereMDJSONHandler.parse_response()` - Test code block extraction
+  - [ ] `CohereToolsHandler.prepare_request()` - Test Cohere-specific tool format
+  - [ ] `CohereToolsHandler.parse_response()` - Test Cohere tool call extraction edge cases
+  - [ ] `CohereJSONSchemaHandler.prepare_request()` - Test structured outputs setup details
+  - [ ] `CohereMDJSONHandler.parse_response()` - Test code block extraction edge cases
 
 - [ ] **Client Factory Tests**:
   ```bash
@@ -1027,17 +1038,28 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
   pytest tests/v2/test_provider_modes.py -v -k "xai and test_mode_is_registered"
   ```
 
-- [ ] **Handler Unit Tests**:
+- [ ] **Parameterized Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_handlers_parametrized.py -v -k "xai"
+  ```
+  - [ ] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
+  - [ ] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
+  - [ ] Verify `MockResponseBuilder` methods support xAI response formats
+  - [ ] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
+  - [ ] `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
+  - [ ] `test_prepare_request_with_model()` - Tests `prepare_request()` with response_model
+  - [ ] `test_parse_response()` - Tests `parse_response()` with valid payloads (all modes)
+  - [ ] `test_parse_response_validation_error()` - Tests `parse_response()` with invalid payloads
+  - [ ] `test_handle_reask_adds_message()` - Tests `handle_reask()` adds error messages
+
+- [ ] **Provider-Specific Handler Unit Tests** (if needed for edge cases):
   ```bash
   pytest tests/v2/test_xai_handlers.py -v -k "not requires_api_key"
   ```
-  - [ ] `XAIToolsHandler.prepare_request()` - Test tool format
-  - [ ] `XAIToolsHandler.parse_response()` - Test tool call extraction
-  - [ ] `XAIToolsHandler.handle_reask()` - Test reask logic
-  - [ ] `XAIJSONSchemaHandler.prepare_request()` - Test structured outputs setup
-  - [ ] `XAIJSONSchemaHandler.parse_response()` - Test JSON parsing
-  - [ ] `XAIMDJSONHandler.prepare_request()` - Test markdown instruction
-  - [ ] `XAIMDJSONHandler.parse_response()` - Test code block extraction
+  - [ ] `XAIToolsHandler.prepare_request()` - Test xAI-specific tool format
+  - [ ] `XAIToolsHandler.parse_response()` - Test xAI tool call extraction edge cases
+  - [ ] `XAIJSONSchemaHandler.prepare_request()` - Test structured outputs setup details
+  - [ ] `XAIMDJSONHandler.parse_response()` - Test code block extraction edge cases
 
 - [ ] **Client Factory Tests**:
   ```bash
@@ -1160,7 +1182,21 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
   pytest tests/v2/test_provider_modes.py -v -k "groq and test_mode_is_registered"
   ```
 
-- [ ] **Handler Unit Tests** (Groq reuses OpenAI handlers):
+- [ ] **Parameterized Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_handlers_parametrized.py -v -k "groq"
+  ```
+  - [ ] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
+  - [ ] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
+  - [ ] Verify `MockResponseBuilder` methods support Groq response formats (reuses OpenAI format)
+  - [ ] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
+  - [ ] `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
+  - [ ] `test_prepare_request_with_model()` - Tests `prepare_request()` with response_model
+  - [ ] `test_parse_response()` - Tests `parse_response()` with valid payloads (all modes)
+  - [ ] `test_parse_response_validation_error()` - Tests `parse_response()` with invalid payloads
+  - [ ] `test_handle_reask_adds_message()` - Tests `handle_reask()` adds error messages
+
+- [ ] **Provider-Specific Handler Unit Tests** (Groq reuses OpenAI handlers):
   ```bash
   pytest tests/v2/test_groq_handlers.py -v -k "not requires_api_key"
   ```
@@ -1635,17 +1671,28 @@ def test_normalize_mode(provider: Provider, mode: Mode, expected: Mode):
   pytest tests/v2/test_provider_modes.py -v -k "mistral and test_mode_is_registered"
   ```
 
-- [ ] **Handler Unit Tests**:
+- [ ] **Parameterized Handler Unit Tests**:
+  ```bash
+  pytest tests/v2/test_handlers_parametrized.py -v -k "mistral"
+  ```
+  - [ ] Verify provider added to `PROVIDER_HANDLER_MODES` in `test_handlers_parametrized.py`
+  - [ ] Verify provider/mode scenarios added to `PARSE_SCENARIOS` in `test_handlers_parametrized.py`
+  - [ ] Verify `MockResponseBuilder` methods support Mistral response formats
+  - [ ] Verify handler module path added to `_HANDLER_MODULE_PATHS` in `test_handlers_parametrized.py`
+  - [ ] `test_prepare_request_with_none_model()` - Tests `prepare_request()` with `None` response_model
+  - [ ] `test_prepare_request_with_model()` - Tests `prepare_request()` with response_model
+  - [ ] `test_parse_response()` - Tests `parse_response()` with valid payloads (all modes)
+  - [ ] `test_parse_response_validation_error()` - Tests `parse_response()` with invalid payloads
+  - [ ] `test_handle_reask_adds_message()` - Tests `handle_reask()` adds error messages
+
+- [ ] **Provider-Specific Handler Unit Tests** (if needed for edge cases):
   ```bash
   pytest tests/v2/test_mistral_handlers.py -v -k "not requires_api_key"
   ```
-  - [ ] `MistralToolsHandler.prepare_request()` - Test Mistral tool format
-  - [ ] `MistralToolsHandler.parse_response()` - Test tool call extraction
-  - [ ] `MistralToolsHandler.handle_reask()` - Test reask logic
-  - [ ] `MistralJSONSchemaHandler.prepare_request()` - Test structured outputs setup
-  - [ ] `MistralJSONSchemaHandler.parse_response()` - Test JSON parsing
-  - [ ] `MistralMDJSONHandler.prepare_request()` - Test markdown instruction
-  - [ ] `MistralMDJSONHandler.parse_response()` - Test code block extraction
+  - [ ] `MistralToolsHandler.prepare_request()` - Test Mistral-specific tool format
+  - [ ] `MistralToolsHandler.parse_response()` - Test Mistral tool call extraction edge cases
+  - [ ] `MistralJSONSchemaHandler.prepare_request()` - Test structured outputs setup details
+  - [ ] `MistralMDJSONHandler.parse_response()` - Test code block extraction edge cases
 
 - [ ] **Client Factory Tests**:
   ```bash
@@ -2351,8 +2398,9 @@ Key components:
 - Example: If a provider doesn't support a mode, the test skips with a message
 
 **Integration Tests** (`test_provider_modes.py`):
-- Currently use hardcoded `@pytest.mark.parametrize()` lists
-- Should be refactored to generate parameters dynamically from `PROVIDER_CONFIGS`
+- Currently use hardcoded `@pytest.mark.parametrize()` lists (lines 72-87, 99-112, 140-153)
+- **Note**: This means when adding a new provider, you must manually add it to each test function's parameter list
+- Should be refactored to generate parameters dynamically from `PROVIDER_CONFIGS` for maintainability
 - Example target implementation:
   ```python
   def _get_basic_mode_params():
@@ -2370,6 +2418,29 @@ Key components:
 **Mode Normalization Tests** (`test_mode_normalization.py`):
 - Use hardcoded parameter lists for deprecated mode mappings
 - Test all provider-specific modes map to core modes correctly
+
+#### Current State of Parameterized Tests
+
+**Providers Currently in Parameterized Handler Tests** (`test_handlers_parametrized.py`):
+- ✅ OpenAI (TOOLS, JSON_SCHEMA, MD_JSON, PARALLEL_TOOLS, RESPONSES_TOOLS)
+- ✅ Anthropic (TOOLS, JSON, JSON_SCHEMA, PARALLEL_TOOLS, ANTHROPIC_REASONING_TOOLS)
+- ✅ GenAI (TOOLS, JSON)
+- ✅ Cohere (TOOLS, JSON_SCHEMA, MD_JSON)
+- ✅ xAI (TOOLS, JSON_SCHEMA, MD_JSON)
+
+**Providers Currently in Integration Tests** (`test_provider_modes.py`):
+- ✅ Anthropic
+- ✅ GenAI
+- ✅ Cohere
+- ✅ xAI
+- ❌ OpenAI (missing - should be added)
+
+**Providers Missing from Parameterized Tests** (but exist as v2 providers):
+- ❌ Groq (exists in `instructor/v2/providers/groq/` but not in test configs)
+- ❌ Mistral (exists in `instructor/v2/providers/mistral/` but not in test configs)
+- ❌ Fireworks (exists in `instructor/v2/providers/fireworks/` but not in test configs)
+
+**Note**: These providers have handler implementations but haven't been added to the parameterized test configuration dictionaries yet. They likely have provider-specific test files but aren't covered by the shared parameterized tests.
 
 #### What Needs Updating When Adding a Provider
 
@@ -2991,20 +3062,63 @@ def test_normalize_mode(provider: Provider, mode: Mode, expected: Mode):
 
 ### Running Tests
 
+**Parameterized Handler Unit Tests** (No API key required):
 ```bash
-# Unit tests (no API key needed)
+# Run all parameterized handler tests
+pytest tests/v2/test_handlers_parametrized.py -v
+
+# Run tests for specific provider
+pytest tests/v2/test_handlers_parametrized.py -v -k "cohere"
+
+# Run specific test function
+pytest tests/v2/test_handlers_parametrized.py::test_parse_response -v
+
+# Run with coverage for specific provider
+pytest tests/v2/test_handlers_parametrized.py --cov=instructor.v2.providers.cohere.handlers --cov-report=term-missing -k "cohere"
+```
+
+**Integration Tests** (Requires API keys):
+```bash
+# All integration tests (needs all API keys)
+pytest tests/v2/test_provider_modes.py -v -m requires_api_key
+
+# Single provider integration tests
+COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py -v -m requires_api_key -k "cohere"
+
+# Specific integration test function
+COHERE_API_KEY=... pytest tests/v2/test_provider_modes.py::test_mode_basic_extraction -v -m requires_api_key -k "cohere"
+```
+
+**Mode Normalization Tests** (No API key required):
+```bash
+# Run all normalization tests
+pytest tests/v2/test_mode_normalization.py -v
+
+# Run tests for specific provider
+pytest tests/v2/test_mode_normalization.py -v -k "cohere"
+```
+
+**All v2 Tests**:
+```bash
+# Unit tests only (no API key)
 pytest tests/v2/ -v -k "not requires_api_key"
 
-# All integration tests (needs all API keys)
+# Integration tests only (requires API keys)
 pytest tests/v2/ -v -m requires_api_key
 
-# Single provider
-OPENAI_API_KEY=... pytest tests/v2/ -v -m requires_api_key -k "openai"
-ANTHROPIC_API_KEY=... pytest tests/v2/ -v -m requires_api_key -k "anthropic"
+# Single provider (all tests)
+COHERE_API_KEY=... pytest tests/v2/ -v -k "cohere"
+```
 
-# Regression tests
+**Regression Tests**:
+```bash
+# Existing provider tests
 pytest tests/llm/ -v
+
+# Patch tests
 pytest tests/core/test_patch.py -v
+
+# Auto client tests
 pytest tests/providers/test_auto_client.py -v
 ```
 
@@ -3040,9 +3154,15 @@ pytest tests/providers/test_auto_client.py -v
 - [ ] Create `__init__.py` with exports
 - [ ] Add import to `instructor/v2/__init__.py`
 - [ ] Add mode normalizations to `registry.py`
+- [ ] **Parameterized Tests**: Add provider to `PROVIDER_HANDLER_MODES` in `tests/v2/test_handlers_parametrized.py`
+- [ ] **Parameterized Tests**: Add provider/mode scenarios to `PARSE_SCENARIOS` in `tests/v2/test_handlers_parametrized.py`
+- [ ] **Parameterized Tests**: Add handler module path to `_HANDLER_MODULE_PATHS` in `tests/v2/test_handlers_parametrized.py`
+- [ ] **Parameterized Tests**: Update `MockResponseBuilder` if provider needs custom response formats
 - [ ] Add provider entry to `PROVIDER_CONFIGS` in `tests/v2/test_provider_modes.py`
 - [ ] Add legacy mode mappings to `tests/v2/test_mode_normalization.py`
-- [ ] Run tests: `pytest tests/v2/ -v -k "{provider}"`
+- [ ] Run parameterized handler tests: `pytest tests/v2/test_handlers_parametrized.py -v -k "{provider}"`
+- [ ] Run integration tests: `pytest tests/v2/test_provider_modes.py -v -k "{provider}"`
+- [ ] Run all tests: `pytest tests/v2/ -v -k "{provider}"`
 - [ ] **Coverage**: Achieve target handler coverage (see Handler and Client Test Coverage section)
 - [ ] **Coverage**: Achieve target client coverage (see Handler and Client Test Coverage section)
 - [ ] **Coverage**: Add handler unit tests (prepare_request, parse_response, handle_reask)
