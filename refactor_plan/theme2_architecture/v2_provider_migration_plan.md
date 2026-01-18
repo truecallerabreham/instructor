@@ -734,7 +734,7 @@ pytest tests/test_patch.py -v
 - [x] Integration tests pass with API key
 - [x] Existing OpenAI tests still pass
 - [x] Generic modes work: `mode=Mode.TOOLS`
-- [ ] Legacy modes work with deprecation warning: `mode=Mode.FUNCTIONS`
+- [x] Legacy modes work with deprecation warning: `mode=Mode.FUNCTIONS`
 
 ---
 

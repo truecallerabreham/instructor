@@ -86,8 +86,35 @@ MD_JSON mode: PASS
 2. **GenAI module not installed**: Some v2 tests fail because `google-genai`
    is not installed in the test environment.
 
+## Deprecation Warnings Implementation (2026-01-18)
+
+Added deprecation warning infrastructure to `instructor/v2/core/registry.py`:
+
+1. **`DEPRECATED_MODE_MAPPING`**: Authoritative mapping of deprecated modes to core modes
+2. **`_warn_deprecated_mode()`**: Emits `DeprecationWarning` once per mode
+3. **`reset_deprecation_warnings()`**: Utility for testing
+
+### Key Design Decisions
+
+1. **`Mode.JSON` is NOT deprecated**: GenAI uses `Mode.JSON` as a valid core mode,
+   so it cannot be globally deprecated. OpenAI should use `Mode.JSON_SCHEMA` instead.
+
+2. **Warning shown once per session**: Uses a module-level set to track warned modes,
+   avoiding spam in logs.
+
+3. **Stacklevel=4**: Adjusted to show the caller's location in the warning.
+
+### Test Results
+
+All 40 mode normalization tests pass:
+- Legacy mode normalization: PASS
+- Deprecation warnings emitted: PASS
+- Generic modes no warning: PASS
+- Warning only shown once: PASS
+
 ## Next Steps
 
+- [x] Add deprecation warnings for legacy modes
 - [ ] Add OpenAI to `PROVIDER_CONFIGS` in tests
 - [ ] Run full test suite
 - [ ] Test async functionality

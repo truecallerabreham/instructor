@@ -6,11 +6,96 @@ Supports lazy loading, dynamic registration, and queryable API.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Callable
-from instructor import Mode, Provider
 
+from instructor import Mode, Provider
 from instructor.v2.core.protocols import ReaskHandler, RequestHandler, ResponseParser
+
+# Track which deprecation warnings have been shown (to avoid spam)
+_deprecated_modes_warned: set[Mode] = set()
+
+
+# Mapping of deprecated modes to their core mode replacements
+# This is the authoritative list of deprecated modes
+#
+# NOTE: Mode.JSON is NOT deprecated because it's used by GenAI as a valid mode.
+# The migration plan suggested deprecating it, but GenAI already uses it.
+DEPRECATED_MODE_MAPPING: dict[Mode, Mode] = {
+    # OpenAI legacy modes -> core modes
+    Mode.FUNCTIONS: Mode.TOOLS,
+    Mode.TOOLS_STRICT: Mode.TOOLS,  # Now a parameter: strict=True
+    # Mode.JSON is NOT deprecated - it's used by GenAI
+    Mode.JSON_O1: Mode.JSON_SCHEMA,  # O1 handled by provider logic
+    Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS: Mode.RESPONSES_TOOLS,
+    # Anthropic -> core modes
+    Mode.ANTHROPIC_TOOLS: Mode.TOOLS,
+    Mode.ANTHROPIC_JSON: Mode.MD_JSON,
+    Mode.ANTHROPIC_PARALLEL_TOOLS: Mode.PARALLEL_TOOLS,
+    # GenAI modes -> core modes
+    Mode.GENAI_TOOLS: Mode.TOOLS,
+    Mode.GENAI_JSON: Mode.JSON,
+    Mode.GENAI_STRUCTURED_OUTPUTS: Mode.JSON,
+    # Mistral -> core modes
+    Mode.MISTRAL_TOOLS: Mode.TOOLS,
+    Mode.MISTRAL_STRUCTURED_OUTPUTS: Mode.JSON_SCHEMA,
+    # Cohere -> core modes
+    Mode.COHERE_TOOLS: Mode.TOOLS,
+    Mode.COHERE_JSON_SCHEMA: Mode.JSON_SCHEMA,
+    # xAI -> core modes
+    Mode.XAI_TOOLS: Mode.TOOLS,
+    Mode.XAI_JSON: Mode.MD_JSON,
+    # Groq -> core modes (OpenAI-compatible)
+    # Groq doesn't have provider-specific modes, uses generic TOOLS/MD_JSON
+    # Fireworks -> core modes
+    Mode.FIREWORKS_TOOLS: Mode.TOOLS,
+    Mode.FIREWORKS_JSON: Mode.MD_JSON,
+    # Cerebras -> core modes
+    Mode.CEREBRAS_TOOLS: Mode.TOOLS,
+    Mode.CEREBRAS_JSON: Mode.MD_JSON,
+    # Writer -> core modes
+    Mode.WRITER_TOOLS: Mode.TOOLS,
+    Mode.WRITER_JSON: Mode.MD_JSON,
+    # Bedrock -> core modes
+    Mode.BEDROCK_TOOLS: Mode.TOOLS,
+    Mode.BEDROCK_JSON: Mode.MD_JSON,
+    # Perplexity -> core modes
+    Mode.PERPLEXITY_JSON: Mode.MD_JSON,
+    # VertexAI -> core modes
+    Mode.VERTEXAI_TOOLS: Mode.TOOLS,
+    Mode.VERTEXAI_JSON: Mode.MD_JSON,
+    Mode.VERTEXAI_PARALLEL_TOOLS: Mode.PARALLEL_TOOLS,
+    # Gemini -> core modes
+    Mode.GEMINI_TOOLS: Mode.TOOLS,
+    Mode.GEMINI_JSON: Mode.MD_JSON,
+    # OpenRouter -> core modes
+    Mode.OPENROUTER_STRUCTURED_OUTPUTS: Mode.JSON_SCHEMA,
+}
+
+
+def _warn_deprecated_mode(mode: Mode, replacement: Mode) -> None:
+    """Emit a deprecation warning for a legacy mode.
+
+    Only warns once per mode to avoid spamming logs.
+
+    Args:
+        mode: The deprecated mode being used
+        replacement: The core mode it maps to
+    """
+    if mode in _deprecated_modes_warned:
+        return
+
+    _deprecated_modes_warned.add(mode)
+
+    warnings.warn(
+        f"Mode.{mode.name} is deprecated and will be removed in v3.0. "
+        f"Use Mode.{replacement.name} instead. "
+        f"The provider is determined by the client (from_openai, from_anthropic, etc.), "
+        f"not by the mode.",
+        DeprecationWarning,
+        stacklevel=4,  # Adjust to show caller's location
+    )
 
 
 def normalize_mode(_provider: Provider, mode: Mode) -> Mode:
@@ -20,6 +105,8 @@ def normalize_mode(_provider: Provider, mode: Mode) -> Mode:
     modes like Mode.ANTHROPIC_TOOLS, and they'll be converted to generic modes
     like Mode.TOOLS for registry lookup.
 
+    Emits a DeprecationWarning when a legacy mode is used.
+
     Args:
         provider: Provider enum value (for context, though mode mapping is provider-agnostic)
         mode: Mode enum value (may be provider-specific)
@@ -27,30 +114,29 @@ def normalize_mode(_provider: Provider, mode: Mode) -> Mode:
     Returns:
         Generic mode enum value
     """
-    # Mapping of provider-specific modes to generic modes
-    mode_mapping: dict[Mode, Mode] = {
-        # Anthropic modes
-        Mode.ANTHROPIC_TOOLS: Mode.TOOLS,
-        Mode.ANTHROPIC_PARALLEL_TOOLS: Mode.PARALLEL_TOOLS,
-        Mode.ANTHROPIC_JSON: Mode.JSON,
-        # GenAI modes
-        Mode.GENAI_TOOLS: Mode.TOOLS,
-        Mode.GENAI_JSON: Mode.JSON,
-        Mode.GENAI_STRUCTURED_OUTPUTS: Mode.JSON,
-        # OpenAI legacy modes
-        Mode.FUNCTIONS: Mode.TOOLS,
-        Mode.TOOLS_STRICT: Mode.TOOLS,
-        Mode.JSON_O1: Mode.JSON_SCHEMA,
-        Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS: Mode.RESPONSES_TOOLS,
-        # Keep ANTHROPIC_REASONING_TOOLS as-is since it's deprecated but still used
-    }
+    # Check if this is a deprecated mode
+    if mode in DEPRECATED_MODE_MAPPING:
+        replacement = DEPRECATED_MODE_MAPPING[mode]
+        _warn_deprecated_mode(mode, replacement)
+        return replacement
 
     # Add ANTHROPIC_STRUCTURED_OUTPUTS if it exists in the Mode enum
     if hasattr(Mode, "ANTHROPIC_STRUCTURED_OUTPUTS"):
-        mode_mapping[Mode.ANTHROPIC_STRUCTURED_OUTPUTS] = Mode.JSON_SCHEMA
+        if mode == Mode.ANTHROPIC_STRUCTURED_OUTPUTS:
+            _warn_deprecated_mode(mode, Mode.JSON_SCHEMA)
+            return Mode.JSON_SCHEMA
 
-    # Convert if mapping exists, otherwise return as-is
-    return mode_mapping.get(mode, mode)
+    # Return as-is for core modes
+    return mode
+
+
+def reset_deprecation_warnings() -> None:
+    """Reset the deprecation warning tracker.
+
+    Useful for testing to ensure warnings are shown again.
+    """
+    global _deprecated_modes_warned
+    _deprecated_modes_warned = set()
 
 
 @dataclass
