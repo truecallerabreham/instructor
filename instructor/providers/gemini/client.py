@@ -76,7 +76,9 @@ def from_gemini(
         create = client.generate_content_async
         return instructor.AsyncInstructor(
             client=client,
-            create=instructor.patch(create=create, mode=mode),
+            create=instructor.patch(
+                create=create, mode=mode, provider=instructor.Provider.GEMINI
+            ),
             provider=instructor.Provider.GEMINI,
             mode=mode,
             **kwargs,
@@ -85,7 +87,9 @@ def from_gemini(
     create = client.generate_content
     return instructor.Instructor(
         client=client,
-        create=instructor.patch(create=create, mode=mode),
+        create=instructor.patch(
+            create=create, mode=mode, provider=instructor.Provider.GEMINI
+        ),
         provider=instructor.Provider.GEMINI,
         mode=mode,
         **kwargs,

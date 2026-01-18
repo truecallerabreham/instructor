@@ -15,8 +15,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from instructor import Mode, Provider
-from instructor.core.exceptions import IncompleteOutputException
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
+from instructor.core.exceptions import ConfigurationError, IncompleteOutputException
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.schema import generate_openai_schema
 from instructor.providers.writer.utils import reask_writer_json, reask_writer_tools
@@ -71,10 +72,14 @@ class WriterToolsHandler(ModeHandler):
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
         """Parse tool call response from Writer."""
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Writer in TOOLS mode."
+            )
         # Check for truncated output
         if hasattr(response, "choices") and response.choices:
             if response.choices[0].finish_reason == "length":
@@ -167,10 +172,14 @@ class WriterMDJSONHandler(ModeHandler):
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
         """Parse JSON from markdown code block in response."""
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Writer in MD_JSON mode."
+            )
         text = response.choices[0].message.content or ""
         json_str = extract_json_from_codeblock(text)
 

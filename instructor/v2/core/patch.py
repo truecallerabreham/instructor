@@ -11,7 +11,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.core.hooks import Hooks
 from instructor.templating import handle_templating
 from instructor.utils import is_async
@@ -121,6 +122,7 @@ def _create_sync_wrapper(
         new_kwargs = handle_templating(
             new_kwargs,
             mode=mode,
+            provider=provider,
             context=context,
         )
 
@@ -181,6 +183,7 @@ def _create_async_wrapper(
         new_kwargs = handle_templating(
             new_kwargs,
             mode=mode,
+            provider=provider,
             context=context,
         )
 

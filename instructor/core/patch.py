@@ -20,6 +20,7 @@ from .hooks import Hooks
 from ..templating import handle_templating
 
 from ..mode import Mode
+from ..utils.providers import Provider
 import logging
 
 from tenacity import (  # type: ignore[import-not-found]
@@ -90,6 +91,7 @@ def handle_context(
 def patch(
     client: OpenAI,
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
 ) -> OpenAI: ...
 
 
@@ -97,6 +99,7 @@ def patch(
 def patch(
     client: AsyncOpenAI,
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
 ) -> AsyncOpenAI: ...
 
 
@@ -104,6 +107,7 @@ def patch(
 def patch(
     create: Callable[T_ParamSpec, T_Retval],
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
 ) -> InstructorChatCompletionCreate: ...
 
 
@@ -111,6 +115,7 @@ def patch(
 def patch(
     create: Awaitable[T_Retval],
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
 ) -> InstructorChatCompletionCreate: ...
 
 
@@ -118,6 +123,7 @@ def patch(  # type: ignore
     client: OpenAI | AsyncOpenAI | None = None,
     create: Callable[T_ParamSpec, T_Retval] | None = None,
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
 ) -> OpenAI | AsyncOpenAI:
     """
     Patch the `client.chat.completions.create` method
@@ -167,9 +173,11 @@ def patch(  # type: ignore
         context = handle_context(context, validation_context)
 
         response_model, new_kwargs = handle_response_model(
-            response_model=response_model, mode=mode, **kwargs
+            response_model=response_model, mode=mode, provider=provider, **kwargs
         )  # type: ignore
-        new_kwargs = handle_templating(new_kwargs, mode=mode, context=context)
+        new_kwargs = handle_templating(
+            new_kwargs, mode=mode, provider=provider, context=context
+        )
 
         # Attempt cache lookup **before** hitting retry layer
         if cache is not None and response_model is not None:
@@ -194,6 +202,7 @@ def patch(  # type: ignore
             kwargs=new_kwargs,
             strict=strict,
             mode=mode,
+            provider=provider,
             hooks=hooks,
         )
 
@@ -236,10 +245,12 @@ def patch(  # type: ignore
         context = handle_context(context, validation_context)
         # print(f"instructor.patch: patched_function {func.__name__}")
         response_model, new_kwargs = handle_response_model(
-            response_model=response_model, mode=mode, **kwargs
+            response_model=response_model, mode=mode, provider=provider, **kwargs
         )  # type: ignore
 
-        new_kwargs = handle_templating(new_kwargs, mode=mode, context=context)
+        new_kwargs = handle_templating(
+            new_kwargs, mode=mode, provider=provider, context=context
+        )
 
         # Attempt cache lookup
         if cache is not None and response_model is not None:
@@ -265,6 +276,7 @@ def patch(  # type: ignore
             strict=strict,
             kwargs=new_kwargs,
             mode=mode,
+            provider=provider,
         )
 
         # Save to cache
@@ -290,7 +302,11 @@ def patch(  # type: ignore
         return new_create  # type: ignore
 
 
-def apatch(client: AsyncOpenAI, mode: Mode = Mode.TOOLS) -> AsyncOpenAI:
+def apatch(
+    client: AsyncOpenAI,
+    mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
+) -> AsyncOpenAI:
     """
     No longer necessary, use `patch` instead.
 
@@ -310,4 +326,4 @@ def apatch(client: AsyncOpenAI, mode: Mode = Mode.TOOLS) -> AsyncOpenAI:
         DeprecationWarning,
         stacklevel=2,
     )
-    return patch(client, mode=mode)
+    return patch(client, mode=mode, provider=provider)

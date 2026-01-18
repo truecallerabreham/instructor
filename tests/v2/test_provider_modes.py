@@ -15,6 +15,7 @@ import importlib.util
 from pathlib import Path
 
 import instructor
+from instructor.core.exceptions import InstructorRetryException
 from instructor import Mode
 from instructor.v2 import Provider, mode_registry
 
@@ -195,6 +196,16 @@ def _get_basic_mode_params():
     return params
 
 
+def _skip_on_provider_quota(provider: Provider, exc: Exception) -> None:
+    """Skip tests when provider quota limits prevent execution."""
+    if (
+        provider == Provider.GENAI
+        and isinstance(exc, InstructorRetryException)
+        and "RESOURCE_EXHAUSTED" in str(exc)
+    ):
+        pytest.skip("GenAI quota exhausted for this environment")
+
+
 @pytest.mark.parametrize("provider,mode", _get_basic_mode_params())
 @pytest.mark.requires_api_key
 def test_mode_basic_extraction(provider: Provider, mode: Mode):
@@ -207,16 +218,20 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
         mode=mode,
     )
 
-    response = client.chat.completions.create(
-        response_model=Answer,
-        messages=[
-            {
-                "role": "user",
-                "content": "What is 2 + 2? Reply with a number.",
-            },
-        ],
-        max_tokens=1000,
-    )
+    try:
+        response = client.chat.completions.create(
+            response_model=Answer,
+            messages=[
+                {
+                    "role": "user",
+                    "content": "What is 2 + 2? Reply with a number.",
+                },
+            ],
+            max_tokens=1000,
+        )
+    except InstructorRetryException as exc:
+        _skip_on_provider_quota(provider, exc)
+        raise
 
     assert isinstance(response, Answer)
     assert response.answer == 4.0
@@ -245,16 +260,20 @@ async def test_mode_async_extraction(provider: Provider, mode: Mode):
         async_client=True,
     )
 
-    response = await client.chat.completions.create(
-        response_model=Answer,
-        messages=[
-            {
-                "role": "user",
-                "content": "What is 4 + 4? Reply with a number.",
-            },
-        ],
-        max_tokens=1000,
-    )
+    try:
+        response = await client.chat.completions.create(
+            response_model=Answer,
+            messages=[
+                {
+                    "role": "user",
+                    "content": "What is 4 + 4? Reply with a number.",
+                },
+            ],
+            max_tokens=1000,
+        )
+    except InstructorRetryException as exc:
+        _skip_on_provider_quota(provider, exc)
+        raise
 
     assert isinstance(response, Answer)
     assert response.answer == 8.0

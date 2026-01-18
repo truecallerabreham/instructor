@@ -21,6 +21,10 @@ Type-safe interfaces for handlers:
 - `RequestHandler` - Prepares request kwargs for a mode
 - `ResponseParser` - Parses API response into Pydantic model
 - `ReaskHandler` - Handles validation failures for retry
+- `StreamExtractor` - Extracts JSON chunks from streaming responses
+- `AsyncStreamExtractor` - Async version of the stream extractor
+- `MessageConverter` - Converts multimodal messages for a provider
+- `TemplateHandler` - Applies template context to provider payloads
 
 ### Mode Registry (`instructor/v2/core/registry.py`)
 
@@ -299,10 +303,9 @@ This guide walks through migrating a provider from v1 to v2 architecture.
 
 **V1 Architecture**:
 
-- Mode-specific logic scattered across `process_response()` and utility functions
-- Direct function calls based on mode checks
-- Runtime mode validation
-- Provider-specific mode enums (e.g., `ANTHROPIC_TOOLS`, `COHERE_JSON_SCHEMA`)
+- Registry lookup from v1 entry points for request, response, and reask
+- Legacy mode enums still accepted but normalized in the registry
+- Thin adapters in v1 call handler methods
 
 **V2 Architecture**:
 
@@ -338,7 +341,7 @@ def from_cohere(client, mode=Mode.COHERE_TOOLS, **kwargs):
     if mode not in valid_modes:
         raise ModeError(...)
 
-    # Uses instructor.patch() which routes to v1 process_response()
+    # Uses instructor.patch() which delegates to the registry handlers
     return Instructor(
         client=client,
         create=instructor.patch(create=client.chat, mode=mode),
@@ -380,7 +383,7 @@ Identify the three handler methods needed:
    - Modify request kwargs (e.g., add `tools` parameter)
 
 2. **Response Parsing** (`parse_response`):
-   - Look for functions in `process_response()` or `utils.py`
+   - Look for functions in v1 utils or response parsers used by the registry
    - Extract structured data from raw API response
    - Validate against `response_model` using Pydantic
 
@@ -443,7 +446,7 @@ class CohereToolsHandler(ModeHandler):
         strict: bool | None = None,
     ) -> BaseModel:
         """Extract and validate structured data from Cohere response."""
-        # Extract logic from v1 process_response
+        # Extract logic from v1 handlers or utils
         tool_calls = response.tool_calls or []
         if not tool_calls:
             raise ValueError("No tool calls in response")
@@ -479,7 +482,7 @@ class CohereJSONHandler(ModeHandler):
 **Key Migration Patterns**:
 
 1. **Request Preparation**: Move logic from `handle_*_modes()` functions
-2. **Response Parsing**: Extract from `process_response()` or response handlers
+2. **Response Parsing**: Extract from v1 handlers or response utils
 3. **Reask Handling**: Move from `reask_*()` functions
 4. **Error Handling**: Use Pydantic `ValidationError` for retries
 
@@ -738,11 +741,17 @@ def from_provider(client, mode=Mode.TOOLS):
 
 #### Pattern 4: Provider with Streaming Support
 
-**V1**: Streaming handled in `process_response()`.
+**V1**: Streaming handled by v1 DSL helpers and registry handlers.
 
 **V2**: Check for streaming in handler:
 
 ```python
+from collections.abc import Generator, Iterable
+from typing import Any
+
+from instructor.v2.core.handler import ModeHandler
+
+
 class ProviderToolsHandler(ModeHandler):
     def prepare_request(self, response_model, kwargs):
         # Register streaming model if stream=True
@@ -750,10 +759,20 @@ class ProviderToolsHandler(ModeHandler):
             self._streaming_models[response_model] = None
         return response_model, kwargs
 
+    def extract_streaming_json(
+        self, completion: Iterable[Any]
+    ) -> Generator[str, None, None]:
+        # Yield JSON chunks from the provider stream
+        for chunk in completion:
+            yield chunk.delta.text
+
     def parse_response(self, response, response_model, **kwargs):
         # Check if this is a streaming response
         if response_model in self._streaming_models:
-            return response_model.from_streaming_response(response)
+            return response_model.from_streaming_response(
+                response,
+                stream_extractor=self.extract_streaming_json,
+            )
         # Normal parsing
         return response_model.model_validate(...)
 ```
@@ -837,7 +856,7 @@ See `instructor/v2/providers/anthropic/` and `instructor/v2/providers/genai/` fo
 
 | Aspect                   | V1                                    | V2                                   |
 | ------------------------ | ------------------------------------- | ------------------------------------ |
-| **Mode Handling**        | Direct calls in `process_response()`  | Registry-based handler lookup        |
+| **Mode Handling**        | Registry adapters in v1               | Registry-based handler lookup        |
 | **Mode Validation**      | Runtime (in factory function)         | Compile-time (in `patch_v2`)         |
 | **Handler Organization** | Scattered utility functions           | Centralized handler classes          |
 | **Mode Enums**           | Provider-specific (`ANTHROPIC_TOOLS`) | Generic (`TOOLS`) with normalization |
@@ -1075,81 +1094,105 @@ This checklist tracks which providers have been migrated to v2:
 
 ### Completed Migrations
 
+- [x] **OpenAI** (`Provider.OPENAI`)
+  - Location: `instructor/v2/providers/openai/`
+  - Modes: `TOOLS`, `JSON`, `JSON_SCHEMA`, `MD_JSON`, `PARALLEL_TOOLS`, `RESPONSES_TOOLS`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **OpenAI-Compatible** (`Provider.ANYSCALE`, `Provider.TOGETHER`, `Provider.DATABRICKS`, `Provider.DEEPSEEK`)
+  - Location: `instructor/v2/providers/openai/`
+  - Modes: `TOOLS`, `JSON`, `JSON_SCHEMA`, `MD_JSON`, `PARALLEL_TOOLS`
+  - Tests: `tests/v2/test_handlers_parametrized.py`, `tests/v2/test_client_unified.py`
+  - Status: ✅ Complete
+
+- [x] **OpenRouter** (`Provider.OPENROUTER`)
+  - Location: `instructor/v2/providers/openrouter/`
+  - Modes: `TOOLS`, `JSON`, `MD_JSON`, `PARALLEL_TOOLS`, `JSON_SCHEMA`
+  - Tests: `tests/v2/test_handlers_parametrized.py`, `tests/v2/test_client_unified.py`
+  - Status: ✅ Complete
+
 - [x] **Anthropic** (`Provider.ANTHROPIC`)
   - Location: `instructor/v2/providers/anthropic/`
   - Modes: `TOOLS`, `JSON`, `JSON_SCHEMA`, `PARALLEL_TOOLS`, `ANTHROPIC_REASONING_TOOLS` (deprecated)
-  - Tests: `tests/v2/test_provider_modes.py`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
   - Status: ✅ Complete
 
 - [x] **Google GenAI** (`Provider.GENAI`)
   - Location: `instructor/v2/providers/genai/`
   - Modes: `TOOLS`, `JSON`
-  - Tests: `tests/v2/test_provider_modes.py`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Google Gemini** (`Provider.GEMINI`)
+  - Location: `instructor/v2/providers/gemini/`
+  - Modes: `TOOLS`, `MD_JSON`
+  - Tests: `tests/v2/test_handlers_parametrized.py`, `tests/v2/test_client_unified.py`
+  - Status: ✅ Complete
+
+- [x] **Vertex AI** (`Provider.VERTEXAI`)
+  - Location: `instructor/v2/providers/vertexai/`
+  - Modes: `TOOLS`, `MD_JSON`, `PARALLEL_TOOLS`
+  - Tests: `tests/v2/test_handlers_parametrized.py`, `tests/v2/test_client_unified.py`
+  - Status: ✅ Complete
+
+- [x] **Cohere** (`Provider.COHERE`)
+  - Location: `instructor/v2/providers/cohere/`
+  - Modes: `TOOLS`, `JSON_SCHEMA`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Mistral** (`Provider.MISTRAL`)
+  - Location: `instructor/v2/providers/mistral/`
+  - Modes: `TOOLS`, `JSON_SCHEMA`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Groq** (`Provider.GROQ`)
+  - Location: `instructor/v2/providers/groq/`
+  - Modes: `TOOLS`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Fireworks** (`Provider.FIREWORKS`)
+  - Location: `instructor/v2/providers/fireworks/`
+  - Modes: `TOOLS`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Cerebras** (`Provider.CEREBRAS`)
+  - Location: `instructor/v2/providers/cerebras/`
+  - Modes: `TOOLS`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Writer** (`Provider.WRITER`)
+  - Location: `instructor/v2/providers/writer/`
+  - Modes: `TOOLS`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **xAI** (`Provider.XAI`)
+  - Location: `instructor/v2/providers/xai/`
+  - Modes: `TOOLS`, `JSON_SCHEMA`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
+  - Status: ✅ Complete
+
+- [x] **Perplexity** (`Provider.PERPLEXITY`)
+  - Location: `instructor/v2/providers/perplexity/`
+  - Modes: `MD_JSON`
+  - Tests: `tests/v2/test_handlers_parametrized.py`, `tests/v2/test_client_unified.py`
+  - Status: ✅ Complete
+
+- [x] **Bedrock** (`Provider.BEDROCK`)
+  - Location: `instructor/v2/providers/bedrock/`
+  - Modes: `TOOLS`, `MD_JSON`
+  - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
   - Status: ✅ Complete
 
 ### Pending Migrations
 
-The following providers exist in v1 (`instructor/providers/`) but have not yet been migrated to v2:
-
-- [ ] **OpenAI** (`Provider.OPENAI`)
-  - Location: `instructor/providers/openai/`
-  - Modes: TBD
-  - Priority: High
-
-- [ ] **Google Gemini** (`Provider.GEMINI`)
-  - Location: `instructor/providers/gemini/`
-  - Modes: TBD
-  - Priority: Medium
-
-- [ ] **Cohere** (`Provider.COHERE`)
-  - Location: `instructor/providers/cohere/`
-  - Modes: TBD
-  - Priority: Medium
-
-- [ ] **Mistral** (`Provider.MISTRAL`)
-  - Location: `instructor/providers/mistral/`
-  - Modes: TBD
-  - Priority: Medium
-
-- [ ] **Groq** (`Provider.GROQ`)
-  - Location: `instructor/providers/groq/`
-  - Modes: TBD
-  - Priority: Medium
-
-- [ ] **Fireworks** (`Provider.FIREWORKS`)
-  - Location: `instructor/providers/fireworks/`
-  - Modes: TBD
-  - Priority: Low
-
-- [ ] **Cerebras** (`Provider.CEREBRAS`)
-  - Location: `instructor/providers/cerebras/`
-  - Modes: TBD
-  - Priority: Low
-
-- [ ] **Writer** (`Provider.WRITER`)
-  - Location: `instructor/providers/writer/`
-  - Modes: TBD
-  - Priority: Low
-
-- [ ] **xAI** (`Provider.XAI`)
-  - Location: `instructor/providers/xai/`
-  - Modes: TBD
-  - Priority: Low
-
-- [ ] **Perplexity** (`Provider.PERPLEXITY`)
-  - Location: `instructor/providers/perplexity/`
-  - Modes: TBD
-  - Priority: Low
-
-- [ ] **Vertex AI** (`Provider.VERTEXAI`)
-  - Location: `instructor/providers/vertexai/`
-  - Modes: TBD
-  - Priority: Medium
-
-- [ ] **Bedrock** (`Provider.BEDROCK`)
-  - Location: `instructor/providers/bedrock/`
-  - Modes: TBD
-  - Priority: Medium
+All current providers in `instructor/providers/` now have v2 implementations.
 
 ### Migration Steps
 

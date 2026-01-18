@@ -4,6 +4,7 @@ Defines the interfaces that all mode handlers must implement for type safety
 and consistency across providers.
 """
 
+from collections.abc import AsyncGenerator, Generator, Iterable
 from typing import Any, Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -93,4 +94,42 @@ class ResponseParser(Protocol):
         Raises:
             ValidationError: If response doesn't match model
         """
+        ...
+
+
+class StreamExtractor(Protocol):
+    """Extract JSON chunks from a streaming response."""
+
+    def __call__(self, completion: Iterable[Any]) -> Generator[str, None, None]:
+        """Yield JSON chunks from a streaming response."""
+        ...
+
+
+class AsyncStreamExtractor(Protocol):
+    """Extract JSON chunks from an async streaming response."""
+
+    async def __call__(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        """Yield JSON chunks from an async streaming response."""
+        ...
+
+
+class MessageConverter(Protocol):
+    """Convert multimodal messages to provider-specific formats."""
+
+    def __call__(
+        self, messages: list[dict[str, Any]], autodetect_images: bool = False
+    ) -> list[dict[str, Any]]:
+        """Convert messages to provider-specific formats."""
+        ...
+
+
+class TemplateHandler(Protocol):
+    """Apply template context to provider-specific message formats."""
+
+    def __call__(
+        self, kwargs: dict[str, Any], context: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """Return kwargs with templates applied."""
         ...

@@ -15,6 +15,7 @@ from __future__ import annotations
 import inspect
 import json
 from textwrap import dedent
+from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
 from typing import TYPE_CHECKING, Any
 from weakref import WeakKeyDictionary
 
@@ -28,12 +29,14 @@ else:
     except ImportError:
         xchat = None
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.dsl.iterable import IterableBase
 from instructor.dsl.parallel import ParallelBase
 from instructor.dsl.partial import PartialBase
 from instructor.dsl.simple_type import AdapterBase
 from instructor.processing.function_calls import extract_json_from_codeblock
+from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.core.handler import ModeHandler
 
@@ -105,6 +108,54 @@ class XAIHandlerBase(ModeHandler):
             return True
         return False
 
+    def extract_streaming_json(
+        self, completion: TypingIterable[Any]
+    ) -> Generator[str, None, None]:
+        """Extract JSON chunks from xAI streaming responses."""
+
+        def _raw_chunks() -> Generator[str, None, None]:
+            for chunk in completion:
+                try:
+                    if self.mode in {Mode.JSON_SCHEMA, Mode.MD_JSON}:
+                        if json_chunk := chunk.delta.text:
+                            yield json_chunk
+                    elif self.mode == Mode.TOOLS:
+                        if json_chunk := chunk.delta.partial_json:
+                            yield json_chunk
+                except AttributeError:
+                    continue
+
+        raw_chunks = _raw_chunks()
+        if self.mode == Mode.MD_JSON:
+            yield from extract_json_from_stream(raw_chunks)
+            return
+        yield from raw_chunks
+
+    async def extract_streaming_json_async(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        """Extract JSON chunks from xAI async streams."""
+
+        async def _raw_chunks() -> AsyncGenerator[str, None]:
+            async for chunk in completion:
+                try:
+                    if self.mode in {Mode.JSON_SCHEMA, Mode.MD_JSON}:
+                        if json_chunk := chunk.delta.text:
+                            yield json_chunk
+                    elif self.mode == Mode.TOOLS:
+                        if json_chunk := chunk.delta.partial_json:
+                            yield json_chunk
+                except AttributeError:
+                    continue
+
+        raw_chunks = _raw_chunks()
+        if self.mode == Mode.MD_JSON:
+            async for chunk in extract_json_from_stream_async(raw_chunks):
+                yield chunk
+            return
+        async for chunk in raw_chunks:
+            yield chunk
+
     def _parse_streaming_response(
         self,
         response_model: type[BaseModel],
@@ -122,15 +173,19 @@ class XAIHandlerBase(ModeHandler):
         if inspect.isasyncgen(response):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
-                mode=self.mode,
+                stream_extractor=self.extract_streaming_json_async,
                 **parse_kwargs,
             )
 
         generator = response_model.from_streaming_response(  # type: ignore[attr-defined]
             response,
-            mode=self.mode,
+            stream_extractor=self.extract_streaming_json,
             **parse_kwargs,
         )
+        if inspect.isclass(response_model) and issubclass(response_model, IterableBase):
+            return generator
+        if inspect.isclass(response_model) and issubclass(response_model, PartialBase):
+            return list(generator)
         return list(generator)
 
     def _finalize_parsed_result(

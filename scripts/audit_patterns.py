@@ -12,15 +12,14 @@ import argparse
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Set
 
 
-def find_markdown_files(docs_dir: Path) -> List[Path]:
+def find_markdown_files(docs_dir: Path) -> list[Path]:
     """Find all markdown files in the docs directory."""
     return list(docs_dir.rglob("*.md")) + list(docs_dir.rglob("*.ipynb"))
 
 
-def audit_api_calls(content: str, file_path: Path) -> Dict[str, List[int]]:
+def audit_api_calls(content: str, file_path: Path) -> dict[str, list[int]]:  # noqa: ARG001
     """Find old API call patterns."""
     issues = defaultdict(list)
 
@@ -39,7 +38,7 @@ def audit_api_calls(content: str, file_path: Path) -> Dict[str, List[int]]:
     return issues
 
 
-def audit_old_init_patterns(content: str, file_path: Path) -> Dict[str, List[int]]:
+def audit_old_init_patterns(content: str, file_path: Path) -> dict[str, list[int]]:  # noqa: ARG001
     """Find old initialization patterns."""
     issues = defaultdict(list)
 
@@ -59,7 +58,7 @@ def audit_old_init_patterns(content: str, file_path: Path) -> Dict[str, List[int
     return issues
 
 
-def audit_unused_imports(content: str, file_path: Path) -> Dict[str, List[int]]:
+def audit_unused_imports(content: str, file_path: Path) -> dict[str, list[int]]:  # noqa: ARG001
     """Find potentially unused imports when from_provider is used."""
     issues = defaultdict(list)
 
@@ -91,7 +90,7 @@ def audit_unused_imports(content: str, file_path: Path) -> Dict[str, List[int]]:
     return issues
 
 
-def process_file(file_path: Path) -> Dict[str, Dict[str, List[int]]]:
+def process_file(file_path: Path) -> dict[str, dict[str, list[int]]]:
     """Process a single file and return all issues."""
     try:
         content = file_path.read_text(encoding="utf-8")

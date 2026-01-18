@@ -91,7 +91,9 @@ def from_cohere(
 
         return instructor.AsyncInstructor(
             client=client,
-            create=instructor.patch(create=async_wrapper, mode=mode),
+            create=instructor.patch(
+                create=async_wrapper, mode=mode, provider=instructor.Provider.COHERE
+            ),
             provider=instructor.Provider.COHERE,
             mode=mode,
             **kwargs,
@@ -105,7 +107,9 @@ def from_cohere(
 
         return instructor.Instructor(
             client=client,
-            create=instructor.patch(create=sync_wrapper, mode=mode),
+            create=instructor.patch(
+                create=sync_wrapper, mode=mode, provider=instructor.Provider.COHERE
+            ),
             provider=instructor.Provider.COHERE,
             mode=mode,
             **kwargs,

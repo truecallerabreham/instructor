@@ -6,7 +6,7 @@ import inspect
 import json
 import re
 import warnings
-from collections.abc import Generator, Iterable as TypingIterable
+from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, get_origin
 from weakref import WeakKeyDictionary
@@ -17,7 +17,8 @@ from typing import Annotated
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from anthropic.types import Message
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.core.exceptions import ConfigurationError, IncompleteOutputException
 from instructor.dsl.iterable import IterableBase
 from instructor.dsl.parallel import (
@@ -29,6 +30,7 @@ from instructor.dsl.partial import PartialBase
 from instructor.dsl.simple_type import AdapterBase
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.multimodal import Audio, Image, PDF
+from instructor.processing.multimodal import convert_messages as convert_messages_v1
 from instructor.providers.anthropic.utils import (
     combine_system_messages,
     extract_system_messages,
@@ -193,6 +195,58 @@ class AnthropicHandlerBase(ModeHandler):
             return True
         return False
 
+    def extract_streaming_json(
+        self, completion: TypingIterable[Any]
+    ) -> Generator[str, None, None]:
+        """Extract JSON chunks from Anthropic streaming responses."""
+        for chunk in completion:
+            try:
+                if self.mode in {
+                    Mode.TOOLS,
+                    Mode.ANTHROPIC_REASONING_TOOLS,
+                    Mode.PARALLEL_TOOLS,
+                }:
+                    yield chunk.delta.partial_json
+                elif self.mode in {Mode.JSON, Mode.JSON_SCHEMA}:
+                    if json_chunk := chunk.delta.text:
+                        yield json_chunk
+            except AttributeError:
+                continue
+
+    async def extract_streaming_json_async(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        """Extract JSON chunks from Anthropic async streams."""
+        async for chunk in completion:
+            try:
+                if self.mode in {
+                    Mode.TOOLS,
+                    Mode.ANTHROPIC_REASONING_TOOLS,
+                    Mode.PARALLEL_TOOLS,
+                }:
+                    yield chunk.delta.partial_json
+                elif self.mode in {Mode.JSON, Mode.JSON_SCHEMA}:
+                    if json_chunk := chunk.delta.text:
+                        yield json_chunk
+            except AttributeError:
+                continue
+
+    def convert_messages(
+        self, messages: list[dict[str, Any]], autodetect_images: bool = False
+    ) -> list[dict[str, Any]]:
+        """Convert messages for Anthropic-compatible multimodal payloads."""
+        if self.mode in {
+            Mode.TOOLS,
+            Mode.PARALLEL_TOOLS,
+            Mode.ANTHROPIC_REASONING_TOOLS,
+        }:
+            target_mode = Mode.ANTHROPIC_TOOLS
+        else:
+            target_mode = Mode.ANTHROPIC_JSON
+        return convert_messages_v1(
+            messages, target_mode, autodetect_images=autodetect_images
+        )
+
     def _parse_streaming_response(
         self,
         response_model: type[BaseModel],
@@ -209,15 +263,19 @@ class AnthropicHandlerBase(ModeHandler):
         if inspect.isasyncgen(response):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
-                mode=self.mode,
+                stream_extractor=self.extract_streaming_json_async,
                 **parse_kwargs,
             )
 
         generator = response_model.from_streaming_response(  # type: ignore[attr-defined]
             response,
-            mode=self.mode,
+            stream_extractor=self.extract_streaming_json,
             **parse_kwargs,
         )
+        if inspect.isclass(response_model) and issubclass(response_model, IterableBase):
+            return generator
+        if inspect.isclass(response_model) and issubclass(response_model, PartialBase):
+            return list(generator)
         return list(generator)
 
     def _finalize_parsed_result(

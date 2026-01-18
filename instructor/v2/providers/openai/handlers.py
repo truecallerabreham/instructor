@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Generator, Iterable as TypingIterable
+from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, get_origin
+from typing import TYPE_CHECKING, Any, cast, get_origin
 from weakref import WeakKeyDictionary
 
 from pydantic import BaseModel
@@ -18,7 +18,8 @@ from pydantic import BaseModel
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from openai.types.chat import ChatCompletion
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.core.exceptions import (
     ConfigurationError,
     IncompleteOutputException,
@@ -30,6 +31,8 @@ from instructor.dsl.partial import PartialBase
 from instructor.dsl.simple_type import AdapterBase
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.schema import generate_openai_schema
+from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
+from instructor.processing.multimodal import convert_messages as convert_messages_v1
 from instructor.providers.openai.utils import (
     reask_md_json,
     reask_responses_tools,
@@ -38,6 +41,24 @@ from instructor.providers.openai.utils import (
 from instructor.utils.core import merge_consecutive_messages
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.core.handler import ModeHandler
+
+
+OPENAI_COMPAT_PROVIDERS = [
+    Provider.OPENAI,
+    Provider.ANYSCALE,
+    Provider.TOGETHER,
+    Provider.DATABRICKS,
+    Provider.DEEPSEEK,
+    Provider.OPENROUTER,
+]
+
+OPENAI_JSON_SCHEMA_PROVIDERS = [
+    Provider.OPENAI,
+    Provider.ANYSCALE,
+    Provider.TOGETHER,
+    Provider.DATABRICKS,
+    Provider.DEEPSEEK,
+]
 
 
 class OpenAIHandlerBase(ModeHandler):
@@ -81,6 +102,112 @@ class OpenAIHandlerBase(ModeHandler):
             return True
         return False
 
+    def extract_streaming_json(
+        self, completion: TypingIterable[Any]
+    ) -> Generator[str, None, None]:
+        """Extract JSON chunks from OpenAI-compatible streaming responses."""
+
+        def _raw_chunks() -> Generator[str, None, None]:
+            for chunk in completion:
+                try:
+                    if self.mode == Mode.RESPONSES_TOOLS:
+                        from openai.types.responses import (
+                            ResponseFunctionCallArgumentsDeltaEvent,
+                        )
+
+                        if isinstance(chunk, ResponseFunctionCallArgumentsDeltaEvent):
+                            yield chunk.delta
+                        continue
+
+                    if not getattr(chunk, "choices", None):
+                        continue
+
+                    if self.mode == Mode.FUNCTIONS:
+                        Mode.warn_mode_functions_deprecation()
+                        if json_chunk := chunk.choices[0].delta.function_call.arguments:
+                            yield json_chunk
+                    elif self.mode in {
+                        Mode.JSON,
+                        Mode.MD_JSON,
+                        Mode.JSON_SCHEMA,
+                    }:
+                        if json_chunk := chunk.choices[0].delta.content:
+                            yield json_chunk
+                    elif self.mode in {
+                        Mode.TOOLS,
+                        Mode.TOOLS_STRICT,
+                        Mode.PARALLEL_TOOLS,
+                    }:
+                        if json_chunk := chunk.choices[0].delta.tool_calls:
+                            if json_chunk[0].function.arguments is not None:
+                                yield json_chunk[0].function.arguments
+                except AttributeError:
+                    continue
+
+        raw_chunks = _raw_chunks()
+        if self.mode == Mode.MD_JSON:
+            yield from extract_json_from_stream(raw_chunks)
+            return
+        yield from raw_chunks
+
+    async def extract_streaming_json_async(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        """Extract JSON chunks from OpenAI-compatible async streams."""
+
+        async def _raw_chunks() -> AsyncGenerator[str, None]:
+            async for chunk in completion:
+                try:
+                    if self.mode == Mode.RESPONSES_TOOLS:
+                        from openai.types.responses import (
+                            ResponseFunctionCallArgumentsDeltaEvent,
+                        )
+
+                        if isinstance(chunk, ResponseFunctionCallArgumentsDeltaEvent):
+                            yield chunk.delta
+                        continue
+
+                    if not getattr(chunk, "choices", None):
+                        continue
+
+                    if self.mode == Mode.FUNCTIONS:
+                        Mode.warn_mode_functions_deprecation()
+                        if json_chunk := chunk.choices[0].delta.function_call.arguments:
+                            yield json_chunk
+                    elif self.mode in {
+                        Mode.JSON,
+                        Mode.MD_JSON,
+                        Mode.JSON_SCHEMA,
+                    }:
+                        if json_chunk := chunk.choices[0].delta.content:
+                            yield json_chunk
+                    elif self.mode in {
+                        Mode.TOOLS,
+                        Mode.TOOLS_STRICT,
+                        Mode.PARALLEL_TOOLS,
+                    }:
+                        if json_chunk := chunk.choices[0].delta.tool_calls:
+                            if json_chunk[0].function.arguments is not None:
+                                yield json_chunk[0].function.arguments
+                except AttributeError:
+                    continue
+
+        raw_chunks = _raw_chunks()
+        if self.mode == Mode.MD_JSON:
+            async for chunk in extract_json_from_stream_async(raw_chunks):
+                yield chunk
+            return
+        async for chunk in raw_chunks:
+            yield chunk
+
+    def convert_messages(
+        self, messages: list[dict[str, Any]], autodetect_images: bool = False
+    ) -> list[dict[str, Any]]:
+        """Convert multimodal messages for OpenAI-compatible formats."""
+        return convert_messages_v1(
+            messages, self.mode, autodetect_images=autodetect_images
+        )
+
     def _parse_streaming_response(
         self,
         response_model: type[BaseModel],
@@ -98,15 +225,19 @@ class OpenAIHandlerBase(ModeHandler):
         if inspect.isasyncgen(response):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
-                mode=self.mode,
+                stream_extractor=self.extract_streaming_json_async,
                 **parse_kwargs,
             )
 
         generator = response_model.from_streaming_response(  # type: ignore[attr-defined]
             response,
-            mode=self.mode,
+            stream_extractor=self.extract_streaming_json,
             **parse_kwargs,
         )
+        if inspect.isclass(response_model) and issubclass(response_model, IterableBase):
+            return generator
+        if inspect.isclass(response_model) and issubclass(response_model, PartialBase):
+            return list(generator)
         return list(generator)
 
     def _finalize_parsed_result(
@@ -117,11 +248,11 @@ class OpenAIHandlerBase(ModeHandler):
     ) -> Any:
         """Finalize parsed result, handling DSL types."""
         if isinstance(parsed, IterableBase):
-            return [task for task in parsed.tasks]
+            return [task for task in parsed.tasks]  # type: ignore[attr-defined]
         if isinstance(response_model, ParallelBase):
             return parsed
         if isinstance(parsed, AdapterBase):
-            return parsed.content
+            return parsed.content  # type: ignore[attr-defined]
         if isinstance(parsed, BaseModel):
             parsed._raw_response = response  # type: ignore[attr-defined]
         return parsed
@@ -135,7 +266,7 @@ class OpenAIHandlerBase(ModeHandler):
         return response.choices[0].message.content or ""
 
 
-@register_mode_handler(Provider.OPENAI, Mode.TOOLS)
+@register_mode_handler(OPENAI_COMPAT_PROVIDERS, Mode.TOOLS)
 class OpenAIToolsHandler(OpenAIHandlerBase):
     """Handler for OpenAI TOOLS mode.
 
@@ -172,7 +303,7 @@ class OpenAIToolsHandler(OpenAIHandlerBase):
             # Handle parallel model
             from instructor.dsl.parallel import handle_parallel_model
 
-            new_kwargs["tools"] = handle_parallel_model(response_model)
+            new_kwargs["tools"] = handle_parallel_model(cast(Any, response_model))
             new_kwargs["tool_choice"] = "auto"
         else:
             schema = generate_openai_schema(response_model)
@@ -255,7 +386,7 @@ class OpenAIToolsHandler(OpenAIHandlerBase):
         return self._finalize_parsed_result(response_model, response, parsed)
 
 
-@register_mode_handler(Provider.OPENAI, Mode.JSON_SCHEMA)
+@register_mode_handler(OPENAI_JSON_SCHEMA_PROVIDERS, Mode.JSON_SCHEMA)
 class OpenAIJSONSchemaHandler(OpenAIHandlerBase):
     """Handler for OpenAI structured outputs (JSON_SCHEMA mode).
 
@@ -330,7 +461,67 @@ class OpenAIJSONSchemaHandler(OpenAIHandlerBase):
         return self._finalize_parsed_result(response_model, response, parsed)
 
 
-@register_mode_handler(Provider.OPENAI, Mode.MD_JSON)
+@register_mode_handler(OPENAI_COMPAT_PROVIDERS, Mode.JSON)
+class OpenAIJSONHandler(OpenAIHandlerBase):
+    """Handler for OpenAI JSON mode (response_format=json_object)."""
+
+    mode = Mode.JSON
+
+    def prepare_request(
+        self,
+        response_model: type[BaseModel] | None,
+        kwargs: dict[str, Any],
+    ) -> tuple[type[BaseModel] | None, dict[str, Any]]:
+        self._register_streaming_from_kwargs(response_model, kwargs)
+
+        if response_model is None:
+            return None, kwargs
+
+        new_kwargs = kwargs.copy()
+        new_kwargs["response_format"] = {"type": "json_object"}
+        return response_model, new_kwargs
+
+    def handle_reask(
+        self,
+        kwargs: dict[str, Any],
+        response: ChatCompletion,
+        exception: Exception,
+    ) -> dict[str, Any]:
+        return reask_md_json(kwargs, response, exception)
+
+    def parse_response(
+        self,
+        response: Any,
+        response_model: type[BaseModel],
+        validation_context: dict[str, Any] | None = None,
+        strict: bool | None = None,
+        stream: bool = False,  # noqa: ARG002
+        is_async: bool = False,  # noqa: ARG002
+    ) -> Any:
+        if isinstance(response_model, type) and self._consume_streaming_flag(
+            response_model
+        ):
+            return self._parse_streaming_response(
+                response_model,
+                response,
+                validation_context,
+                strict,
+            )
+
+        if hasattr(response, "choices") and response.choices:
+            if response.choices[0].finish_reason == "length":
+                raise IncompleteOutputException(last_completion=response)
+
+        text = self._extract_text_content(response)
+        parsed = response_model.model_validate_json(
+            text,
+            context=validation_context,
+            strict=strict,
+        )
+        return self._finalize_parsed_result(response_model, response, parsed)
+
+
+@register_mode_handler(OPENAI_COMPAT_PROVIDERS, Mode.MD_JSON)
 class OpenAIMDJSONHandler(OpenAIHandlerBase):
     """Handler for MD_JSON mode - extract JSON from markdown code blocks."""
 
@@ -434,7 +625,7 @@ class OpenAIMDJSONHandler(OpenAIHandlerBase):
         return self._finalize_parsed_result(response_model, response, parsed)
 
 
-@register_mode_handler(Provider.OPENAI, Mode.PARALLEL_TOOLS)
+@register_mode_handler(OPENAI_COMPAT_PROVIDERS, Mode.PARALLEL_TOOLS)
 class OpenAIParallelToolsHandler(OpenAIHandlerBase):
     """Handler for OpenAI parallel tool calling."""
 
@@ -457,7 +648,7 @@ class OpenAIParallelToolsHandler(OpenAIHandlerBase):
 
         from instructor.dsl.parallel import handle_parallel_model
 
-        new_kwargs["tools"] = handle_parallel_model(response_model)
+        new_kwargs["tools"] = handle_parallel_model(cast(Any, response_model))
         new_kwargs["tool_choice"] = "auto"
 
         # Wrap in ParallelModel for proper parsing
@@ -546,14 +737,15 @@ class OpenAIResponsesToolsHandler(OpenAIHandlerBase):
         schema = pydantic_function_tool(prepared_model)
         del schema["function"]["strict"]
 
+        schema_function = schema["function"]
         tool_definition: dict[str, Any] = {
             "type": "function",
-            "name": schema["function"]["name"],
-            "parameters": schema["function"]["parameters"],
+            "name": schema_function["name"],
+            "parameters": schema_function.get("parameters", {}),
         }
 
-        if "description" in schema["function"]:
-            tool_definition["description"] = schema["function"]["description"]
+        if "description" in schema_function:
+            tool_definition["description"] = schema_function["description"]
         else:
             tool_definition["description"] = (
                 f"Correctly extracted `{prepared_model.__name__}` with all "

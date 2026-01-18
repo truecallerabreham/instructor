@@ -22,9 +22,18 @@ from instructor.v2.core.registry import (
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _HANDLER_MODULE_PATHS: dict[Provider, Path] = {
     Provider.OPENAI: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.ANYSCALE: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.TOGETHER: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.DATABRICKS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.DEEPSEEK: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
     Provider.ANTHROPIC: _PROJECT_ROOT / "instructor/v2/providers/anthropic/handlers.py",
     Provider.GENAI: _PROJECT_ROOT / "instructor/v2/providers/genai/handlers.py",
+    Provider.GEMINI: _PROJECT_ROOT / "instructor/v2/providers/gemini/handlers.py",
     Provider.COHERE: _PROJECT_ROOT / "instructor/v2/providers/cohere/handlers.py",
+    Provider.OPENROUTER: _PROJECT_ROOT
+    / "instructor/v2/providers/openrouter/handlers.py",
+    Provider.PERPLEXITY: _PROJECT_ROOT
+    / "instructor/v2/providers/perplexity/handlers.py",
     Provider.XAI: _PROJECT_ROOT / "instructor/v2/providers/xai/handlers.py",
     Provider.GROQ: _PROJECT_ROOT / "instructor/v2/providers/groq/handlers.py",
     Provider.MISTRAL: _PROJECT_ROOT / "instructor/v2/providers/mistral/handlers.py",
@@ -32,6 +41,7 @@ _HANDLER_MODULE_PATHS: dict[Provider, Path] = {
     Provider.CEREBRAS: _PROJECT_ROOT / "instructor/v2/providers/cerebras/handlers.py",
     Provider.WRITER: _PROJECT_ROOT / "instructor/v2/providers/writer/handlers.py",
     Provider.BEDROCK: _PROJECT_ROOT / "instructor/v2/providers/bedrock/handlers.py",
+    Provider.VERTEXAI: _PROJECT_ROOT / "instructor/v2/providers/vertexai/handlers.py",
 }
 _HANDLERS_LOADED: set[Provider] = set()
 
@@ -78,6 +88,70 @@ PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = {
         "from_function": "from_openai",
         "sdk_module": "openai",
     },
+    Provider.ANYSCALE: {
+        "supported_modes": [
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.MD_JSON,
+            Mode.PARALLEL_TOOLS,
+        ],
+        "unsupported_modes": [Mode.RESPONSES_TOOLS],
+        "legacy_modes": {
+            Mode.FUNCTIONS: Mode.TOOLS,
+            Mode.TOOLS_STRICT: Mode.TOOLS,
+            Mode.JSON_O1: Mode.JSON_SCHEMA,
+        },
+        "from_function": "from_anyscale",
+        "sdk_module": "openai",
+    },
+    Provider.TOGETHER: {
+        "supported_modes": [
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.MD_JSON,
+            Mode.PARALLEL_TOOLS,
+        ],
+        "unsupported_modes": [Mode.RESPONSES_TOOLS],
+        "legacy_modes": {
+            Mode.FUNCTIONS: Mode.TOOLS,
+            Mode.TOOLS_STRICT: Mode.TOOLS,
+            Mode.JSON_O1: Mode.JSON_SCHEMA,
+        },
+        "from_function": "from_together",
+        "sdk_module": "openai",
+    },
+    Provider.DATABRICKS: {
+        "supported_modes": [
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.MD_JSON,
+            Mode.PARALLEL_TOOLS,
+        ],
+        "unsupported_modes": [Mode.RESPONSES_TOOLS],
+        "legacy_modes": {
+            Mode.FUNCTIONS: Mode.TOOLS,
+            Mode.TOOLS_STRICT: Mode.TOOLS,
+            Mode.JSON_O1: Mode.JSON_SCHEMA,
+        },
+        "from_function": "from_databricks",
+        "sdk_module": "openai",
+    },
+    Provider.DEEPSEEK: {
+        "supported_modes": [
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.MD_JSON,
+            Mode.PARALLEL_TOOLS,
+        ],
+        "unsupported_modes": [Mode.RESPONSES_TOOLS],
+        "legacy_modes": {
+            Mode.FUNCTIONS: Mode.TOOLS,
+            Mode.TOOLS_STRICT: Mode.TOOLS,
+            Mode.JSON_O1: Mode.JSON_SCHEMA,
+        },
+        "from_function": "from_deepseek",
+        "sdk_module": "openai",
+    },
     Provider.ANTHROPIC: {
         "supported_modes": [
             Mode.TOOLS,
@@ -106,6 +180,21 @@ PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = {
         "from_function": "from_genai",
         "sdk_module": "google.genai",
     },
+    Provider.GEMINI: {
+        "supported_modes": [Mode.TOOLS, Mode.MD_JSON],
+        "unsupported_modes": [
+            Mode.JSON,
+            Mode.JSON_SCHEMA,
+            Mode.PARALLEL_TOOLS,
+            Mode.RESPONSES_TOOLS,
+        ],
+        "legacy_modes": {
+            Mode.GEMINI_TOOLS: Mode.TOOLS,
+            Mode.GEMINI_JSON: Mode.MD_JSON,
+        },
+        "from_function": "from_gemini",
+        "sdk_module": "google.generativeai",
+    },
     Provider.COHERE: {
         "supported_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
         "unsupported_modes": [Mode.PARALLEL_TOOLS, Mode.RESPONSES_TOOLS],
@@ -115,6 +204,38 @@ PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = {
         },
         "from_function": "from_cohere",
         "sdk_module": "cohere",
+    },
+    Provider.OPENROUTER: {
+        "supported_modes": [
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.MD_JSON,
+            Mode.PARALLEL_TOOLS,
+        ],
+        "unsupported_modes": [Mode.RESPONSES_TOOLS],
+        "legacy_modes": {
+            Mode.FUNCTIONS: Mode.TOOLS,
+            Mode.TOOLS_STRICT: Mode.TOOLS,
+            Mode.JSON_O1: Mode.JSON_SCHEMA,
+            Mode.OPENROUTER_STRUCTURED_OUTPUTS: Mode.JSON_SCHEMA,
+        },
+        "from_function": "from_openrouter",
+        "sdk_module": "openai",
+    },
+    Provider.PERPLEXITY: {
+        "supported_modes": [Mode.MD_JSON],
+        "unsupported_modes": [
+            Mode.JSON,
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.PARALLEL_TOOLS,
+            Mode.RESPONSES_TOOLS,
+        ],
+        "legacy_modes": {
+            Mode.PERPLEXITY_JSON: Mode.MD_JSON,
+        },
+        "from_function": "from_perplexity",
+        "sdk_module": "openai",
     },
     Provider.XAI: {
         "supported_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
@@ -203,6 +324,21 @@ PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = {
         },
         "from_function": "from_bedrock",
         "sdk_module": "botocore",
+    },
+    Provider.VERTEXAI: {
+        "supported_modes": [Mode.TOOLS, Mode.MD_JSON, Mode.PARALLEL_TOOLS],
+        "unsupported_modes": [
+            Mode.JSON,
+            Mode.JSON_SCHEMA,
+            Mode.RESPONSES_TOOLS,
+        ],
+        "legacy_modes": {
+            Mode.VERTEXAI_TOOLS: Mode.TOOLS,
+            Mode.VERTEXAI_JSON: Mode.MD_JSON,
+            Mode.VERTEXAI_PARALLEL_TOOLS: Mode.PARALLEL_TOOLS,
+        },
+        "from_function": "from_vertexai",
+        "sdk_module": "vertexai",
     },
 }
 

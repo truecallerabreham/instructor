@@ -1,6 +1,7 @@
 """Core v2 infrastructure - registry, protocols, and mode types."""
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.v2.core.protocols import ReaskHandler, RequestHandler, ResponseParser
 from instructor.v2.core.registry import (
     DEPRECATED_MODE_MAPPING,

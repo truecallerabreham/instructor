@@ -88,6 +88,32 @@ def _convert_messages(messages: list[dict[str, Any]]) -> list[Any]:
     return converted
 
 
+def _add_md_json_instructions(
+    messages: list[dict[str, Any]], response_model: Any
+) -> list[dict[str, Any]]:
+    """Ensure MD_JSON requests include a schema instruction for xAI."""
+    schema = _get_model_schema(response_model)
+    if not schema:
+        return list(messages)
+
+    instruction = (
+        "Return your answer as JSON that matches this schema. "
+        "Respond with JSON only (preferably inside a ```json code block). "
+        f"Schema: {json.dumps(schema, indent=2)}"
+    )
+
+    new_messages = list(messages)
+    if new_messages and new_messages[0].get("role") == "system":
+        content = new_messages[0].get("content", "")
+        new_messages[0] = {
+            **new_messages[0],
+            "content": f"{content}\n\n{instruction}" if content else instruction,
+        }
+        return new_messages
+
+    return [{"role": "system", "content": instruction}, *new_messages]
+
+
 @overload
 def from_xai(
     client: SyncClient,
@@ -180,7 +206,6 @@ def from_xai(
         strict: bool = True,
         **call_kwargs: Any,
     ) -> Any:
-        x_messages = _convert_messages(messages)
         model = call_kwargs.pop("model")
         # Remove instructor-specific kwargs that xAI doesn't support
         call_kwargs.pop("max_retries", None)
@@ -189,15 +214,20 @@ def from_xai(
         call_kwargs.pop("hooks", None)
         is_stream = call_kwargs.pop("stream", False)
 
+        prepared_model = response_model
+        if response_model is not None and (
+            mode in {Mode.TOOLS, Mode.MD_JSON} or is_stream
+        ):
+            prepared_model = prepare_response_model(response_model)
+            if mode == Mode.MD_JSON:
+                messages = _add_md_json_instructions(messages, prepared_model)
+
+        x_messages = _convert_messages(messages)
         chat = client.chat.create(model=model, messages=x_messages, **call_kwargs)
 
         if response_model is None:
             resp = await chat.sample()  # type: ignore[misc]
             return resp
-
-        prepared_model = response_model
-        if mode == Mode.TOOLS or is_stream:
-            prepared_model = prepare_response_model(response_model)
 
         if mode == Mode.JSON_SCHEMA:
             if is_stream:
@@ -321,7 +351,6 @@ def from_xai(
         strict: bool = True,
         **call_kwargs: Any,
     ) -> Any:
-        x_messages = _convert_messages(messages)
         model = call_kwargs.pop("model")
         # Remove instructor-specific kwargs that xAI doesn't support
         call_kwargs.pop("max_retries", None)
@@ -330,15 +359,20 @@ def from_xai(
         call_kwargs.pop("hooks", None)
         is_stream = call_kwargs.pop("stream", False)
 
+        prepared_model = response_model
+        if response_model is not None and (
+            mode in {Mode.TOOLS, Mode.MD_JSON} or is_stream
+        ):
+            prepared_model = prepare_response_model(response_model)
+            if mode == Mode.MD_JSON:
+                messages = _add_md_json_instructions(messages, prepared_model)
+
+        x_messages = _convert_messages(messages)
         chat = client.chat.create(model=model, messages=x_messages, **call_kwargs)
 
         if response_model is None:
             resp = chat.sample()  # type: ignore[misc]
             return resp
-
-        prepared_model = response_model
-        if mode == Mode.TOOLS or is_stream:
-            prepared_model = prepare_response_model(response_model)
 
         if mode == Mode.JSON_SCHEMA:
             if is_stream:

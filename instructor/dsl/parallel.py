@@ -37,13 +37,12 @@ class ParallelBase:
     def from_response(
         self,
         response: Any,
-        mode: Mode,
+        mode: Mode,  # noqa: ARG002
         validation_context: Optional[Any] = None,
         strict: Optional[bool] = None,
     ) -> Generator[BaseModel, None, None]:
         #! We expect this from the OpenAISchema class, We should address
         #! this with a protocol or an abstract class... @jxnlco
-        assert mode == Mode.PARALLEL_TOOLS, "Mode must be PARALLEL_TOOLS"
         for tool_call in response.choices[0].message.tool_calls:
             name = tool_call.function.name
             arguments = tool_call.function.arguments
@@ -56,14 +55,10 @@ class VertexAIParallelBase(ParallelBase):
     def from_response(
         self,
         response: Any,
-        mode: Mode,
+        mode: Mode,  # noqa: ARG002
         validation_context: Optional[Any] = None,
         strict: Optional[bool] = None,
     ) -> Generator[BaseModel, None, None]:
-        assert mode == Mode.VERTEXAI_PARALLEL_TOOLS, (
-            "Mode must be VERTEXAI_PARALLEL_TOOLS"
-        )
-
         if not response or not response.candidates:
             return
 
@@ -146,14 +141,10 @@ class AnthropicParallelBase(ParallelBase):
     def from_response(
         self,
         response: Any,
-        mode: Mode,
+        mode: Mode,  # noqa: ARG002
         validation_context: Optional[Any] = None,
         strict: Optional[bool] = None,
     ) -> Generator[BaseModel, None, None]:
-        assert mode == Mode.ANTHROPIC_PARALLEL_TOOLS, (
-            "Mode must be ANTHROPIC_PARALLEL_TOOLS"
-        )
-
         if not response or not hasattr(response, "content"):
             return
 

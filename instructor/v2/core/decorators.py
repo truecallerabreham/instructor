@@ -1,11 +1,14 @@
 """Decorator utilities for v2 mode registration."""
 
-from instructor import Mode, Provider
+from collections.abc import Iterable
+
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.v2.core.registry import mode_registry
 
 
 def register_mode_handler(
-    provider: Provider,
+    provider: Provider | Iterable[Provider],
     mode: Mode,
 ):
     """Decorator to register a mode handler class.
@@ -15,7 +18,7 @@ def register_mode_handler(
     and parse_response methods.
 
     Args:
-        provider: Provider enum value (for tracking)
+        provider: Provider enum value (for tracking) or list of providers
         mode: Mode enum value
 
     Returns:
@@ -35,24 +38,31 @@ def register_mode_handler(
 
     def decorator(handler_class: type) -> type:
         """Register the handler class."""
-        # Instantiate the handler, passing mode if __init__ accepts it
-        try:
-            handler = handler_class(mode=mode)
-        except TypeError:
-            # Handler doesn't accept mode parameter, use default instantiation
-            handler = handler_class()
-            # Set mode attribute if handler has it
-            if hasattr(handler, "mode"):
-                handler.mode = mode
+        providers = list(provider) if isinstance(provider, Iterable) else [provider]
+        for target_provider in providers:
+            # Instantiate the handler, passing mode if __init__ accepts it
+            try:
+                handler = handler_class(mode=mode)
+            except TypeError:
+                # Handler doesn't accept mode parameter, use default instantiation
+                handler = handler_class()
+                # Set mode attribute if handler has it
+                if hasattr(handler, "mode"):
+                    handler.mode = mode
 
-        # Register with the registry
-        mode_registry.register(
-            mode=mode,
-            provider=provider,
-            request_handler=handler.prepare_request,
-            reask_handler=handler.handle_reask,
-            response_parser=handler.parse_response,
-        )
+            mode_registry.register(
+                mode=mode,
+                provider=target_provider,
+                request_handler=handler.prepare_request,
+                reask_handler=handler.handle_reask,
+                response_parser=handler.parse_response,
+                stream_extractor=getattr(handler, "extract_streaming_json", None),
+                stream_extractor_async=getattr(
+                    handler, "extract_streaming_json_async", None
+                ),
+                message_converter=getattr(handler, "convert_messages", None),
+                template_handler=getattr(handler, "apply_templates", None),
+            )
 
         return handler_class
 

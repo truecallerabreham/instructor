@@ -9,9 +9,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from instructor import Mode, Provider
-from instructor.mode import DEPRECATED_TO_CORE, reset_deprecated_mode_warnings
-from instructor.v2.core.protocols import ReaskHandler, RequestHandler, ResponseParser
+from instructor.mode import DEPRECATED_TO_CORE, Mode, reset_deprecated_mode_warnings
+from instructor.utils.providers import Provider
+from instructor.v2.core.protocols import (
+    AsyncStreamExtractor,
+    MessageConverter,
+    ReaskHandler,
+    RequestHandler,
+    ResponseParser,
+    StreamExtractor,
+    TemplateHandler,
+)
 
 DEPRECATED_MODE_MAPPING = DEPRECATED_TO_CORE
 
@@ -62,6 +70,10 @@ class ModeHandlers:
     request_handler: RequestHandler
     reask_handler: ReaskHandler
     response_parser: ResponseParser
+    stream_extractor: StreamExtractor | None = None
+    stream_extractor_async: AsyncStreamExtractor | None = None
+    message_converter: MessageConverter | None = None
+    template_handler: TemplateHandler | None = None
 
 
 class ModeRegistry:
@@ -97,6 +109,10 @@ class ModeRegistry:
         request_handler: RequestHandler,
         reask_handler: ReaskHandler,
         response_parser: ResponseParser,
+        stream_extractor: StreamExtractor | None = None,
+        stream_extractor_async: AsyncStreamExtractor | None = None,
+        message_converter: MessageConverter | None = None,
+        template_handler: TemplateHandler | None = None,
     ) -> None:
         """Register handlers for a mode.
 
@@ -106,20 +122,26 @@ class ModeRegistry:
             request_handler: Handler to prepare request kwargs
             reask_handler: Handler to handle validation failures
             response_parser: Handler to parse responses
+            stream_extractor: Optional handler to extract streaming JSON chunks
+            stream_extractor_async: Optional handler to extract async streaming JSON
+            message_converter: Optional handler to convert multimodal messages
+            template_handler: Optional handler to apply template context
 
         Raises:
-            ConfigurationError: If mode is already registered
+            ConfigurationError: If mode is already registered with different handlers
         """
-        from instructor.core.exceptions import ConfigurationError
-
         mode_key = (provider, mode)
-        if mode_key in self._handlers:
-            raise ConfigurationError(f"Mode {mode_key} is already registered")
+        if mode_key in self._lazy_loaders:
+            self._lazy_loaders.pop(mode_key, None)
 
         self._handlers[mode_key] = ModeHandlers(
             request_handler=request_handler,
             reask_handler=reask_handler,
             response_parser=response_parser,
+            stream_extractor=stream_extractor,
+            stream_extractor_async=stream_extractor_async,
+            message_converter=message_converter,
+            template_handler=template_handler,
         )
 
     def register_lazy(
@@ -196,8 +218,16 @@ class ModeRegistry:
         self,
         provider: Provider,
         mode: Mode,
-        handler_type: str,
-    ) -> RequestHandler | ReaskHandler | ResponseParser:
+        handler_type: str = "request",
+    ) -> (
+        RequestHandler
+        | ReaskHandler
+        | ResponseParser
+        | StreamExtractor
+        | AsyncStreamExtractor
+        | MessageConverter
+        | TemplateHandler
+    ):
         """Get a specific handler for a mode.
 
         This is a convenience method that internally calls get_handlers().
@@ -207,7 +237,8 @@ class ModeRegistry:
         Args:
             provider: Provider enum value
             mode: Mode enum value (provider-specific modes will be converted)
-            handler_type: One of 'request', 'reask', 'response'
+            handler_type: One of 'request', 'reask', 'response', 'stream',
+                'stream_async', 'message', 'template'
 
         Returns:
             The requested handler function
@@ -234,10 +265,31 @@ class ModeRegistry:
             return handlers.reask_handler
         elif handler_type == "response":
             return handlers.response_parser
+        elif handler_type == "stream":
+            if handlers.stream_extractor is None:
+                raise KeyError(f"No stream_extractor registered for {provider}, {mode}")
+            return handlers.stream_extractor
+        elif handler_type == "stream_async":
+            if handlers.stream_extractor_async is None:
+                raise KeyError(
+                    f"No stream_extractor_async registered for {provider}, {mode}"
+                )
+            return handlers.stream_extractor_async
+        elif handler_type == "message":
+            if handlers.message_converter is None:
+                raise KeyError(
+                    f"No message_converter registered for {provider}, {mode}"
+                )
+            return handlers.message_converter
+        elif handler_type == "template":
+            if handlers.template_handler is None:
+                raise KeyError(f"No template_handler registered for {provider}, {mode}")
+            return handlers.template_handler
         else:
             raise ValueError(
                 f"Invalid handler_type: {handler_type}. "
-                f"Must be 'request', 'reask', or 'response'"
+                "Must be 'request', 'reask', 'response', 'stream', "
+                "'stream_async', 'message', or 'template'"
             )
 
     def is_registered(self, provider: Provider, mode: Mode) -> bool:
@@ -344,7 +396,11 @@ _DEFAULT_HANDLERS_LOADED = False
 _DEFAULT_HANDLER_MODULES = (
     "instructor.v2.providers.anthropic.handlers",
     "instructor.v2.providers.genai.handlers",
+    "instructor.v2.providers.gemini.handlers",
+    "instructor.v2.providers.vertexai.handlers",
     "instructor.v2.providers.openai.handlers",
+    "instructor.v2.providers.openrouter.handlers",
+    "instructor.v2.providers.perplexity.handlers",
     "instructor.v2.providers.cohere.handlers",
     "instructor.v2.providers.xai.handlers",
     "instructor.v2.providers.groq.handlers",

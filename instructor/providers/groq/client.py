@@ -50,7 +50,11 @@ def from_groq(
     if isinstance(client, groq.Groq):
         return instructor.Instructor(
             client=client,
-            create=instructor.patch(create=client.chat.completions.create, mode=mode),
+            create=instructor.patch(
+                create=client.chat.completions.create,
+                mode=mode,
+                provider=instructor.Provider.GROQ,
+            ),
             provider=instructor.Provider.GROQ,
             mode=mode,
             **kwargs,
@@ -59,7 +63,11 @@ def from_groq(
     else:
         return instructor.AsyncInstructor(
             client=client,
-            create=instructor.patch(create=client.chat.completions.create, mode=mode),
+            create=instructor.patch(
+                create=client.chat.completions.create,
+                mode=mode,
+                provider=instructor.Provider.GROQ,
+            ),
             provider=instructor.Provider.GROQ,
             mode=mode,
             **kwargs,

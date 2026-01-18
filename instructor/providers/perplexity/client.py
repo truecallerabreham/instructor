@@ -59,7 +59,9 @@ def from_perplexity(
         create = client.chat.completions.create
         return instructor.AsyncInstructor(
             client=client,
-            create=instructor.patch(create=create, mode=mode),
+            create=instructor.patch(
+                create=create, mode=mode, provider=instructor.Provider.PERPLEXITY
+            ),
             provider=instructor.Provider.PERPLEXITY,
             mode=mode,
             **kwargs,
@@ -68,7 +70,9 @@ def from_perplexity(
     create = client.chat.completions.create
     return instructor.Instructor(
         client=client,
-        create=instructor.patch(create=create, mode=mode),
+        create=instructor.patch(
+            create=create, mode=mode, provider=instructor.Provider.PERPLEXITY
+        ),
         provider=instructor.Provider.PERPLEXITY,
         mode=mode,
         **kwargs,

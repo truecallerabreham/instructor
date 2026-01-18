@@ -7,8 +7,9 @@ from typing import Any, cast
 
 from pydantic import BaseModel
 
-from instructor import Mode, Provider
-from instructor.core.exceptions import ResponseParsingError
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
+from instructor.core.exceptions import ConfigurationError, ResponseParsingError
 from instructor.providers.bedrock.utils import (
     handle_bedrock_json,
     handle_bedrock_tools,
@@ -105,9 +106,13 @@ class BedrockToolsHandler(ModeHandler):
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Bedrock in TOOLS mode."
+            )
         tool_input = _extract_bedrock_tool_input(response, response_model)
         return response_model.model_validate(
             tool_input,
@@ -148,9 +153,13 @@ class BedrockMDJSONHandler(ModeHandler):
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Bedrock in MD_JSON mode."
+            )
         text = _extract_bedrock_text(response)
         match = re.search(r"```?json(.*?)```?", text, re.DOTALL)
         if match:

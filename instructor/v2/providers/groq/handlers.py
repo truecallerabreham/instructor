@@ -9,7 +9,8 @@ from the OpenAI handlers since the API format is identical.
 
 from __future__ import annotations
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.providers.openai.handlers import (
     OpenAIMDJSONHandler,

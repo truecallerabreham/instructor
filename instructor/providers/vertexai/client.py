@@ -209,7 +209,9 @@ def from_vertexai(
 
     return instructor.Instructor(
         client=client,
-        create=instructor.patch(create=create, mode=mode),
+        create=instructor.patch(
+            create=create, mode=mode, provider=instructor.Provider.VERTEXAI
+        ),
         provider=instructor.Provider.VERTEXAI,
         mode=mode,
         **kwargs,

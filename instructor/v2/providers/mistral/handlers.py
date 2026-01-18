@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Generator, Iterable as TypingIterable
+from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, get_origin
 from weakref import WeakKeyDictionary
@@ -24,7 +24,8 @@ from pydantic import BaseModel
 if TYPE_CHECKING:  # pragma: no cover - typing only
     pass
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.core.exceptions import IncompleteOutputException
 from instructor.dsl.iterable import IterableBase
 from instructor.dsl.parallel import ParallelBase, get_types_array
@@ -32,6 +33,8 @@ from instructor.dsl.partial import PartialBase
 from instructor.dsl.simple_type import AdapterBase
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.schema import generate_openai_schema
+from instructor.processing.multimodal import convert_messages as convert_messages_v1
+from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
 from instructor.utils.core import dump_message, merge_consecutive_messages
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.core.handler import ModeHandler
@@ -78,6 +81,72 @@ class MistralHandlerBase(ModeHandler):
             return True
         return False
 
+    def extract_streaming_json(
+        self, completion: TypingIterable[Any]
+    ) -> Generator[str, None, None]:
+        """Extract JSON chunks from Mistral streaming responses."""
+
+        def _raw_chunks() -> Generator[str, None, None]:
+            for chunk in completion:
+                try:
+                    if self.mode == Mode.TOOLS:
+                        if not chunk.data.choices[0].delta.tool_calls:
+                            continue
+                        yield (
+                            chunk.data.choices[0].delta.tool_calls[0].function.arguments
+                        )
+                    else:
+                        yield chunk.data.choices[0].delta.content
+                except AttributeError:
+                    continue
+
+        raw_chunks = _raw_chunks()
+        if self.mode == Mode.MD_JSON:
+            yield from extract_json_from_stream(raw_chunks)
+            return
+        yield from raw_chunks
+
+    async def extract_streaming_json_async(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        """Extract JSON chunks from Mistral async streams."""
+
+        async def _raw_chunks() -> AsyncGenerator[str, None]:
+            async for chunk in completion:
+                try:
+                    if self.mode == Mode.TOOLS:
+                        if not chunk.data.choices[0].delta.tool_calls:
+                            continue
+                        yield (
+                            chunk.data.choices[0].delta.tool_calls[0].function.arguments
+                        )
+                    else:
+                        yield chunk.data.choices[0].delta.content
+                except AttributeError:
+                    continue
+
+        raw_chunks = _raw_chunks()
+        if self.mode == Mode.MD_JSON:
+            async for chunk in extract_json_from_stream_async(raw_chunks):
+                yield chunk
+            return
+        async for chunk in raw_chunks:
+            yield chunk
+
+    def convert_messages(
+        self, messages: list[dict[str, Any]], autodetect_images: bool = False
+    ) -> list[dict[str, Any]]:
+        """Convert messages for Mistral-compatible multimodal payloads."""
+        if self.mode == Mode.TOOLS:
+            target_mode = Mode.MISTRAL_TOOLS
+        elif self.mode == Mode.JSON_SCHEMA:
+            target_mode = Mode.MISTRAL_STRUCTURED_OUTPUTS
+        else:
+            target_mode = Mode.MD_JSON
+        return convert_messages_v1(
+            messages, target_mode, autodetect_images=autodetect_images
+        )
+
     def _parse_streaming_response(
         self,
         response_model: type[BaseModel],
@@ -92,18 +161,36 @@ class MistralHandlerBase(ModeHandler):
         if strict is not None:
             parse_kwargs["strict"] = strict
 
+        task_parser = None
+        if (
+            self.mode == Mode.TOOLS
+            and inspect.isclass(response_model)
+            and issubclass(response_model, IterableBase)
+        ):
+            task_parser = response_model.tasks_from_task_list_chunks  # type: ignore[attr-defined]
+
         if inspect.isasyncgen(response):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
-                mode=self.mode,
+                stream_extractor=self.extract_streaming_json_async,
+                task_parser=(
+                    response_model.tasks_from_task_list_chunks_async  # type: ignore[attr-defined]
+                    if task_parser is not None
+                    else None
+                ),
                 **parse_kwargs,
             )
 
         generator = response_model.from_streaming_response(  # type: ignore[attr-defined]
             response,
-            mode=self.mode,
+            stream_extractor=self.extract_streaming_json,
+            task_parser=task_parser,
             **parse_kwargs,
         )
+        if inspect.isclass(response_model) and issubclass(response_model, IterableBase):
+            return generator
+        if inspect.isclass(response_model) and issubclass(response_model, PartialBase):
+            return list(generator)
         return list(generator)
 
     def _finalize_parsed_result(

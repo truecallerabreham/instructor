@@ -56,7 +56,9 @@ def from_cerebras(
         create = client.chat.completions.create
         return AsyncInstructor(
             client=client,
-            create=instructor.patch(create=create, mode=mode),
+            create=instructor.patch(
+                create=create, mode=mode, provider=instructor.Provider.CEREBRAS
+            ),
             provider=instructor.Provider.CEREBRAS,
             mode=mode,
             **kwargs,
@@ -65,7 +67,9 @@ def from_cerebras(
     create = client.chat.completions.create
     return Instructor(
         client=client,
-        create=instructor.patch(create=create, mode=mode),
+        create=instructor.patch(
+            create=create, mode=mode, provider=instructor.Provider.CEREBRAS
+        ),
         provider=instructor.Provider.CEREBRAS,
         mode=mode,
         **kwargs,

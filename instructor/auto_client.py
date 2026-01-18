@@ -413,6 +413,14 @@ def from_provider(
             import anthropic
             from instructor.v2 import from_anthropic
 
+            if from_anthropic is None:
+                from .core.exceptions import ConfigurationError
+
+                raise ConfigurationError(
+                    "Failed to import Anthropic provider. "
+                    "This may be due to a configuration error or missing dependencies."
+                )
+
             client = (
                 anthropic.AsyncAnthropic(api_key=api_key)
                 if async_client
@@ -1103,6 +1111,14 @@ def from_provider(
             from xai_sdk.sync.client import Client as SyncClient
             from xai_sdk.aio.client import Client as AsyncClient
             from instructor.v2 import from_xai
+
+            if from_xai is None:
+                from .core.exceptions import ConfigurationError
+
+                raise ConfigurationError(
+                    "Failed to import xAI provider. "
+                    "This may be due to a configuration error or missing dependencies."
+                )
 
             client = (
                 AsyncClient(api_key=api_key)

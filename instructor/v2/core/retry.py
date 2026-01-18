@@ -17,7 +17,8 @@ from tenacity import (
     stop_after_attempt,
 )
 
-from instructor import Mode, Provider
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from instructor.core.exceptions import FailedAttempt, InstructorRetryException
 from instructor.core.retry import extract_messages
 from instructor.v2.core.exceptions import RegistryValidationMixin

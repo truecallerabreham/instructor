@@ -8,6 +8,9 @@ description: Compare different modes available in Instructor and understand when
 Instructor uses **core modes** that work across providers. Provider-specific
 modes still work, but they are deprecated and will show warnings.
 
+Mode handling now lives in provider handlers. The DSL no longer stores
+mode-specific streaming logic.
+
 ## Core Modes
 
 - `TOOLS`: Tool or function calling for structured extraction.

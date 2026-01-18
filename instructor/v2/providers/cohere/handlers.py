@@ -14,8 +14,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from instructor import Mode, Provider
-from instructor.core.exceptions import ResponseParsingError
+from instructor.mode import Mode
+from instructor.utils.providers import Provider
+from instructor.core.exceptions import ConfigurationError, ResponseParsingError
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.core.handler import ModeHandler
@@ -212,9 +213,13 @@ Respond with JSON only. Do not include code fences, markdown, or extra text.
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Cohere in TOOLS mode."
+            )
         # Check for V1 native tool calls first
         if hasattr(response, "tool_calls") and response.tool_calls:
             tool_call = response.tool_calls[0]
@@ -299,9 +304,13 @@ class CohereJSONSchemaHandler(CohereHandlerBase):
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Cohere in JSON_SCHEMA mode."
+            )
         text = _extract_text_from_response(response)
         return response_model.model_validate_json(
             text,
@@ -385,9 +394,13 @@ class CohereMDJSONHandler(CohereHandlerBase):
         response_model: type[BaseModel],
         validation_context: dict[str, Any] | None = None,
         strict: bool | None = None,
-        stream: bool = False,  # noqa: ARG002
+        stream: bool = False,
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
+        if stream:
+            raise ConfigurationError(
+                "Streaming is not supported for Cohere in MD_JSON mode."
+            )
         text = _extract_text_from_response(response)
         extra_text = extract_json_from_codeblock(text)
         return response_model.model_validate_json(

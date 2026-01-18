@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncGenerator, Generator
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -38,6 +40,46 @@ class GenAIHandlerBase(ModeHandler):
                 cast(list[dict[str, Any]], kwargs["messages"])
             )
         return None
+
+    def extract_streaming_json(self, completion: Any) -> Generator[str, None, None]:
+        """Extract JSON chunks from GenAI streaming responses."""
+        for chunk in completion:
+            try:
+                if self.mode == Mode.TOOLS:
+                    yield json.dumps(
+                        chunk.candidates[0].content.parts[0].function_call.args
+                    )
+                else:
+                    try:
+                        yield chunk.text
+                    except Exception:
+                        if chunk.candidates[0].content.parts[0].text:
+                            yield chunk.candidates[0].content.parts[0].text
+                            continue
+                        raise
+            except AttributeError:
+                continue
+
+    async def extract_streaming_json_async(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        """Extract JSON chunks from GenAI async streams."""
+        async for chunk in completion:
+            try:
+                if self.mode == Mode.TOOLS:
+                    yield json.dumps(
+                        chunk.candidates[0].content.parts[0].function_call.args
+                    )
+                else:
+                    try:
+                        yield chunk.text
+                    except Exception:
+                        if chunk.candidates[0].content.parts[0].text:
+                            yield chunk.candidates[0].content.parts[0].text
+                            continue
+                        raise
+            except AttributeError:
+                continue
 
     def _wrap_streaming_model(
         self,
@@ -121,14 +163,6 @@ class GenAIHandlerBase(ModeHandler):
         if response_model is None:
             return response
 
-        # Map normalized mode back to provider-specific mode for parse methods
-        # Parse methods expect provider-specific modes
-        parse_mode = self.mode
-        if self.mode == Mode.TOOLS:
-            parse_mode = Mode.GENAI_TOOLS
-        elif self.mode == Mode.JSON:
-            parse_mode = Mode.GENAI_STRUCTURED_OUTPUTS
-
         if (
             stream
             and isinstance(response_model, type)
@@ -137,19 +171,28 @@ class GenAIHandlerBase(ModeHandler):
             if is_async:
                 return response_model.from_streaming_response_async(  # type: ignore
                     response,
-                    mode=parse_mode,
+                    stream_extractor=self.extract_streaming_json_async,
                 )
-            return response_model.from_streaming_response(
+            generator = response_model.from_streaming_response(  # type: ignore
                 response,
-                mode=parse_mode,
+                stream_extractor=self.extract_streaming_json,
             )
+            if issubclass(response_model, IterableBase):
+                return generator
+            return list(generator)
 
-        model = response_model.from_response(  # type: ignore
-            response,
-            validation_context=validation_context,
-            strict=strict,
-            mode=parse_mode,
-        )
+        if self.mode == Mode.TOOLS:
+            model = response_model.parse_genai_tools(  # type: ignore[attr-defined]
+                response,
+                validation_context,
+                strict,
+            )
+        else:
+            model = response_model.parse_genai_structured_outputs(  # type: ignore[attr-defined]
+                response,
+                validation_context,
+                strict,
+            )
 
         if isinstance(model, IterableBase):
             return list(model.tasks)

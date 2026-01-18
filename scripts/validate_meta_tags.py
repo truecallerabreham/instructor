@@ -13,15 +13,14 @@ import argparse
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 
-def find_markdown_files(docs_dir: Path) -> List[Path]:
+def find_markdown_files(docs_dir: Path) -> list[Path]:
     """Find all markdown files in the docs directory."""
     return list(docs_dir.rglob("*.md"))
 
 
-def extract_frontmatter(content: str) -> Dict[str, str]:
+def extract_frontmatter(content: str) -> dict[str, str]:
     """Extract frontmatter from markdown content."""
     frontmatter = {}
 
@@ -50,7 +49,7 @@ def extract_frontmatter(content: str) -> Dict[str, str]:
     return frontmatter
 
 
-def validate_file(file_path: Path) -> Dict[str, List[str]]:
+def validate_file(file_path: Path) -> dict[str, list[str]]:
     """Validate a single file's frontmatter."""
     issues = {}
 
@@ -163,7 +162,7 @@ def main():
         # Detailed report
         for file_path, issues in sorted(all_issues.items()):
             print(f"\n{file_path}:")
-            for issue_type, messages in issues.items():
+            for _issue_type, messages in issues.items():
                 for message in messages:
                     print(f"  - {message}")
 

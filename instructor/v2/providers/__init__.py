@@ -1,4 +1,4 @@
-"""V2 Provider implementations.
+"""V2 provider implementations.
 
-Provider-specific implementations will be added in subsequent PRs.
+Provider-specific handlers and client factories live in subpackages.
 """

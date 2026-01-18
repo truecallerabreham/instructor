@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from textwrap import dedent
 from instructor.mode import Mode
+from instructor.utils.providers import Provider
 from jinja2.sandbox import SandboxedEnvironment
 
 
@@ -12,10 +13,10 @@ def apply_template(text: str, context: dict[str, Any]) -> str:
 
 
 def process_message(
-    message: dict[str, Any], context: dict[str, Any], mode: Mode
+    message: dict[str, Any], context: dict[str, Any], provider: Provider
 ) -> dict[str, Any]:
     """Process a single message, applying templates to its content."""
-    if mode in {Mode.GENAI_TOOLS, Mode.GENAI_STRUCTURED_OUTPUTS}:
+    if provider == Provider.GENAI:
         from google.genai import types
 
         return types.Content(
@@ -82,7 +83,10 @@ def process_message(
 
 
 def handle_templating(
-    kwargs: dict[str, Any], mode: Mode, context: dict[str, Any] | None = None
+    kwargs: dict[str, Any],
+    mode: Mode,  # noqa: ARG001
+    provider: Provider,
+    context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Handle templating for messages using the provided context.
@@ -110,7 +114,7 @@ def handle_templating(
     if "message" in new_kwargs:
         new_kwargs["message"] = apply_template(new_kwargs["message"], context)
         new_kwargs["chat_history"] = [
-            process_message(message, context, mode)
+            process_message(message, context, provider)
             for message in new_kwargs["chat_history"]
         ]
 
@@ -128,12 +132,12 @@ def handle_templating(
 
     if "messages" in new_kwargs:
         new_kwargs["messages"] = [
-            process_message(message, context, mode) for message in messages
+            process_message(message, context, provider) for message in messages
         ]
 
     elif "contents" in new_kwargs:
         new_kwargs["contents"] = [
-            process_message(content, context, mode)
+            process_message(content, context, provider)
             for content in new_kwargs["contents"]
         ]
 

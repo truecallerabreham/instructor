@@ -12,7 +12,6 @@ Replaces old initialization patterns with from_provider:
 import argparse
 import re
 from pathlib import Path
-from typing import List, Tuple, Dict
 
 
 # Mapping of provider names to their from_provider identifiers
@@ -45,7 +44,7 @@ PROVIDER_MAPPING = {
 }
 
 
-def find_markdown_files(docs_dir: Path) -> List[Path]:
+def find_markdown_files(docs_dir: Path) -> list[Path]:
     """Find all markdown files in the docs directory."""
     return list(docs_dir.rglob("*.md")) + list(docs_dir.rglob("*.ipynb"))
 
@@ -72,8 +71,10 @@ def extract_model_name(content: str, match_start: int, match_end: int) -> str:
 
 
 def replace_from_pattern(
-    content: str, provider: str, dry_run: bool = False
-) -> Tuple[str, int]:
+    content: str,
+    provider: str,
+    dry_run: bool = False,  # noqa: ARG001
+) -> tuple[str, int]:
     """
     Replace instructor.from_PROVIDER(Provider()) patterns.
 
@@ -107,7 +108,7 @@ def replace_from_pattern(
     return new_content, replacements
 
 
-def replace_patch_pattern(content: str, dry_run: bool = False) -> Tuple[str, int]:
+def replace_patch_pattern(content: str, dry_run: bool = False) -> tuple[str, int]:  # noqa: ARG001
     """
     Replace instructor.patch(Provider()) patterns.
 
@@ -176,7 +177,7 @@ def replace_patch_pattern(content: str, dry_run: bool = False) -> Tuple[str, int
     return new_content, replacements
 
 
-def replace_old_patterns(content: str, dry_run: bool = False) -> Tuple[str, int]:
+def replace_old_patterns(content: str, dry_run: bool = False) -> tuple[str, int]:  # noqa: ARG001
     """
     Replace all old initialization patterns.
 

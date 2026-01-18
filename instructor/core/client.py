@@ -25,9 +25,20 @@ from typing_extensions import Self
 from pydantic import BaseModel
 from ..dsl.partial import Partial
 from .hooks import Hooks, HookName
+from .exceptions import ConfigurationError
 
 
 T = TypeVar("T", bound=Union[BaseModel, "Iterable[Any]", "Partial[Any]"])
+
+
+def _ensure_registry_loaded() -> None:
+    """Ensure v2 handlers are imported so the registry is populated."""
+    try:
+        import importlib
+
+        importlib.import_module("instructor.v2")
+    except Exception:
+        return
 
 
 class Response:
@@ -804,34 +815,16 @@ def from_openai(
             stacklevel=2,
         )
 
-    if provider in {Provider.OPENROUTER}:
-        assert mode in {
-            instructor.Mode.TOOLS,
-            instructor.Mode.OPENROUTER_STRUCTURED_OUTPUTS,
-            instructor.Mode.JSON,
-        }
+    _ensure_registry_loaded()
+    try:
+        from instructor.v2.core.registry import mode_registry
 
-    if provider in {Provider.ANYSCALE, Provider.TOGETHER}:
-        assert mode in {
-            instructor.Mode.TOOLS,
-            instructor.Mode.JSON,
-            instructor.Mode.JSON_SCHEMA,
-            instructor.Mode.MD_JSON,
-        }
-
-    if provider in {Provider.OPENAI, Provider.DATABRICKS}:
-        assert mode in {
-            instructor.Mode.TOOLS,
-            instructor.Mode.JSON,
-            instructor.Mode.JSON_SCHEMA,
-            instructor.Mode.FUNCTIONS,
-            instructor.Mode.PARALLEL_TOOLS,
-            instructor.Mode.MD_JSON,
-            instructor.Mode.TOOLS_STRICT,
-            instructor.Mode.JSON_O1,
-            instructor.Mode.RESPONSES_TOOLS,
-            instructor.Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
-        }
+        if not mode_registry.is_registered(provider, mode):
+            raise ConfigurationError(
+                f"Mode {mode} is not registered for provider {provider}."
+            )
+    except ImportError as exc:
+        raise ConfigurationError("Mode registry is not available.") from exc
 
     if isinstance(client, openai.OpenAI):
         return Instructor(
@@ -847,6 +840,7 @@ def from_openai(
                     else partial(map_chat_completion_to_response, client=client)
                 ),
                 mode=mode,
+                provider=provider,
             ),
             mode=mode,
             provider=provider,
@@ -867,6 +861,7 @@ def from_openai(
                     else partial(async_map_chat_completion_to_response, client=client)
                 ),
                 mode=mode,
+                provider=provider,
             ),
             mode=mode,
             provider=provider,
@@ -900,14 +895,18 @@ def from_litellm(
     if not is_async:
         return Instructor(
             client=None,
-            create=instructor.patch(create=completion, mode=mode),
+            create=instructor.patch(
+                create=completion, mode=mode, provider=Provider.OPENAI
+            ),
             mode=mode,
             **kwargs,
         )
     else:
         return AsyncInstructor(
             client=None,
-            create=instructor.patch(create=completion, mode=mode),
+            create=instructor.patch(
+                create=completion, mode=mode, provider=Provider.OPENAI
+            ),
             mode=mode,
             **kwargs,
         )

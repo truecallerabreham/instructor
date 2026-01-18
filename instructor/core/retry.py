@@ -14,6 +14,7 @@ from .exceptions import (
 )
 from .hooks import Hooks
 from ..mode import Mode
+from ..utils.providers import Provider
 from ..processing.response import (
     process_response,
     process_response_async,
@@ -149,6 +150,7 @@ def retry_sync(
     max_retries: int | Retrying = 1,
     strict: bool | None = None,
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
     hooks: Hooks | None = None,
 ) -> T_Model | None:
     """
@@ -202,6 +204,7 @@ def retry_sync(
                         validation_context=context,
                         strict=strict,
                         mode=mode,
+                        provider=provider,
                         stream=stream,
                     )
                 except (
@@ -243,6 +246,7 @@ def retry_sync(
                     kwargs = handle_reask_kwargs(
                         kwargs=kwargs,
                         mode=mode,
+                        provider=provider,
                         response=response,
                         exception=e,
                         failed_attempts=failed_attempts,
@@ -305,6 +309,7 @@ async def retry_async(
     max_retries: int | AsyncRetrying = 1,
     strict: bool | None = None,
     mode: Mode = Mode.TOOLS,
+    provider: Provider = Provider.OPENAI,
     hooks: Hooks | None = None,
 ) -> T_Model | None:
     """
@@ -358,6 +363,7 @@ async def retry_async(
                         validation_context=context,
                         strict=strict,
                         mode=mode,
+                        provider=provider,
                         stream=stream,
                     )
                 except (
@@ -400,6 +406,7 @@ async def retry_async(
                     kwargs = handle_reask_kwargs(
                         kwargs=kwargs,
                         mode=mode,
+                        provider=provider,
                         response=response,
                         exception=e,
                         failed_attempts=failed_attempts,

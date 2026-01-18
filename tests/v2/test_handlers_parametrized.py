@@ -23,9 +23,17 @@ from instructor.v2.core.registry import mode_registry
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _HANDLER_MODULE_PATHS: dict[Provider, Path] = {
     Provider.OPENAI: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.ANYSCALE: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.TOGETHER: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.DATABRICKS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.DEEPSEEK: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
     Provider.ANTHROPIC: _PROJECT_ROOT / "instructor/v2/providers/anthropic/handlers.py",
     Provider.GENAI: _PROJECT_ROOT / "instructor/v2/providers/genai/handlers.py",
+    Provider.GEMINI: _PROJECT_ROOT / "instructor/v2/providers/gemini/handlers.py",
+    Provider.VERTEXAI: _PROJECT_ROOT / "instructor/v2/providers/vertexai/handlers.py",
     Provider.COHERE: _PROJECT_ROOT / "instructor/v2/providers/cohere/handlers.py",
+    Provider.PERPLEXITY: _PROJECT_ROOT
+    / "instructor/v2/providers/perplexity/handlers.py",
     Provider.XAI: _PROJECT_ROOT / "instructor/v2/providers/xai/handlers.py",
     Provider.GROQ: _PROJECT_ROOT / "instructor/v2/providers/groq/handlers.py",
     Provider.MISTRAL: _PROJECT_ROOT / "instructor/v2/providers/mistral/handlers.py",
@@ -33,6 +41,8 @@ _HANDLER_MODULE_PATHS: dict[Provider, Path] = {
     Provider.BEDROCK: _PROJECT_ROOT / "instructor/v2/providers/bedrock/handlers.py",
     Provider.CEREBRAS: _PROJECT_ROOT / "instructor/v2/providers/cerebras/handlers.py",
     Provider.WRITER: _PROJECT_ROOT / "instructor/v2/providers/writer/handlers.py",
+    Provider.OPENROUTER: _PROJECT_ROOT
+    / "instructor/v2/providers/openrouter/handlers.py",
 }
 _HANDLERS_LOADED: set[Provider] = set()
 
@@ -84,6 +94,36 @@ PROVIDER_HANDLER_MODES: dict[Provider, list[Mode]] = {
         Mode.PARALLEL_TOOLS,
         Mode.RESPONSES_TOOLS,
     ],
+    Provider.ANYSCALE: [
+        Mode.TOOLS,
+        Mode.JSON_SCHEMA,
+        Mode.MD_JSON,
+        Mode.PARALLEL_TOOLS,
+    ],
+    Provider.TOGETHER: [
+        Mode.TOOLS,
+        Mode.JSON_SCHEMA,
+        Mode.MD_JSON,
+        Mode.PARALLEL_TOOLS,
+    ],
+    Provider.DATABRICKS: [
+        Mode.TOOLS,
+        Mode.JSON_SCHEMA,
+        Mode.MD_JSON,
+        Mode.PARALLEL_TOOLS,
+    ],
+    Provider.DEEPSEEK: [
+        Mode.TOOLS,
+        Mode.JSON_SCHEMA,
+        Mode.MD_JSON,
+        Mode.PARALLEL_TOOLS,
+    ],
+    Provider.OPENROUTER: [
+        Mode.TOOLS,
+        Mode.JSON_SCHEMA,
+        Mode.MD_JSON,
+        Mode.PARALLEL_TOOLS,
+    ],
     Provider.ANTHROPIC: [
         Mode.TOOLS,
         Mode.JSON,
@@ -92,7 +132,9 @@ PROVIDER_HANDLER_MODES: dict[Provider, list[Mode]] = {
         Mode.ANTHROPIC_REASONING_TOOLS,
     ],
     Provider.GENAI: [Mode.TOOLS, Mode.JSON],
+    Provider.GEMINI: [Mode.TOOLS, Mode.MD_JSON],
     Provider.COHERE: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+    Provider.PERPLEXITY: [Mode.MD_JSON],
     Provider.XAI: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
     Provider.GROQ: [Mode.TOOLS, Mode.MD_JSON],
     Provider.MISTRAL: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
@@ -100,6 +142,7 @@ PROVIDER_HANDLER_MODES: dict[Provider, list[Mode]] = {
     Provider.BEDROCK: [Mode.TOOLS, Mode.MD_JSON],
     Provider.CEREBRAS: [Mode.TOOLS, Mode.MD_JSON],
     Provider.WRITER: [Mode.TOOLS, Mode.MD_JSON],
+    Provider.VERTEXAI: [Mode.TOOLS, Mode.MD_JSON, Mode.PARALLEL_TOOLS],
 }
 
 
@@ -109,6 +152,31 @@ PARSE_SCENARIOS: dict[Provider, dict[Mode, str]] = {
         Mode.JSON_SCHEMA: "text",
         Mode.MD_JSON: "markdown",
         Mode.RESPONSES_TOOLS: "responses_output",
+    },
+    Provider.ANYSCALE: {
+        Mode.TOOLS: "tool_call",
+        Mode.JSON_SCHEMA: "text",
+        Mode.MD_JSON: "markdown",
+    },
+    Provider.TOGETHER: {
+        Mode.TOOLS: "tool_call",
+        Mode.JSON_SCHEMA: "text",
+        Mode.MD_JSON: "markdown",
+    },
+    Provider.DATABRICKS: {
+        Mode.TOOLS: "tool_call",
+        Mode.JSON_SCHEMA: "text",
+        Mode.MD_JSON: "markdown",
+    },
+    Provider.DEEPSEEK: {
+        Mode.TOOLS: "tool_call",
+        Mode.JSON_SCHEMA: "text",
+        Mode.MD_JSON: "markdown",
+    },
+    Provider.OPENROUTER: {
+        Mode.TOOLS: "tool_call",
+        Mode.JSON_SCHEMA: "text",
+        Mode.MD_JSON: "markdown",
     },
     Provider.COHERE: {
         Mode.TOOLS: "tool_call",
@@ -120,8 +188,15 @@ PARSE_SCENARIOS: dict[Provider, dict[Mode, str]] = {
         Mode.JSON_SCHEMA: "text",
         Mode.MD_JSON: "markdown",
     },
+    Provider.PERPLEXITY: {
+        Mode.MD_JSON: "markdown",
+    },
     Provider.GENAI: {
         Mode.JSON: "text",
+    },
+    Provider.GEMINI: {
+        Mode.TOOLS: "tool_call",
+        Mode.MD_JSON: "markdown",
     },
     Provider.GROQ: {
         Mode.TOOLS: "tool_call",
@@ -147,6 +222,10 @@ PARSE_SCENARIOS: dict[Provider, dict[Mode, str]] = {
     Provider.WRITER: {
         Mode.TOOLS: "tool_call",
         Mode.MD_JSON: "markdown",
+    },
+    Provider.VERTEXAI: {
+        Mode.TOOLS: "tool_call",
+        Mode.MD_JSON: "text",
     },
 }
 
@@ -213,10 +292,22 @@ class MockResponseBuilder:
                     }
                 }
             }
+        if self.provider in {Provider.GEMINI, Provider.VERTEXAI}:
+            function_call = SimpleNamespace(name="Answer", args=args)
+            part = SimpleNamespace(function_call=function_call)
+            content = SimpleNamespace(parts=[part])
+            candidate = SimpleNamespace(content=content)
+            return SimpleNamespace(candidates=[candidate])
         # Groq, Fireworks, Cerebras, and Writer use OpenAI-compatible format
         if self.provider in {
             Provider.GROQ,
             Provider.FIREWORKS,
+            Provider.ANYSCALE,
+            Provider.TOGETHER,
+            Provider.DATABRICKS,
+            Provider.DEEPSEEK,
+            Provider.OPENROUTER,
+            Provider.PERPLEXITY,
             Provider.CEREBRAS,
             Provider.WRITER,
         }:
@@ -247,7 +338,13 @@ class MockResponseBuilder:
             message = SimpleNamespace(content=text, tool_calls=[])
             choice = SimpleNamespace(message=message, finish_reason="stop")
             return SimpleNamespace(choices=[choice])
-        if self.provider in {Provider.COHERE, Provider.XAI, Provider.GENAI}:
+        if self.provider in {
+            Provider.COHERE,
+            Provider.XAI,
+            Provider.GENAI,
+            Provider.GEMINI,
+            Provider.VERTEXAI,
+        }:
             return SimpleNamespace(text=text)
         if self.provider == Provider.BEDROCK:
             return {
@@ -266,6 +363,12 @@ class MockResponseBuilder:
             Provider.GROQ,
             Provider.FIREWORKS,
             Provider.MISTRAL,
+            Provider.ANYSCALE,
+            Provider.TOGETHER,
+            Provider.DATABRICKS,
+            Provider.DEEPSEEK,
+            Provider.OPENROUTER,
+            Provider.PERPLEXITY,
             Provider.CEREBRAS,
             Provider.WRITER,
         }:
@@ -294,6 +397,16 @@ class MockResponseBuilder:
             content = SimpleNamespace(parts=[part])
             candidate = SimpleNamespace(content=content)
             return SimpleNamespace(candidates=[candidate])
+        if self.provider == Provider.GEMINI:
+            function_call = SimpleNamespace(name="Answer", args={"answer": "invalid"})
+            part = SimpleNamespace(function_call=function_call)
+            return SimpleNamespace(parts=[part], text="Invalid response")
+        if self.provider == Provider.VERTEXAI:
+            function_call = SimpleNamespace(name="Answer", args={"answer": "invalid"})
+            part = SimpleNamespace(function_call=function_call)
+            content = SimpleNamespace(parts=[part])
+            candidate = SimpleNamespace(content=content)
+            return SimpleNamespace(candidates=[candidate], text="Invalid response")
         # Mistral expects OpenAI-compatible format with choices
         # For reask tests, we create a simple message without tool_calls
         # to avoid issues with dump_message expecting Pydantic models
@@ -334,6 +447,24 @@ class MockResponseBuilder:
             message = WriterMockMessage()
             choice = SimpleNamespace(message=message, finish_reason="stop")
             return SimpleNamespace(choices=[choice])
+        if self.provider == Provider.PERPLEXITY:
+
+            class PerplexityMockMessage:
+                def __init__(self):
+                    self.role = "assistant"
+                    self.content = "Invalid response"
+                    self.tool_calls = []
+
+                def model_dump(self):
+                    return {
+                        "role": self.role,
+                        "content": self.content,
+                        "tool_calls": self.tool_calls,
+                    }
+
+            message = PerplexityMockMessage()
+            choice = SimpleNamespace(message=message, finish_reason="stop")
+            return SimpleNamespace(choices=[choice])
         if self.provider == Provider.BEDROCK:
             return {
                 "output": {
@@ -368,6 +499,11 @@ def test_prepare_request_with_none_model(provider: Provider, mode: Mode) -> None
     """prepare_request should handle None response_model."""
     if provider == Provider.GENAI:
         _skip_if_missing("google.genai")
+    if provider == Provider.GEMINI:
+        _skip_if_missing("google.genai")
+        _skip_if_missing("google.generativeai")
+    if provider == Provider.VERTEXAI:
+        _skip_if_missing("vertexai")
     if provider == Provider.OPENAI and mode == Mode.RESPONSES_TOOLS:
         _skip_if_missing("openai")
     if provider == Provider.MISTRAL and mode == Mode.JSON_SCHEMA:
@@ -391,6 +527,11 @@ def test_prepare_request_with_model(provider: Provider, mode: Mode) -> None:
     """prepare_request should return a model and kwargs when response_model is set."""
     if provider == Provider.GENAI:
         _skip_if_missing("google.genai")
+    if provider == Provider.GEMINI:
+        _skip_if_missing("google.genai")
+        _skip_if_missing("google.generativeai")
+    if provider == Provider.VERTEXAI:
+        _skip_if_missing("vertexai")
     if provider == Provider.OPENAI and mode == Mode.RESPONSES_TOOLS:
         _skip_if_missing("openai")
     if provider == Provider.MISTRAL and mode == Mode.JSON_SCHEMA:
@@ -479,9 +620,15 @@ def test_handle_reask_adds_message(provider: Provider, mode: Mode) -> None:
     """handle_reask should return kwargs with messages."""
     if provider == Provider.GENAI:
         _skip_if_missing("google.genai")
+    if provider == Provider.GEMINI:
+        _skip_if_missing("google.genai")
+        _skip_if_missing("google.generativeai")
+        _skip_if_missing("google.ai.generativelanguage")
+    if provider == Provider.VERTEXAI:
+        _skip_if_missing("vertexai")
     handlers = _get_handlers(provider, mode)
     builder = MockResponseBuilder(provider)
-    if provider == Provider.GENAI:
+    if provider in {Provider.GENAI, Provider.GEMINI, Provider.VERTEXAI}:
         kwargs = {"contents": []}
         expected_key = "contents"
     else:

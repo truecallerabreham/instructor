@@ -121,7 +121,9 @@ def from_anthropic(
     ):
         return instructor.Instructor(
             client=client,
-            create=instructor.patch(create=create, mode=mode),
+            create=instructor.patch(
+                create=create, mode=mode, provider=instructor.Provider.ANTHROPIC
+            ),
             provider=instructor.Provider.ANTHROPIC,
             mode=mode,
             **kwargs,
@@ -130,7 +132,9 @@ def from_anthropic(
     else:
         return instructor.AsyncInstructor(
             client=client,
-            create=instructor.patch(create=create, mode=mode),
+            create=instructor.patch(
+                create=create, mode=mode, provider=instructor.Provider.ANTHROPIC
+            ),
             provider=instructor.Provider.ANTHROPIC,
             mode=mode,
             **kwargs,

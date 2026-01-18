@@ -32,6 +32,14 @@ def from_genai(
     use_async: bool = False,
     **kwargs: Any,
 ) -> instructor.Instructor | instructor.AsyncInstructor:
+    mode_map = {
+        instructor.Mode.TOOLS: instructor.Mode.GENAI_TOOLS,
+        instructor.Mode.JSON: instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
+        instructor.Mode.GENAI_JSON: instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
+    }
+    if mode in mode_map:
+        mode = mode_map[mode]
+
     valid_modes = {
         instructor.Mode.GENAI_TOOLS,
         instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
@@ -61,7 +69,9 @@ def from_genai(
 
         return instructor.AsyncInstructor(
             client=client,
-            create=instructor.patch(create=async_wrapper, mode=mode),
+            create=instructor.patch(
+                create=async_wrapper, mode=mode, provider=instructor.Provider.GENAI
+            ),
             provider=instructor.Provider.GENAI,
             mode=mode,
             **kwargs,
@@ -75,7 +85,9 @@ def from_genai(
 
     return instructor.Instructor(
         client=client,
-        create=instructor.patch(create=sync_wrapper, mode=mode),
+        create=instructor.patch(
+            create=sync_wrapper, mode=mode, provider=instructor.Provider.GENAI
+        ),
         provider=instructor.Provider.GENAI,
         mode=mode,
         **kwargs,

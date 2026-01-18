@@ -19,6 +19,7 @@ from ..core.exceptions import (
     ConfigurationError,
 )
 from ..mode import Mode
+from ..utils.providers import Provider
 from ..utils import (
     classproperty,
     extract_json_from_codeblock,
@@ -144,140 +145,34 @@ class OpenAISchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
         mode: Mode = Mode.TOOLS,
+        provider: Provider = Provider.OPENAI,
     ) -> BaseModel:
         """Execute the function from the response of an openai chat completion
 
         Parameters:
             completion (openai.ChatCompletion): The response from an openai chat completion
             strict (bool): Whether to use strict json parsing
-            mode (Mode): The openai completion mode
+            mode (Mode): The completion mode
+            provider (Provider): The provider for handler lookup
 
         Returns:
             cls (OpenAISchema): An instance of the class
         """
 
-        # Anthropic modes are now handled by v2 handlers in instructor/v2/providers/anthropic/handlers.py
-        # These legacy methods are deprecated and will be removed in v2.0.0
-        # Keeping for backward compatibility with v1 code that might still use OpenAISchema.from_response directly
-        if mode == Mode.ANTHROPIC_TOOLS or mode == Mode.ANTHROPIC_REASONING_TOOLS:
-            import warnings
+        import importlib
 
-            warnings.warn(
-                "Using legacy parse_anthropic_tools via OpenAISchema.from_response is deprecated "
-                "and will be removed in instructor v2.0.0. "
-                "Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return cls.parse_anthropic_tools(completion, validation_context, strict)
+        from instructor.v2.core.registry import mode_registry
 
-        if mode == Mode.ANTHROPIC_JSON:
-            import warnings
+        importlib.import_module("instructor.v2")
 
-            warnings.warn(
-                "Using legacy parse_anthropic_json via OpenAISchema.from_response is deprecated "
-                "and will be removed in instructor v2.0.0. "
-                "Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return cls.parse_anthropic_json(completion, validation_context, strict)
-
-        if mode == Mode.BEDROCK_JSON:
-            return cls.parse_bedrock_json(completion, validation_context, strict)
-
-        if mode == Mode.BEDROCK_TOOLS:
-            return cls.parse_bedrock_tools(completion, validation_context, strict)
-
-        if mode in {Mode.VERTEXAI_TOOLS, Mode.GEMINI_TOOLS}:
-            return cls.parse_vertexai_tools(completion, validation_context)
-
-        if mode == Mode.VERTEXAI_JSON:
-            return cls.parse_vertexai_json(completion, validation_context, strict)
-
-        if mode == Mode.COHERE_TOOLS:
-            return cls.parse_cohere_tools(completion, validation_context, strict)
-
-        if mode == Mode.GEMINI_JSON:
-            return cls.parse_gemini_json(completion, validation_context, strict)
-
-        if mode == Mode.GENAI_STRUCTURED_OUTPUTS:
-            return cls.parse_genai_structured_outputs(
-                completion, validation_context, strict
-            )
-
-        if mode == Mode.GEMINI_TOOLS:
-            return cls.parse_gemini_tools(completion, validation_context, strict)
-
-        if mode == Mode.GENAI_TOOLS:
-            return cls.parse_genai_tools(completion, validation_context, strict)
-
-        if mode == Mode.COHERE_JSON_SCHEMA:
-            return cls.parse_cohere_json_schema(completion, validation_context, strict)
-
-        if mode == Mode.WRITER_TOOLS:
-            return cls.parse_writer_tools(completion, validation_context, strict)
-
-        if mode == Mode.WRITER_JSON:
-            return cls.parse_writer_json(completion, validation_context, strict)
-
-        if mode in {Mode.RESPONSES_TOOLS, Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS}:
-            return cls.parse_responses_tools(
-                completion,
-                validation_context,
-                strict,
-            )
-
-        if not completion.choices:
-            # This helps catch errors from OpenRouter
-            if hasattr(completion, "error"):
-                raise ResponseParsingError(
-                    f"LLM provider returned error: {completion.error}",
-                    mode=str(mode),
-                    raw_response=completion,
-                )
-
-            raise ResponseParsingError(
-                "No completion choices found in LLM response",
-                mode=str(mode),
-                raw_response=completion,
-            )
-
-        if completion.choices[0].finish_reason == "length":
-            raise IncompleteOutputException(last_completion=completion)
-
-        if mode == Mode.FUNCTIONS:
-            Mode.warn_mode_functions_deprecation()
-            return cls.parse_functions(completion, validation_context, strict)
-
-        if mode == Mode.MISTRAL_STRUCTURED_OUTPUTS:
-            return cls.parse_mistral_structured_outputs(
-                completion, validation_context, strict
-            )
-
-        if mode in {
-            Mode.TOOLS,
-            Mode.MISTRAL_TOOLS,
-            Mode.TOOLS_STRICT,
-            Mode.CEREBRAS_TOOLS,
-            Mode.FIREWORKS_TOOLS,
-        }:
-            return cls.parse_tools(completion, validation_context, strict)
-
-        if mode in {
-            Mode.JSON,
-            Mode.JSON_SCHEMA,
-            Mode.MD_JSON,
-            Mode.JSON_O1,
-            Mode.CEREBRAS_JSON,
-            Mode.FIREWORKS_JSON,
-            Mode.PERPLEXITY_JSON,
-            Mode.OPENROUTER_STRUCTURED_OUTPUTS,
-        }:
-            return cls.parse_json(completion, validation_context, strict)
-
-        raise ConfigurationError(
-            f"Invalid or unsupported mode: {mode}. This mode may not be implemented for response parsing."
+        handlers = mode_registry.get_handlers(provider, mode)
+        return handlers.response_parser(
+            response=completion,
+            response_model=cls,
+            validation_context=validation_context,
+            strict=strict,
+            stream=False,
+            is_async=False,
         )
 
     @classmethod
@@ -547,6 +442,39 @@ class OpenAISchema(BaseModel):
             parsed = json.loads(extra_text, strict=False)
             # Pydantic non-strict: https://docs.pydantic.dev/latest/concepts/strict_mode/
             return cls.model_validate(parsed, context=validation_context, strict=False)
+
+    @classmethod
+    def parse_gemini_tools(
+        cls: type[BaseModel],
+        completion: Any,
+        validation_context: Optional[dict[str, Any]] = None,
+        strict: Optional[bool] = None,
+    ) -> BaseModel:
+        try:
+            function_call = completion.candidates[0].content.parts[0].function_call
+        except Exception as exc:
+            raise ResponseParsingError(
+                "No tool call found in Gemini response",
+                mode="GEMINI_TOOLS",
+                raw_response=completion,
+            ) from exc
+
+        args = getattr(function_call, "args", None)
+        if args is None and hasattr(type(function_call), "to_dict"):
+            try:
+                resp_dict = type(function_call).to_dict(function_call)
+            except Exception:
+                resp_dict = {}
+            args = resp_dict.get("args")
+
+        if args is None:
+            raise ResponseParsingError(
+                "No tool call args found in Gemini response",
+                mode="GEMINI_TOOLS",
+                raw_response=completion,
+            )
+
+        return cls.model_validate(args, context=validation_context, strict=strict)
 
     @classmethod
     def parse_vertexai_tools(
