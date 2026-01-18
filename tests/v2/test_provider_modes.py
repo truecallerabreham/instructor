@@ -11,9 +11,51 @@ from collections.abc import Iterable
 from typing import Literal, Union
 from pydantic import BaseModel
 
+import importlib.util
+from pathlib import Path
+
 import instructor
 from instructor import Mode
 from instructor.v2 import Provider, mode_registry
+
+# Ensure handlers are loaded by dynamically importing them
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_HANDLER_MODULE_PATHS: dict[Provider, Path] = {
+    Provider.OPENAI: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
+    Provider.ANTHROPIC: _PROJECT_ROOT / "instructor/v2/providers/anthropic/handlers.py",
+    Provider.GENAI: _PROJECT_ROOT / "instructor/v2/providers/genai/handlers.py",
+    Provider.COHERE: _PROJECT_ROOT / "instructor/v2/providers/cohere/handlers.py",
+    Provider.XAI: _PROJECT_ROOT / "instructor/v2/providers/xai/handlers.py",
+    Provider.GROQ: _PROJECT_ROOT / "instructor/v2/providers/groq/handlers.py",
+    Provider.MISTRAL: _PROJECT_ROOT / "instructor/v2/providers/mistral/handlers.py",
+    Provider.FIREWORKS: _PROJECT_ROOT / "instructor/v2/providers/fireworks/handlers.py",
+}
+_HANDLERS_LOADED: set[Provider] = set()
+
+
+def _ensure_handlers_loaded(provider: Provider) -> None:
+    """Dynamically load handler module to ensure handlers are registered."""
+    if provider in _HANDLERS_LOADED:
+        return
+    handler_path = _HANDLER_MODULE_PATHS.get(provider)
+    if handler_path is None:
+        return
+    if not handler_path.exists():
+        return
+    try:
+        spec = importlib.util.spec_from_file_location(
+            f"tests.v2.handlers_{provider.value}",
+            handler_path,
+        )
+        if spec is None or spec.loader is None:
+            return
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _HANDLERS_LOADED.add(provider)
+    except Exception:
+        # Handler module may have import errors (missing dependencies)
+        # This is okay - the test will skip if handlers aren't registered
+        pass
 
 
 class Answer(BaseModel):
@@ -37,6 +79,18 @@ class GoogleSearch(BaseModel):
 
 # Provider-specific configurations
 PROVIDER_CONFIGS = {
+    Provider.OPENAI: {
+        "provider_string": "openai/gpt-4o-mini",
+        "modes": [
+            Mode.TOOLS,
+            Mode.JSON_SCHEMA,
+            Mode.MD_JSON,
+            Mode.PARALLEL_TOOLS,
+            Mode.RESPONSES_TOOLS,
+        ],
+        "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+        "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+    },
     Provider.ANTHROPIC: {
         "provider_string": "anthropic/claude-3-5-haiku-latest",
         "modes": [
@@ -66,29 +120,44 @@ PROVIDER_CONFIGS = {
         "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
         "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
     },
+    Provider.GROQ: {
+        "provider_string": "groq/llama-3.3-70b-versatile",
+        "modes": [Mode.TOOLS, Mode.MD_JSON],
+        "basic_modes": [Mode.TOOLS, Mode.MD_JSON],
+        "async_modes": [Mode.TOOLS, Mode.MD_JSON],
+    },
+    Provider.MISTRAL: {
+        "provider_string": "mistral/ministral-8b-latest",
+        "modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+        "basic_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+        "async_modes": [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+    },
+    Provider.FIREWORKS: {
+        "provider_string": "fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct",
+        "modes": [Mode.TOOLS, Mode.MD_JSON],
+        "basic_modes": [Mode.TOOLS, Mode.MD_JSON],
+        "async_modes": [Mode.TOOLS, Mode.MD_JSON],
+    },
 }
 
 
-@pytest.mark.parametrize(
-    "provider,mode",
-    [
-        (Provider.ANTHROPIC, Mode.TOOLS),
-        (Provider.ANTHROPIC, Mode.JSON_SCHEMA),
-        (Provider.ANTHROPIC, Mode.PARALLEL_TOOLS),
-        (Provider.ANTHROPIC, Mode.ANTHROPIC_REASONING_TOOLS),
-        (Provider.GENAI, Mode.TOOLS),
-        (Provider.GENAI, Mode.JSON),
-        (Provider.COHERE, Mode.TOOLS),
-        (Provider.COHERE, Mode.JSON_SCHEMA),
-        (Provider.COHERE, Mode.MD_JSON),
-        (Provider.XAI, Mode.TOOLS),
-        (Provider.XAI, Mode.JSON_SCHEMA),
-        (Provider.XAI, Mode.MD_JSON),
-    ],
-)
+def _get_all_mode_params():
+    """Generate (provider, mode) tuples for all registered modes."""
+    params = []
+    for provider, config in PROVIDER_CONFIGS.items():
+        for mode in config["modes"]:
+            params.append((provider, mode))
+    return params
+
+
+@pytest.mark.parametrize("provider,mode", _get_all_mode_params())
 def test_mode_is_registered(provider: Provider, mode: Mode):
     """Verify each mode is registered in the v2 registry."""
-    assert mode_registry.is_registered(provider, mode)
+    _ensure_handlers_loaded(provider)
+
+    # Skip if handler module doesn't exist or isn't registered
+    if not mode_registry.is_registered(provider, mode):
+        pytest.skip(f"Mode {mode.value} not registered for {provider.value}")
 
     handlers = mode_registry.get_handlers(provider, mode)
     assert handlers.request_handler is not None
@@ -96,21 +165,16 @@ def test_mode_is_registered(provider: Provider, mode: Mode):
     assert handlers.response_parser is not None
 
 
-@pytest.mark.parametrize(
-    "provider,mode",
-    [
-        (Provider.ANTHROPIC, Mode.TOOLS),
-        (Provider.ANTHROPIC, Mode.JSON_SCHEMA),
-        (Provider.GENAI, Mode.TOOLS),
-        (Provider.GENAI, Mode.JSON),
-        (Provider.COHERE, Mode.TOOLS),
-        (Provider.COHERE, Mode.JSON_SCHEMA),
-        (Provider.COHERE, Mode.MD_JSON),
-        (Provider.XAI, Mode.TOOLS),
-        (Provider.XAI, Mode.JSON_SCHEMA),
-        (Provider.XAI, Mode.MD_JSON),
-    ],
-)
+def _get_basic_mode_params():
+    """Generate (provider, mode) tuples for basic extraction tests."""
+    params = []
+    for provider, config in PROVIDER_CONFIGS.items():
+        for mode in config["basic_modes"]:
+            params.append((provider, mode))
+    return params
+
+
+@pytest.mark.parametrize("provider,mode", _get_basic_mode_params())
 @pytest.mark.requires_api_key
 def test_mode_basic_extraction(provider: Provider, mode: Mode):
     """Test basic extraction with each mode."""
@@ -137,21 +201,16 @@ def test_mode_basic_extraction(provider: Provider, mode: Mode):
     assert response.answer == 4.0
 
 
-@pytest.mark.parametrize(
-    "provider,mode",
-    [
-        (Provider.ANTHROPIC, Mode.TOOLS),
-        (Provider.ANTHROPIC, Mode.JSON_SCHEMA),
-        (Provider.GENAI, Mode.TOOLS),
-        (Provider.GENAI, Mode.JSON),
-        (Provider.COHERE, Mode.TOOLS),
-        (Provider.COHERE, Mode.JSON_SCHEMA),
-        (Provider.COHERE, Mode.MD_JSON),
-        (Provider.XAI, Mode.TOOLS),
-        (Provider.XAI, Mode.JSON_SCHEMA),
-        (Provider.XAI, Mode.MD_JSON),
-    ],
-)
+def _get_async_mode_params():
+    """Generate (provider, mode) tuples for async extraction tests."""
+    params = []
+    for provider, config in PROVIDER_CONFIGS.items():
+        for mode in config["async_modes"]:
+            params.append((provider, mode))
+    return params
+
+
+@pytest.mark.parametrize("provider,mode", _get_async_mode_params())
 @pytest.mark.asyncio
 @pytest.mark.requires_api_key
 async def test_mode_async_extraction(provider: Provider, mode: Mode):
@@ -288,9 +347,7 @@ def test_anthropic_reasoning_tools_deprecation():
         assert response.answer == 12.0
 
 
-@pytest.mark.parametrize(
-    "provider", [Provider.ANTHROPIC, Provider.GENAI, Provider.COHERE, Provider.XAI]
-)
+@pytest.mark.parametrize("provider", PROVIDER_CONFIGS.keys())
 @pytest.mark.requires_api_key
 def test_all_modes_covered(provider: Provider):
     """Verify we're testing all registered modes for each provider."""

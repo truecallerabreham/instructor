@@ -28,6 +28,9 @@ _HANDLER_MODULE_PATHS: dict[Provider, Path] = {
     Provider.GENAI: _PROJECT_ROOT / "instructor/v2/providers/genai/handlers.py",
     Provider.COHERE: _PROJECT_ROOT / "instructor/v2/providers/cohere/handlers.py",
     Provider.XAI: _PROJECT_ROOT / "instructor/v2/providers/xai/handlers.py",
+    Provider.GROQ: _PROJECT_ROOT / "instructor/v2/providers/groq/handlers.py",
+    Provider.MISTRAL: _PROJECT_ROOT / "instructor/v2/providers/mistral/handlers.py",
+    Provider.FIREWORKS: _PROJECT_ROOT / "instructor/v2/providers/fireworks/handlers.py",
 }
 _HANDLERS_LOADED: set[Provider] = set()
 
@@ -89,6 +92,9 @@ PROVIDER_HANDLER_MODES: dict[Provider, list[Mode]] = {
     Provider.GENAI: [Mode.TOOLS, Mode.JSON],
     Provider.COHERE: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
     Provider.XAI: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+    Provider.GROQ: [Mode.TOOLS, Mode.MD_JSON],
+    Provider.MISTRAL: [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
+    Provider.FIREWORKS: [Mode.TOOLS, Mode.MD_JSON],
 }
 
 
@@ -111,6 +117,19 @@ PARSE_SCENARIOS: dict[Provider, dict[Mode, str]] = {
     },
     Provider.GENAI: {
         Mode.JSON: "text",
+    },
+    Provider.GROQ: {
+        Mode.TOOLS: "tool_call",
+        Mode.MD_JSON: "markdown",
+    },
+    Provider.MISTRAL: {
+        Mode.TOOLS: "tool_call",
+        Mode.JSON_SCHEMA: "text",
+        Mode.MD_JSON: "markdown",
+    },
+    Provider.FIREWORKS: {
+        Mode.TOOLS: "tool_call",
+        Mode.MD_JSON: "markdown",
     },
 }
 
@@ -162,6 +181,28 @@ class MockResponseBuilder:
                 function=SimpleNamespace(arguments=json.dumps(args))
             )
             return SimpleNamespace(tool_calls=[tool_call])
+        # Groq and Fireworks use OpenAI-compatible format
+        if self.provider in {Provider.GROQ, Provider.FIREWORKS}:
+            tool_call = SimpleNamespace(
+                function=SimpleNamespace(
+                    name="Answer",
+                    arguments=json.dumps(args),
+                )
+            )
+            message = SimpleNamespace(content=None, tool_calls=[tool_call])
+            choice = SimpleNamespace(message=message, finish_reason="stop")
+            return SimpleNamespace(choices=[choice])
+        # Mistral uses OpenAI-compatible format but with different structure
+        if self.provider == Provider.MISTRAL:
+            tool_call = SimpleNamespace(
+                function=SimpleNamespace(
+                    name="Answer",
+                    arguments=json.dumps(args),
+                )
+            )
+            message = SimpleNamespace(content=None, tool_calls=[tool_call])
+            choice = SimpleNamespace(message=message, finish_reason="stop")
+            return SimpleNamespace(choices=[choice])
         raise NotImplementedError(f"Tool response not supported for {self.provider}")
 
     def text_response(self, text: str) -> Any:
@@ -171,6 +212,11 @@ class MockResponseBuilder:
             return SimpleNamespace(choices=[choice])
         if self.provider in {Provider.COHERE, Provider.XAI, Provider.GENAI}:
             return SimpleNamespace(text=text)
+        # Groq, Fireworks, and Mistral use OpenAI-compatible format
+        if self.provider in {Provider.GROQ, Provider.FIREWORKS, Provider.MISTRAL}:
+            message = SimpleNamespace(content=text, tool_calls=[])
+            choice = SimpleNamespace(message=message, finish_reason="stop")
+            return SimpleNamespace(choices=[choice])
         raise NotImplementedError(f"Text response not supported for {self.provider}")
 
     def markdown_response(self, text: str) -> Any:
@@ -187,6 +233,28 @@ class MockResponseBuilder:
             return SimpleNamespace(
                 content=[_AnthropicContent(type="text", text="Invalid response")]
             )
+        # Mistral expects OpenAI-compatible format with choices
+        # For reask tests, we create a simple message without tool_calls
+        # to avoid issues with dump_message expecting Pydantic models
+        if self.provider == Provider.MISTRAL:
+            # Create a mock that works with dump_message
+            # dump_message expects a ChatCompletionMessage-like object
+            class MockMessage:
+                def __init__(self):
+                    self.role = "assistant"
+                    self.content = "Invalid response"
+                    self.tool_calls = []
+
+                def model_dump(self):
+                    return {
+                        "role": self.role,
+                        "content": self.content,
+                        "tool_calls": self.tool_calls,
+                    }
+
+            message = MockMessage()
+            choice = SimpleNamespace(message=message, finish_reason="stop")
+            return SimpleNamespace(choices=[choice])
         return SimpleNamespace(text="Invalid response")
 
 
@@ -207,8 +275,13 @@ def test_prepare_request_with_none_model(provider: Provider, mode: Mode) -> None
         _skip_if_missing("google.genai")
     if provider == Provider.OPENAI and mode == Mode.RESPONSES_TOOLS:
         _skip_if_missing("openai")
+    if provider == Provider.MISTRAL and mode == Mode.JSON_SCHEMA:
+        _skip_if_missing("mistralai")
     if mode == Mode.PARALLEL_TOOLS:
         pytest.skip("Parallel tools requires special response_model setup")
+    # Anthropic JSON_SCHEMA requires a response_model
+    if provider == Provider.ANTHROPIC and mode == Mode.JSON_SCHEMA:
+        pytest.skip("Anthropic JSON_SCHEMA mode requires a response_model")
 
     handlers = _get_handlers(provider, mode)
     kwargs = {"messages": [{"role": "user", "content": "Hello"}]}
@@ -225,6 +298,8 @@ def test_prepare_request_with_model(provider: Provider, mode: Mode) -> None:
         _skip_if_missing("google.genai")
     if provider == Provider.OPENAI and mode == Mode.RESPONSES_TOOLS:
         _skip_if_missing("openai")
+    if provider == Provider.MISTRAL and mode == Mode.JSON_SCHEMA:
+        _skip_if_missing("mistralai")
     if mode == Mode.PARALLEL_TOOLS:
         pytest.skip("Parallel tools requires special response_model setup")
 
@@ -307,6 +382,8 @@ def test_parse_response_validation_error(provider: Provider, mode: Mode) -> None
 @pytest.mark.parametrize("provider,mode", _provider_mode_params())
 def test_handle_reask_adds_message(provider: Provider, mode: Mode) -> None:
     """handle_reask should return kwargs with messages."""
+    if provider == Provider.GENAI:
+        _skip_if_missing("google.genai")
     handlers = _get_handlers(provider, mode)
     builder = MockResponseBuilder(provider)
     kwargs = {"messages": [{"role": "user", "content": "Original"}]}
