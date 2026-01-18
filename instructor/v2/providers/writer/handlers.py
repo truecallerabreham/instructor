@@ -16,6 +16,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from instructor import Mode, Provider
+from instructor.core.exceptions import IncompleteOutputException
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.schema import generate_openai_schema
 from instructor.providers.writer.utils import reask_writer_json, reask_writer_tools
@@ -74,6 +75,11 @@ class WriterToolsHandler(ModeHandler):
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
         """Parse tool call response from Writer."""
+        # Check for truncated output
+        if hasattr(response, "choices") and response.choices:
+            if response.choices[0].finish_reason == "length":
+                raise IncompleteOutputException(last_completion=response)
+
         # Extract JSON from tool call
         tool_call = response.choices[0].message.tool_calls[0]
         json_str = tool_call.function.arguments

@@ -129,7 +129,7 @@ class BedrockMDJSONHandler(ModeHandler):
     ) -> tuple[type[BaseModel] | None, dict[str, Any]]:
         new_kwargs = kwargs.copy()
         if response_model is None:
-            return handle_bedrock_tools(None, new_kwargs)
+            return None, new_kwargs
 
         prepared_model = cast(type[BaseModel], prepare_response_model(response_model))
         return handle_bedrock_json(prepared_model, new_kwargs)

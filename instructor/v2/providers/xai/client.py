@@ -235,7 +235,7 @@ def from_xai(
                 args = (
                     resp.tool_calls[0].function.arguments  # type: ignore[index,attr-defined]
                     async for resp, _ in stream_iter  # type: ignore[assignment]
-                    if resp.tool_calls and resp.finish_reason == "REASON_INVALID"  # type: ignore[attr-defined]
+                    if resp.tool_calls  # type: ignore[attr-defined]
                 )
                 rm = cast(type[BaseModel], prepared_model)
                 if issubclass(rm, IterableBase):
@@ -385,6 +385,8 @@ def from_xai(
                             raise ValueError(
                                 f"Unsupported response model type for streaming: {_get_model_name(response_model)}"
                             )
+                # If streaming completed without finding tool_calls, raise error
+                raise ValueError("No tool calls returned from xAI streaming response")
             else:
                 resp = chat.sample()  # type: ignore[misc]
                 if not resp.tool_calls:  # type: ignore[attr-defined]

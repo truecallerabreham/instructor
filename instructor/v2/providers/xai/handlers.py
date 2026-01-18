@@ -419,6 +419,12 @@ class XAIMDJSONHandler(XAIHandlerBase):
             )
         elif messages and isinstance(messages[0]["content"], str):
             messages[0]["content"] += f"\n\n{message}"
+        elif (
+            messages
+            and isinstance(messages[0]["content"], list)
+            and messages[0]["content"]
+        ):
+            messages[0]["content"][0]["text"] += f"\n\n{message}"
         else:
             messages.insert(0, {"role": "system", "content": message})
 
