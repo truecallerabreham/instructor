@@ -5,6 +5,21 @@ import pytest
 from instructor import Mode
 from instructor.v2 import Provider, mode_registry
 from instructor.v2.core.decorators import register_mode_handler
+from tests.v2.conftest import get_registered_provider_mode_pairs
+
+
+def _get_registered_providers() -> list[Provider]:
+    pairs = get_registered_provider_mode_pairs()
+    return sorted({provider for provider, _ in pairs}, key=lambda p: p.value)
+
+
+def _get_registered_modes() -> list[Mode]:
+    pairs = get_registered_provider_mode_pairs()
+    return sorted({mode for _, mode in pairs}, key=lambda m: m.value)
+
+
+def _get_registered_provider_modes() -> list[tuple[Provider, Mode]]:
+    return get_registered_provider_mode_pairs()
 
 
 def test_registry_registration():
@@ -57,28 +72,37 @@ def test_registry_get_handler():
     assert result["test"] == "reask"
 
 
-def test_registry_query_by_provider():
+@pytest.mark.parametrize("provider", _get_registered_providers())
+def test_registry_query_by_provider(provider: Provider):
     """Test querying modes for a provider."""
-    # Anthropic should have TOOLS and JSON registered
-    modes = mode_registry.get_modes_for_provider(Provider.ANTHROPIC)
-    assert Mode.TOOLS in modes
-    assert Mode.JSON in modes
+    modes = mode_registry.get_modes_for_provider(provider)
+    assert modes, f"{provider.value} should have at least one mode"
+
+    expected_modes = {
+        mode for prov, mode in get_registered_provider_mode_pairs() if prov == provider
+    }
+    assert expected_modes.issubset(set(modes))
 
 
-def test_registry_query_by_mode_type():
+@pytest.mark.parametrize("mode", _get_registered_modes())
+def test_registry_query_by_mode_type(mode: Mode):
     """Test querying providers for a mode type."""
-    # TOOLS should be supported by Anthropic (and possibly others)
-    providers = mode_registry.get_providers_for_mode(Mode.TOOLS)
-    assert Provider.ANTHROPIC in providers
+    providers = mode_registry.get_providers_for_mode(mode)
+    assert providers, f"{mode.value} should have at least one provider"
+
+    expected_providers = {
+        provider
+        for provider, registered_mode in get_registered_provider_mode_pairs()
+        if registered_mode == mode
+    }
+    assert expected_providers.issubset(set(providers))
 
 
-def test_registry_list_modes():
+@pytest.mark.parametrize("provider,mode", _get_registered_provider_modes())
+def test_registry_list_modes(provider: Provider, mode: Mode):
     """Test listing all registered modes."""
     all_modes = mode_registry.list_modes()
-
-    # Should include Anthropic modes
-    assert (Provider.ANTHROPIC, Mode.TOOLS) in all_modes
-    assert (Provider.ANTHROPIC, Mode.JSON) in all_modes
+    assert (provider, mode) in all_modes
 
 
 def test_registry_not_registered():
@@ -87,7 +111,8 @@ def test_registry_not_registered():
         mode_registry.get_handlers(Provider.GEMINI, Mode.JSON_SCHEMA)
 
 
-def test_registry_invalid_handler_type():
+@pytest.mark.parametrize("provider,mode", _get_registered_provider_modes())
+def test_registry_invalid_handler_type(provider: Provider, mode: Mode):
     """Test error for invalid handler type."""
     with pytest.raises(ValueError, match="Invalid handler_type"):
-        mode_registry.get_handler(Provider.ANTHROPIC, Mode.TOOLS, "invalid_type")
+        mode_registry.get_handler(provider, mode, "invalid_type")

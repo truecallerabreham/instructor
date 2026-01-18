@@ -10,44 +10,42 @@ import pytest
 
 
 @pytest.mark.skip(reason="Requires Anthropic API key")
-def test_from_provider_routes_to_v2():
+@pytest.mark.parametrize("async_client", [False, True], ids=["sync", "async"])
+def test_from_provider_routes_to_v2(async_client: bool):
     """Test that from_provider() routes Anthropic to v2."""
     import instructor
 
     # from_provider should route to v2 for Anthropic
-    client = instructor.from_provider("anthropic/claude-3-5-sonnet-20241022")
+    client = instructor.from_provider(
+        "anthropic/claude-3-5-sonnet-20241022",
+        async_client=async_client,
+    )
 
     assert client is not None
     # Verify it's using v2 by checking the mode is a tuple
     assert isinstance(client.mode, tuple)
     assert len(client.mode) == 2
 
+    if async_client:
+        from instructor import AsyncInstructor
 
-@pytest.mark.skip(reason="Requires Anthropic API key")
-def test_from_provider_anthropic_async():
-    """Test that from_provider() routes async Anthropic to v2."""
-    import instructor
-
-    client = instructor.from_provider(
-        "anthropic/claude-3-5-sonnet-20241022", async_client=True
-    )
-
-    assert client is not None
-    from instructor import AsyncInstructor
-
-    assert isinstance(client, AsyncInstructor)
-    # Verify it's using v2
-    assert isinstance(client.mode, tuple)
+        assert isinstance(client, AsyncInstructor)
 
 
-def test_old_from_anthropic_deprecation_warning():
+@pytest.mark.parametrize(
+    "client_class_name",
+    ["Anthropic", "AsyncAnthropic"],
+    ids=["sync", "async"],
+)
+def test_old_from_anthropic_deprecation_warning(client_class_name: str):
     """Test that old from_anthropic() emits deprecation warning with correct v2 example."""
     if importlib.util.find_spec("anthropic") is None:
         pytest.skip("anthropic package is not installed")
     import anthropic
     from instructor import from_anthropic
 
-    client = anthropic.Anthropic()
+    client_class = getattr(anthropic, client_class_name)
+    client = client_class()
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")

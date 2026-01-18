@@ -38,7 +38,7 @@ class TestFireworksClientWithSDK:
         from instructor.v2.providers.fireworks.client import from_fireworks
         from instructor.core.exceptions import ClientError
 
-        with pytest.raises(ClientError, match="fireworks-ai is not installed"):
+        with pytest.raises(ClientError, match="fireworks is not installed"):
             from_fireworks("not a client")  # type: ignore[arg-type]
 
     def test_from_fireworks_with_invalid_client(self, fireworks_available):

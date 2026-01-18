@@ -192,7 +192,7 @@ class TestCerebrasClientWithSDK:
         from instructor.v2.providers.cerebras.client import from_cerebras
         from instructor.core.exceptions import ClientError
 
-        with pytest.raises(ClientError, match="cerebras-cloud-sdk is not installed"):
+        with pytest.raises(ClientError, match="cerebras is not installed"):
             from_cerebras("not a client")  # type: ignore[arg-type]
 
     def test_from_cerebras_with_invalid_client(self, cerebras_available):

@@ -3,7 +3,8 @@ import os
 import pytest
 import importlib.util
 
-from instructor import Provider
+from instructor import Mode, Provider
+from instructor.v2.core.registry import mode_registry
 
 
 # Mapping of providers to their API key environment variables and package names
@@ -32,6 +33,15 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "provider(provider): specify provider for API key checks"
     )
+    config.addinivalue_line("markers", "asyncio: mark test as requiring pytest-asyncio")
+
+
+def get_registered_provider_mode_pairs() -> list[tuple[Provider, Mode]]:
+    """Return all registered (provider, mode) pairs from the v2 registry."""
+    pairs = mode_registry.list_modes()
+    if not pairs:
+        pytest.skip("No modes are registered")
+    return pairs
 
 
 @pytest.fixture(autouse=True)

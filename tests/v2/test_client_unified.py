@@ -174,7 +174,7 @@ PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = {
         },
         "from_function": "from_cerebras",
         "sdk_module": "cerebras.cloud.sdk",
-        "missing_sdk_message": "cerebras-cloud-sdk is not installed",
+        "missing_sdk_message": "cerebras is not installed",
     },
     Provider.WRITER: {
         "supported_modes": [Mode.TOOLS, Mode.MD_JSON],

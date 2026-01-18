@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 from collections.abc import Iterable
-from typing import Literal, Union
+from typing import Literal, Union, cast
 from pydantic import BaseModel
 
 import importlib.util
@@ -283,7 +283,7 @@ def test_anthropic_parallel_tools_extraction():
         max_tokens=1000,
     )
 
-    result = list(response)
+    result = list(cast(Iterable[Union[Weather, GoogleSearch]], response))
     assert len(result) >= 1
     assert all(isinstance(r, (Weather, GoogleSearch)) for r in result)
 

@@ -23,7 +23,9 @@ from instructor.v2.core.registry import mode_registry
 _HANDLERS_PATH = (
     Path(__file__).resolve().parents[2] / "instructor/v2/providers/cohere/handlers.py"
 )
-if _HANDLERS_PATH.exists():
+if _HANDLERS_PATH.exists() and not mode_registry.is_registered(
+    Provider.COHERE, Mode.TOOLS
+):
     spec = importlib.util.spec_from_file_location(
         "instructor.v2.providers.cohere.handlers",
         _HANDLERS_PATH,

@@ -70,7 +70,7 @@ These tests focus on unique provider features that cannot be unified:
 
 ### Core Tests
 
-- **`test_registry.py`** - Core registry functionality tests
+- **`test_registry.py`** - Core registry functionality tests (parameterized by provider and mode)
 - **`test_routing.py`** - Tests for `from_provider()` routing
 
 ## Test Principles
@@ -147,9 +147,15 @@ The unified tests provide comprehensive coverage across all providers:
 - **Handler Methods**: prepare_request, parse_response, handle_reask
 
 Provider-specific tests add coverage for:
+
 - Provider-specific formats and conversions
 - Provider-specific edge cases
 - SDK integration details
+
+Shared test helpers:
+
+- `get_registered_provider_mode_pairs()` in `tests/v2/conftest.py` keeps registry
+  assertions parameterized across providers and modes.
 
 ## Migration Notes
 

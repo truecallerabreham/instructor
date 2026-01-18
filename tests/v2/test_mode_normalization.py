@@ -74,97 +74,81 @@ def test_normalize_mode(provider: Provider, mode: Mode, expected: Mode):
     assert result == expected
 
 
-def test_genai_handlers_registered_with_generic_modes():
-    """Test that GenAI handlers are registered with generic modes."""
-    assert mode_registry.is_registered(Provider.GENAI, Mode.TOOLS)
-    assert mode_registry.is_registered(Provider.GENAI, Mode.JSON)
-
-
-def test_genai_backwards_compatibility():
-    """Test that old provider-specific modes still work."""
-    assert mode_registry.is_registered(Provider.GENAI, Mode.GENAI_TOOLS)
-    assert mode_registry.is_registered(Provider.GENAI, Mode.GENAI_JSON)
-    assert mode_registry.is_registered(Provider.GENAI, Mode.GENAI_STRUCTURED_OUTPUTS)
-
-    # Should be able to get handlers with old modes
-    handler1 = mode_registry.get_handler_class(Provider.GENAI, Mode.GENAI_TOOLS)
-    handler2 = mode_registry.get_handler_class(Provider.GENAI, Mode.GENAI_JSON)
-    handler3 = mode_registry.get_handler_class(
-        Provider.GENAI, Mode.GENAI_STRUCTURED_OUTPUTS
-    )
-
-    assert handler1 is not None
-    assert handler2 is not None
-    assert handler3 is not None
-
-    # All should resolve to the same handlers as generic modes
-    assert handler1 == mode_registry.get_handler_class(Provider.GENAI, Mode.TOOLS)
-    assert handler2 == mode_registry.get_handler_class(Provider.GENAI, Mode.JSON)
-    assert handler3 == mode_registry.get_handler_class(Provider.GENAI, Mode.JSON)
-
-
-def test_openai_handlers_registered_with_generic_modes():
-    """Test that OpenAI handlers are registered with generic modes."""
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.TOOLS)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.JSON_SCHEMA)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.MD_JSON)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.PARALLEL_TOOLS)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.RESPONSES_TOOLS)
-
-
-def test_openai_backwards_compatibility():
-    """Test that old OpenAI-specific modes still work."""
-    # Legacy modes should be registered (via normalization)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.FUNCTIONS)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.TOOLS_STRICT)
-    assert mode_registry.is_registered(Provider.OPENAI, Mode.JSON_O1)
-    # Note: Mode.JSON is NOT deprecated - it's used by GenAI, not registered for OpenAI
-    assert mode_registry.is_registered(
-        Provider.OPENAI, Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS
-    )
-
-    # Should be able to get handlers with old modes
-    handler_functions = mode_registry.get_handler_class(Provider.OPENAI, Mode.FUNCTIONS)
-    handler_tools_strict = mode_registry.get_handler_class(
-        Provider.OPENAI, Mode.TOOLS_STRICT
-    )
-    handler_json_o1 = mode_registry.get_handler_class(Provider.OPENAI, Mode.JSON_O1)
-
-    assert handler_functions is not None
-    assert handler_tools_strict is not None
-    assert handler_json_o1 is not None
-
-    # All should resolve to the same handlers as generic modes
-    assert handler_functions == mode_registry.get_handler_class(
-        Provider.OPENAI, Mode.TOOLS
-    )
-    assert handler_tools_strict == mode_registry.get_handler_class(
-        Provider.OPENAI, Mode.TOOLS
-    )
-    assert handler_json_o1 == mode_registry.get_handler_class(
-        Provider.OPENAI, Mode.JSON_SCHEMA
-    )
+@pytest.mark.parametrize(
+    "provider,expected_modes",
+    [
+        (Provider.GENAI, [Mode.TOOLS, Mode.JSON]),
+        (
+            Provider.OPENAI,
+            [
+                Mode.TOOLS,
+                Mode.JSON_SCHEMA,
+                Mode.MD_JSON,
+                Mode.PARALLEL_TOOLS,
+                Mode.RESPONSES_TOOLS,
+            ],
+        ),
+    ],
+)
+def test_handlers_registered_with_generic_modes(
+    provider: Provider, expected_modes: list[Mode]
+):
+    """Test that handlers are registered with generic modes."""
+    for mode in expected_modes:
+        assert mode_registry.is_registered(provider, mode)
 
 
 @pytest.mark.parametrize(
-    "mode,expected_replacement",
+    "provider,legacy_mode,expected_mode",
     [
-        (Mode.FUNCTIONS, Mode.TOOLS),
-        (Mode.TOOLS_STRICT, Mode.TOOLS),
-        (Mode.JSON_O1, Mode.JSON_SCHEMA),
-        # Note: Mode.JSON is NOT deprecated - it's used by GenAI as a valid mode
-        (Mode.ANTHROPIC_TOOLS, Mode.TOOLS),
-        (Mode.GENAI_TOOLS, Mode.TOOLS),
-        (Mode.MISTRAL_TOOLS, Mode.TOOLS),
-        (Mode.COHERE_TOOLS, Mode.TOOLS),
-        (Mode.XAI_TOOLS, Mode.TOOLS),
+        (Provider.GENAI, Mode.GENAI_TOOLS, Mode.TOOLS),
+        (Provider.GENAI, Mode.GENAI_JSON, Mode.JSON),
+        (Provider.GENAI, Mode.GENAI_STRUCTURED_OUTPUTS, Mode.JSON),
+        (Provider.OPENAI, Mode.FUNCTIONS, Mode.TOOLS),
+        (Provider.OPENAI, Mode.TOOLS_STRICT, Mode.TOOLS),
+        (Provider.OPENAI, Mode.JSON_O1, Mode.JSON_SCHEMA),
+        (
+            Provider.OPENAI,
+            Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
+            Mode.RESPONSES_TOOLS,
+        ),
     ],
 )
-def test_deprecated_mode_emits_warning(mode: Mode, expected_replacement: Mode):
+def test_backwards_compatibility(
+    provider: Provider, legacy_mode: Mode, expected_mode: Mode
+):
+    """Test that old provider-specific modes still work."""
+    assert mode_registry.is_registered(provider, legacy_mode)
+
+    legacy_handler = mode_registry.get_handler_class(provider, legacy_mode)
+    expected_handler = mode_registry.get_handler_class(provider, expected_mode)
+
+    assert legacy_handler is not None
+    assert expected_handler is not None
+    assert legacy_handler == expected_handler
+
+
+@pytest.mark.parametrize(
+    "provider,mode,expected_replacement",
+    [
+        (Provider.OPENAI, Mode.FUNCTIONS, Mode.TOOLS),
+        (Provider.OPENAI, Mode.TOOLS_STRICT, Mode.TOOLS),
+        (Provider.OPENAI, Mode.JSON_O1, Mode.JSON_SCHEMA),
+        # Note: Mode.JSON is NOT deprecated - it's used by GenAI as a valid mode
+        (Provider.ANTHROPIC, Mode.ANTHROPIC_TOOLS, Mode.TOOLS),
+        (Provider.GENAI, Mode.GENAI_TOOLS, Mode.TOOLS),
+        (Provider.MISTRAL, Mode.MISTRAL_TOOLS, Mode.TOOLS),
+        (Provider.COHERE, Mode.COHERE_TOOLS, Mode.TOOLS),
+        (Provider.XAI, Mode.XAI_TOOLS, Mode.TOOLS),
+    ],
+)
+def test_deprecated_mode_emits_warning(
+    provider: Provider, mode: Mode, expected_replacement: Mode
+):
     """Test that using deprecated modes emits a deprecation warning."""
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        result = normalize_mode(Provider.OPENAI, mode)
+        result = normalize_mode(provider, mode)
 
         # Should have emitted a warning
         assert len(w) == 1
@@ -177,34 +161,40 @@ def test_deprecated_mode_emits_warning(mode: Mode, expected_replacement: Mode):
         assert result == expected_replacement
 
 
-def test_deprecated_mode_warning_only_once():
+@pytest.mark.parametrize("provider", [Provider.OPENAI, Provider.ANTHROPIC])
+def test_deprecated_mode_warning_only_once(provider: Provider):
     """Test that deprecation warning is only shown once per mode."""
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
 
         # First call should warn
-        normalize_mode(Provider.OPENAI, Mode.FUNCTIONS)
+        normalize_mode(provider, Mode.FUNCTIONS)
         assert len(w) == 1
 
         # Second call should not warn again
-        normalize_mode(Provider.OPENAI, Mode.FUNCTIONS)
+        normalize_mode(provider, Mode.FUNCTIONS)
         assert len(w) == 1  # Still only 1 warning
 
         # Different mode should warn
-        normalize_mode(Provider.OPENAI, Mode.TOOLS_STRICT)
+        normalize_mode(provider, Mode.TOOLS_STRICT)
         assert len(w) == 2
 
 
-def test_generic_mode_no_warning():
+@pytest.mark.parametrize(
+    "provider,modes",
+    [
+        (Provider.OPENAI, [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON]),
+        (Provider.GENAI, [Mode.TOOLS, Mode.JSON]),
+        (Provider.ANTHROPIC, [Mode.TOOLS, Mode.JSON]),
+    ],
+)
+def test_generic_mode_no_warning(provider: Provider, modes: list[Mode]):
     """Test that using generic modes does not emit warnings."""
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
 
-        normalize_mode(Provider.OPENAI, Mode.TOOLS)
-        normalize_mode(Provider.OPENAI, Mode.JSON_SCHEMA)
-        normalize_mode(Provider.OPENAI, Mode.MD_JSON)
-        normalize_mode(Provider.OPENAI, Mode.PARALLEL_TOOLS)
-        normalize_mode(Provider.OPENAI, Mode.RESPONSES_TOOLS)
+        for mode in modes:
+            normalize_mode(provider, mode)
 
         # No warnings should be emitted for generic modes
         assert len(w) == 0
