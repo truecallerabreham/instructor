@@ -3,6 +3,8 @@ title: Mode Comparison Guide
 description: Compare different modes available in Instructor and understand when to use each
 ---
 
+<!-- markdownlint-disable MD025 MD060 MD047 -->
+
 # Instructor Mode Comparison Guide
 
 Instructor uses **core modes** that work across providers. Provider-specific
@@ -11,7 +13,7 @@ modes still work, but they are deprecated and will show warnings.
 ## Core Modes
 
 | Mode | Description | Best For |
-|------|-------------|----------|
+| --- | --- | --- |
 | `TOOLS` | Tool or function calling | Most structured extraction |
 | `JSON_SCHEMA` | Native schema support | Providers with built-in schema |
 | `MD_JSON` | JSON from text or code blocks | Simple or fallback cases |
@@ -23,7 +25,7 @@ modes still work, but they are deprecated and will show warnings.
 These legacy modes map to core modes:
 
 | Legacy Mode | Core Mode |
-|------------|-----------|
+| --- | --- |
 | `FUNCTIONS` | `TOOLS` |
 | `TOOLS_STRICT` | `TOOLS` |
 | `ANTHROPIC_TOOLS` | `TOOLS` |
@@ -94,39 +96,49 @@ See the [Mode Migration Guide](concepts/mode-migration.md) for more details.
 
 ### Google/Gemini
 
-```python
-# For complex structures (recommended)
-client = instructor.from_provider(
-    "google/gemini-2.5-flash",
-    mode=instructor.Mode.TOOLS
-)
+For complex structures:
 
-# For structured outputs with JSON (recommended)
+```python
+import instructor
+
 client = instructor.from_provider(
     "google/gemini-2.5-flash",
-    mode=instructor.Mode.JSON
+    mode=instructor.Mode.TOOLS,
+)
+```
+
+For structured outputs with JSON:
+
+```python
+import instructor
+
+client = instructor.from_provider(
+    "google/gemini-2.5-flash",
+    mode=instructor.Mode.JSON,
 )
 ```
 
 ## Mode Compatibility Table
 
-| Provider   | Tool-based Modes | JSON-based Modes |
-|------------|------------------|------------------|
-| OpenAI     | TOOLS, TOOLS_STRICT, PARALLEL_TOOLS, FUNCTIONS | JSON, MD_JSON, JSON_O1 |
-| Anthropic  | ANTHROPIC_TOOLS, ANTHROPIC_PARALLEL_TOOLS | ANTHROPIC_JSON |
-| Gemini     | TOOLS | JSON |
-| Vertex AI  | VERTEXAI_TOOLS | VERTEXAI_JSON |
-| Cohere     | COHERE_TOOLS | JSON, MD_JSON |
-| Mistral    | MISTRAL_TOOLS | MISTRAL_STRUCTURED_OUTPUTS |
-| Anyscale   | - | JSON, MD_JSON, JSON_SCHEMA |
+Legacy modes are shown for compatibility only. Prefer core modes in new code.
+
+| Provider | Tool-based Modes | JSON-based Modes |
+| --- | --- | --- |
+| OpenAI | TOOLS, TOOLS_STRICT, PARALLEL_TOOLS, FUNCTIONS | JSON, MD_JSON, JSON_O1 |
+| Anthropic | ANTHROPIC_TOOLS, ANTHROPIC_PARALLEL_TOOLS | ANTHROPIC_JSON |
+| Gemini | TOOLS | JSON |
+| Vertex AI | VERTEXAI_TOOLS | VERTEXAI_JSON |
+| Cohere | COHERE_TOOLS | JSON, MD_JSON |
+| Mistral | MISTRAL_TOOLS | MISTRAL_STRUCTURED_OUTPUTS |
+| Anyscale | - | JSON, MD_JSON, JSON_SCHEMA |
 | Databricks | TOOLS | JSON, MD_JSON |
-| Together   | - | JSON, MD_JSON |
-| Fireworks  | FIREWORKS_TOOLS | FIREWORKS_JSON |
-| Cerebras   | - | CEREBRAS_JSON |
-| Writer     | WRITER_TOOLS | JSON |
+| Together | - | JSON, MD_JSON |
+| Fireworks | FIREWORKS_TOOLS | FIREWORKS_JSON |
+| Cerebras | - | CEREBRAS_JSON |
+| Writer | WRITER_TOOLS | JSON |
 | Perplexity | - | PERPLEXITY_JSON |
-| GenAI      | TOOLS | JSON |
-| LiteLLM    | (depends on provider) | (depends on provider) |
+| GenAI | TOOLS | JSON |
+| LiteLLM | (depends on provider) | (depends on provider) |
 
 ## Best Practices
 
