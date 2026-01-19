@@ -54,7 +54,7 @@ from ..dsl.simple_type import AdapterBase
 if TYPE_CHECKING:
     from .function_calls import OpenAISchema
 from ..mode import Mode
-from ..utils.providers import Provider
+from ..utils.providers import Provider, normalize_mode_for_provider, provider_from_mode
 from ..utils.core import prepare_response_model
 from instructor.v2.core.registry import mode_registry
 
@@ -134,6 +134,69 @@ async def process_response_async(
     if response_model is None:
         return response
 
+    provider = provider_from_mode(mode, provider)
+    mode = normalize_mode_for_provider(mode, provider)
+    if (
+        response_model is not None
+        and provider is Provider.OPENAI
+        and not hasattr(response, "choices")
+    ):
+        from instructor.processing.function_calls import OpenAISchema
+
+        if inspect.isclass(response_model) and not issubclass(
+            response_model, OpenAISchema
+        ):
+            if stream and hasattr(response_model, "from_streaming_response_async"):
+                try:
+                    model = response_model.from_streaming_response_async(  # type: ignore[attr-defined]
+                        response,
+                        mode=mode,
+                        validation_context=validation_context,
+                        strict=strict,
+                    )
+                except TypeError:
+                    model = response_model.from_streaming_response_async(  # type: ignore[attr-defined]
+                        response,
+                        mode=mode,
+                    )
+            elif hasattr(response_model, "from_response"):
+                try:
+                    model = response_model.from_response(  # type: ignore[attr-defined]
+                        response,
+                        mode=mode,
+                        validation_context=validation_context,
+                        strict=strict,
+                    )
+                except TypeError:
+                    model = response_model.from_response(response, mode=mode)  # type: ignore[attr-defined]
+            else:
+                model = None
+
+            if model is not None:
+                if inspect.isasyncgen(model):
+                    return model
+                if (
+                    stream
+                    and inspect.isclass(response_model)
+                    and issubclass(response_model, PartialBase)
+                ):
+                    return model
+                if isinstance(model, IterableBase):
+                    return ListResponse.from_list(  # type: ignore[return-value]
+                        [task for task in model.tasks],
+                        raw_response=response,
+                    )
+                if isinstance(model, list) and not isinstance(model, ListResponse):
+                    return ListResponse.from_list(model, raw_response=response)
+                if isinstance(response_model, ParallelBase):
+                    model._raw_response = response
+                    return model
+                if isinstance(model, AdapterBase):
+                    return model.content
+                if isinstance(model, BaseModel):
+                    model._raw_response = response
+                return model
+
     _ensure_registry_loaded()
     handlers = mode_registry.get_handlers(provider, mode)
     handler_obj = getattr(handlers.response_parser, "__self__", None)
@@ -166,6 +229,9 @@ async def process_response_async(
             [task for task in model.tasks],
             raw_response=response,
         )
+    if isinstance(model, list) and not isinstance(model, ListResponse):
+        logger.debug("Wrapping list response with ListResponse")
+        return ListResponse.from_list(model, raw_response=response)
 
     if isinstance(response_model, ParallelBase):
         logger.debug(f"Returning model from ParallelBase")
@@ -176,7 +242,8 @@ async def process_response_async(
         logger.debug(f"Returning model from AdapterBase")
         return model.content
 
-    model._raw_response = response
+    if isinstance(model, BaseModel):
+        model._raw_response = response
     return model
 
 
@@ -247,6 +314,73 @@ def process_response(
         logger.debug("No response model, returning response as is")
         return response
 
+    provider = provider_from_mode(mode, provider)
+    mode = normalize_mode_for_provider(mode, provider)
+    if (
+        response_model is not None
+        and provider is Provider.OPENAI
+        and not hasattr(response, "choices")
+    ):
+        from instructor.processing.function_calls import OpenAISchema
+
+        if inspect.isclass(response_model) and not issubclass(
+            response_model, OpenAISchema
+        ):
+            if stream and hasattr(response_model, "from_streaming_response"):
+                try:
+                    model = response_model.from_streaming_response(  # type: ignore[attr-defined]
+                        response,
+                        mode=mode,
+                        validation_context=validation_context,
+                        strict=strict,
+                    )
+                except TypeError:
+                    model = response_model.from_streaming_response(  # type: ignore[attr-defined]
+                        response,
+                        mode=mode,
+                    )
+            elif hasattr(response_model, "from_response"):
+                try:
+                    model = response_model.from_response(  # type: ignore[attr-defined]
+                        response,
+                        mode=mode,
+                        validation_context=validation_context,
+                        strict=strict,
+                    )
+                except TypeError:
+                    model = response_model.from_response(response, mode=mode)  # type: ignore[attr-defined]
+            else:
+                model = None
+
+            if model is not None:
+                if inspect.isgenerator(model):
+                    return model
+                if (
+                    stream
+                    and inspect.isclass(response_model)
+                    and issubclass(response_model, PartialBase)
+                ):
+                    return model
+                if isinstance(model, IterableBase):
+                    logger.debug(f"Returning takes from IterableBase")
+                    return ListResponse.from_list(  # type: ignore[return-value]
+                        [task for task in model.tasks],
+                        raw_response=response,
+                    )
+                if isinstance(model, list) and not isinstance(model, ListResponse):
+                    logger.debug("Wrapping list response with ListResponse")
+                    return ListResponse.from_list(model, raw_response=response)
+                if isinstance(response_model, ParallelBase):
+                    logger.debug(f"Returning model from ParallelBase")
+                    model._raw_response = response
+                    return model
+                if isinstance(model, AdapterBase):
+                    logger.debug(f"Returning model from AdapterBase")
+                    return model.content
+                if isinstance(model, BaseModel):
+                    model._raw_response = response
+                return model
+
     _ensure_registry_loaded()
     handlers = mode_registry.get_handlers(provider, mode)
     handler_obj = getattr(handlers.response_parser, "__self__", None)
@@ -279,6 +413,9 @@ def process_response(
             [task for task in model.tasks],
             raw_response=response,
         )
+    if isinstance(model, list) and not isinstance(model, ListResponse):
+        logger.debug("Wrapping list response with ListResponse")
+        return ListResponse.from_list(model, raw_response=response)
 
     if isinstance(response_model, ParallelBase):
         logger.debug(f"Returning model from ParallelBase")
@@ -289,7 +426,8 @@ def process_response(
         logger.debug(f"Returning model from AdapterBase")
         return model.content
 
-    model._raw_response = response
+    if isinstance(model, BaseModel):
+        model._raw_response = response
     return model
 
 
@@ -326,6 +464,8 @@ def handle_response_model(
     transformations to the response model and kwargs.
     """
 
+    provider = provider_from_mode(mode, provider)
+    mode = normalize_mode_for_provider(mode, provider)
     new_kwargs = kwargs.copy()
     autodetect_images = bool(new_kwargs.pop("autodetect_images", False))
 
@@ -362,9 +502,9 @@ def handle_response_model(
 def handle_reask_kwargs(
     kwargs: dict[str, Any],
     mode: Mode,
-    provider: Provider,
     response: Any,
     exception: Exception,
+    provider: Provider = Provider.OPENAI,
     failed_attempts: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Handle validation errors by reformatting the request for retry (reask).
@@ -474,6 +614,8 @@ def handle_reask_kwargs(
         exception, failed_attempts=failed_attempts
     )
 
+    provider = provider_from_mode(mode, provider)
+    mode = normalize_mode_for_provider(mode, provider)
     _ensure_registry_loaded()
     handlers = mode_registry.get_handlers(provider, mode)
     return handlers.reask_handler(kwargs_copy, response, exception)

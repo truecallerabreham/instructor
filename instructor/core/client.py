@@ -806,6 +806,8 @@ def from_openai(
         provider = get_provider(str(client.base_url))
     else:
         provider = Provider.OPENAI
+    if provider is Provider.UNKNOWN:
+        provider = Provider.OPENAI
 
     if not isinstance(client, (openai.OpenAI, openai.AsyncOpenAI)):
         import warnings

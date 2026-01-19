@@ -21,6 +21,9 @@ from instructor.mode import Mode
 from instructor.utils.providers import Provider
 from instructor.core.exceptions import FailedAttempt, InstructorRetryException
 from instructor.core.retry import extract_messages
+from instructor.dsl.iterable import IterableBase
+from instructor.dsl.response_list import ListResponse
+from instructor.dsl.simple_type import AdapterBase
 from instructor.v2.core.exceptions import RegistryValidationMixin
 from instructor.v2.core.registry import mode_registry
 
@@ -32,6 +35,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger("instructor.v2.retry")
 
 T_Model = TypeVar("T_Model", bound=BaseModel)
+
+
+def _finalize_parsed_response(parsed: Any, response: Any) -> Any:
+    if isinstance(parsed, IterableBase):
+        parsed = [task for task in parsed.tasks]
+    if isinstance(parsed, AdapterBase):
+        return parsed.content
+    if isinstance(parsed, list) and not isinstance(parsed, ListResponse):
+        return ListResponse.from_list(parsed, raw_response=response)
+    if isinstance(parsed, BaseModel):
+        parsed._raw_response = response  # type: ignore[attr-defined]
+    return parsed
 
 
 def retry_sync_v2(
@@ -122,7 +137,7 @@ def retry_sync_v2(
                         f"Successfully parsed response on attempt "
                         f"{attempt.retry_state.attempt_number}"
                     )
-                    return parsed  # type: ignore
+                    return _finalize_parsed_response(parsed, response)  # type: ignore
 
                 except ValidationError as e:
                     attempt_number = attempt.retry_state.attempt_number
@@ -255,32 +270,9 @@ async def retry_async_v2(
                 if hooks:
                     hooks.emit_completion_response(response)
 
-                # Check if this is a streaming response
-                stream = kwargs.get("stream", False)
-                if stream and response_model is not None:
-                    from instructor.dsl.iterable import IterableBase
-                    from instructor.dsl.partial import PartialBase
-                    import inspect
-
-                    # Handle streaming responses for IterableBase and PartialBase
-                    if inspect.isclass(response_model) and issubclass(
-                        response_model, (IterableBase, PartialBase)
-                    ):
-                        # Map mode for streaming: Anthropic TOOLS mode needs ANTHROPIC_TOOLS
-                        # for extract_json to work correctly (checks for Mode.ANTHROPIC_TOOLS)
-                        streaming_mode = mode
-                        if provider == Provider.ANTHROPIC and mode == Mode.TOOLS:
-                            streaming_mode = Mode.ANTHROPIC_TOOLS
-                        elif provider == Provider.ANTHROPIC and mode == Mode.JSON:
-                            streaming_mode = Mode.ANTHROPIC_JSON
-
-                        # Return the async generator directly for streaming
-                        return response_model.from_streaming_response_async(  # type: ignore
-                            response, mode=streaming_mode
-                        )
-
                 # Parse response using registry
                 try:
+                    stream = kwargs.get("stream", False)
                     parsed = handlers.response_parser(
                         response=response,
                         response_model=response_model,
@@ -293,7 +285,7 @@ async def retry_async_v2(
                         f"Successfully parsed response on attempt "
                         f"{attempt.retry_state.attempt_number}"
                     )
-                    return parsed  # type: ignore
+                    return _finalize_parsed_response(parsed, response)  # type: ignore
 
                 except ValidationError as e:
                     attempt_number = attempt.retry_state.attempt_number

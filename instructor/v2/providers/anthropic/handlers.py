@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import inspect
 import json
-import re
 import warnings
-from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Generator,
+    Iterable as TypingIterable,
+)
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, get_origin
 from weakref import WeakKeyDictionary
@@ -44,53 +48,9 @@ def serialize_message_content(content: Any) -> Any:
     """Serialize message content, converting Pydantic models to dicts."""
 
     if isinstance(content, Image):
-        source = str(content.source)
-        if source.startswith(("http://", "https://")):
-            return {
-                "type": "image",
-                "source": {"type": "url", "url": source},
-            }
-        if source.startswith("data:"):
-            return {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": content.media_type,
-                    "data": content.data or source.split(",")[1],
-                },
-            }
-        return {
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": content.media_type,
-                "data": content.data or source,
-            },
-        }
+        return content.to_anthropic()
     if isinstance(content, PDF):
-        source = str(content.source)
-        if source.startswith(("http://", "https://")):
-            return {
-                "type": "document",
-                "source": {"type": "url", "url": source},
-            }
-        if source.startswith("data:"):
-            return {
-                "type": "document",
-                "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": content.data or source.split(",")[1],
-                },
-            }
-        return {
-            "type": "document",
-            "source": {
-                "type": "base64",
-                "media_type": "application/pdf",
-                "data": content.data or source,
-            },
-        }
+        return content.to_anthropic()
     if isinstance(content, Audio):
         source = str(content.source)
         if source.startswith(("http://", "https://")):
@@ -111,8 +71,8 @@ def serialize_message_content(content: Any) -> Any:
     if isinstance(content, list):
         return [serialize_message_content(item) for item in content]
     if isinstance(content, dict):
-        if "type" in content:
-            return {k: serialize_message_content(v) for k, v in content.items()}
+        if "type" in content and isinstance(content.get("type"), str):
+            return content
         return {k: serialize_message_content(v) for k, v in content.items()}
     if hasattr(content, "model_dump"):
         return content.model_dump()
@@ -260,7 +220,7 @@ class AnthropicHandlerBase(ModeHandler):
         if strict is not None:
             parse_kwargs["strict"] = strict
 
-        if inspect.isasyncgen(response):
+        if inspect.isasyncgen(response) or isinstance(response, AsyncIterator):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
                 stream_extractor=self.extract_streaming_json_async,
@@ -402,6 +362,17 @@ class AnthropicToolsHandler(AnthropicHandlerBase):
         exception: Exception,
     ) -> dict[str, Any]:
         kwargs = kwargs.copy()
+        if response is None or not hasattr(response, "content"):
+            kwargs["messages"].append(
+                {
+                    "role": "user",
+                    "content": (
+                        "Validation Error found:\n"
+                        f"{exception}\nRecall the function correctly, fix the errors"
+                    ),
+                }
+            )
+            return kwargs
 
         assistant_content = []
         tool_use_id = None
@@ -732,7 +703,7 @@ class AnthropicJSONHandler(AnthropicHandlerBase):
                     raw_response=response,
                 )
             last_block = text_blocks[-1]
-            text = re.sub(r"[\u0000-\u001F]", "", last_block.text)
+            text = last_block.text
 
         extra_text = extract_json_from_codeblock(text)
         if strict:
@@ -741,9 +712,12 @@ class AnthropicJSONHandler(AnthropicHandlerBase):
                 context=validation_context,
                 strict=strict,
             )
-        return response_model.model_validate_json(
-            extra_text,
+
+        parsed = json.loads(extra_text, strict=False)
+        return response_model.model_validate(
+            parsed,
             context=validation_context,
+            strict=strict,
         )
 
 

@@ -114,6 +114,58 @@ def _add_md_json_instructions(
     return [{"role": "system", "content": instruction}, *new_messages]
 
 
+def _iter_tool_call_arg_deltas(stream_iter: Any) -> Any:
+    """Yield tool call argument deltas from sync xAI streams."""
+    last_tool_args: dict[str, str] = {}
+    last_args_value = ""
+    for resp, _ in stream_iter:
+        tool_calls = getattr(resp, "tool_calls", None) or []
+        for index, tool_call in enumerate(tool_calls):
+            function = getattr(tool_call, "function", None)
+            args = getattr(function, "arguments", None)
+            if args is None:
+                continue
+            if isinstance(args, dict):
+                args = json.dumps(args)
+            tool_id = getattr(tool_call, "id", None) or str(index)
+            delta = args
+            previous = last_tool_args.get(tool_id, "")
+            if previous and delta.startswith(previous):
+                delta = delta[len(previous) :]
+            elif last_args_value and delta.startswith(last_args_value):
+                delta = delta[len(last_args_value) :]
+            last_tool_args[tool_id] = args
+            last_args_value = args
+            if delta:
+                yield delta
+
+
+async def _aiter_tool_call_arg_deltas(stream_iter: Any) -> Any:
+    """Yield tool call argument deltas from async xAI streams."""
+    last_tool_args: dict[str, str] = {}
+    last_args_value = ""
+    async for resp, _ in stream_iter:
+        tool_calls = getattr(resp, "tool_calls", None) or []
+        for index, tool_call in enumerate(tool_calls):
+            function = getattr(tool_call, "function", None)
+            args = getattr(function, "arguments", None)
+            if args is None:
+                continue
+            if isinstance(args, dict):
+                args = json.dumps(args)
+            tool_id = getattr(tool_call, "id", None) or str(index)
+            delta = args
+            previous = last_tool_args.get(tool_id, "")
+            if previous and delta.startswith(previous):
+                delta = delta[len(previous) :]
+            elif last_args_value and delta.startswith(last_args_value):
+                delta = delta[len(last_args_value) :]
+            last_tool_args[tool_id] = args
+            last_args_value = args
+            if delta:
+                yield delta
+
+
 @overload
 def from_xai(
     client: SyncClient,
@@ -262,11 +314,7 @@ def from_xai(
             chat.proto.tool_choice.CopyFrom(xchat.required_tool(tool_name))
             if is_stream:
                 stream_iter = chat.stream()  # type: ignore[misc]
-                args = (
-                    resp.tool_calls[0].function.arguments  # type: ignore[index,attr-defined]
-                    async for resp, _ in stream_iter  # type: ignore[assignment]
-                    if resp.tool_calls  # type: ignore[attr-defined]
-                )
+                args = _aiter_tool_call_arg_deltas(stream_iter)
                 rm = cast(type[BaseModel], prepared_model)
                 if issubclass(rm, IterableBase):
                     return rm.tasks_from_chunks_async(args)  # type: ignore
@@ -407,20 +455,16 @@ def from_xai(
             chat.proto.tool_choice.CopyFrom(xchat.required_tool(tool_name))
             if is_stream:
                 stream_iter = chat.stream()  # type: ignore[misc]
-                for resp, _ in stream_iter:  # type: ignore[assignment]
-                    if resp.tool_calls:  # type: ignore[attr-defined]
-                        args = resp.tool_calls[0].function.arguments  # type: ignore[index,attr-defined]
-                        rm = cast(type[BaseModel], prepared_model)
-                        if issubclass(rm, IterableBase):
-                            return rm.tasks_from_chunks(args)
-                        elif issubclass(rm, PartialBase):
-                            return rm.model_from_chunks(args)
-                        else:
-                            raise ValueError(
-                                f"Unsupported response model type for streaming: {_get_model_name(response_model)}"
-                            )
-                # If streaming completed without finding tool_calls, raise error
-                raise ValueError("No tool calls returned from xAI streaming response")
+                args = _iter_tool_call_arg_deltas(stream_iter)
+                rm = cast(type[BaseModel], prepared_model)
+                if issubclass(rm, IterableBase):
+                    return rm.tasks_from_chunks(args)
+                elif issubclass(rm, PartialBase):
+                    return rm.model_from_chunks(args)
+                else:
+                    raise ValueError(
+                        f"Unsupported response model type for streaming: {_get_model_name(response_model)}"
+                    )
             else:
                 resp = chat.sample()  # type: ignore[misc]
                 if not resp.tool_calls:  # type: ignore[attr-defined]

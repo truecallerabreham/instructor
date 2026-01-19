@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Generator,
+    Iterable as TypingIterable,
+)
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, cast, get_origin
 from weakref import WeakKeyDictionary
@@ -222,7 +227,7 @@ class OpenAIHandlerBase(ModeHandler):
         if strict is not None:
             parse_kwargs["strict"] = strict
 
-        if inspect.isasyncgen(response):
+        if inspect.isasyncgen(response) or isinstance(response, AsyncIterator):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
                 stream_extractor=self.extract_streaming_json_async,
@@ -259,7 +264,44 @@ class OpenAIHandlerBase(ModeHandler):
 
     def _extract_tool_call_json(self, response: Any) -> str:
         """Extract JSON from tool call response."""
-        return response.choices[0].message.tool_calls[0].function.arguments
+        message = response.choices[0].message
+        refusal = getattr(message, "refusal", None)
+        if refusal is not None:
+            raise AssertionError(f"Unable to generate a response due to {refusal}")
+
+        def _normalize_args(args: Any) -> str:
+            if args is None:
+                raise ResponseParsingError(
+                    "Tool call arguments missing in response",
+                    mode="TOOLS",
+                    raw_response=response,
+                )
+            if isinstance(args, dict):
+                return json.dumps(args)
+            if isinstance(args, str):
+                return args
+            try:
+                return json.dumps(args)
+            except TypeError as exc:
+                raise ResponseParsingError(
+                    "Tool call arguments must be JSON-serializable",
+                    mode="TOOLS",
+                    raw_response=response,
+                ) from exc
+
+        tool_calls = getattr(message, "tool_calls", None) or []
+        if tool_calls:
+            return _normalize_args(tool_calls[0].function.arguments)
+
+        function_call = getattr(message, "function_call", None)
+        if function_call is not None:
+            return _normalize_args(getattr(function_call, "arguments", None))
+
+        raise ResponseParsingError(
+            "No tool calls or function call found in response",
+            mode="TOOLS",
+            raw_response=response,
+        )
 
     def _extract_text_content(self, response: Any) -> str:
         """Extract text content from response."""
@@ -479,6 +521,33 @@ class OpenAIJSONHandler(OpenAIHandlerBase):
 
         new_kwargs = kwargs.copy()
         new_kwargs["response_format"] = {"type": "json_object"}
+        schema = response_model.model_json_schema()
+        message = dedent(
+            f"""
+            As a genius expert, your task is to understand the content and provide
+            the parsed objects in json that match the following json_schema:\n
+
+            {json.dumps(schema, indent=2, ensure_ascii=False)}
+
+            Make sure to return an instance of the JSON, not the schema itself
+            """
+        )
+        messages = new_kwargs.get("messages", [])
+        if messages and messages[0]["role"] != "system":
+            messages.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": message,
+                },
+            )
+        elif messages and isinstance(messages[0]["content"], str):
+            messages[0]["content"] += f"\n\n{message}"
+        elif messages and isinstance(messages[0]["content"], list):
+            messages[0]["content"][0]["text"] += f"\n\n{message}"
+        else:
+            messages.insert(0, {"role": "system", "content": message})
+        new_kwargs["messages"] = merge_consecutive_messages(messages)
         return response_model, new_kwargs
 
     def handle_reask(

@@ -100,7 +100,7 @@ Response = Union[SuccessResponse, ErrorResponse]
 
 ### Nested Unions
 ```python
-from typing import Union, List
+from typing import Literal, Union, List
 from pydantic import BaseModel
 
 
@@ -154,7 +154,6 @@ With this pattern, the LLM can decide whether to perform a search or a lookup ba
 
 ```python
 import instructor
-from openai import OpenAI
 
 client = instructor.from_provider("openai/gpt-4.1-mini")
 

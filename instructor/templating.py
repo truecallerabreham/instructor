@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from textwrap import dedent
 from instructor.mode import Mode
-from instructor.utils.providers import Provider
+from instructor.utils.providers import Provider, provider_from_mode
 from jinja2.sandbox import SandboxedEnvironment
 
 
@@ -85,7 +85,7 @@ def process_message(
 def handle_templating(
     kwargs: dict[str, Any],
     mode: Mode,  # noqa: ARG001
-    provider: Provider,
+    provider: Provider | dict[str, Any] | None = None,
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
@@ -105,8 +105,15 @@ def handle_templating(
     Raises:
         ValueError: If no recognized message format is found in kwargs.
     """
+    if context is None and isinstance(provider, dict):
+        context = provider
+        provider = None
+
     if not context:
         return kwargs
+
+    if provider is None:
+        provider = provider_from_mode(mode, Provider.OPENAI)
 
     new_kwargs = kwargs.copy()
 

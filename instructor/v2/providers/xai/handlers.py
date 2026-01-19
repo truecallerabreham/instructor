@@ -15,7 +15,12 @@ from __future__ import annotations
 import inspect
 import json
 from textwrap import dedent
-from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Generator,
+    Iterable as TypingIterable,
+)
 from typing import TYPE_CHECKING, Any
 from weakref import WeakKeyDictionary
 
@@ -114,16 +119,37 @@ class XAIHandlerBase(ModeHandler):
         """Extract JSON chunks from xAI streaming responses."""
 
         def _raw_chunks() -> Generator[str, None, None]:
+            last_tool_args: dict[str, str] = {}
+            last_args_value = ""
             for chunk in completion:
-                try:
+                choices = getattr(chunk, "choices", None)
+                for choice in choices or [chunk]:
+                    delta = getattr(choice, "delta", None)
+                    if delta is None:
+                        continue
                     if self.mode in {Mode.JSON_SCHEMA, Mode.MD_JSON}:
-                        if json_chunk := chunk.delta.text:
+                        json_chunk = getattr(delta, "content", None)
+                        if json_chunk:
                             yield json_chunk
                     elif self.mode == Mode.TOOLS:
-                        if json_chunk := chunk.delta.partial_json:
-                            yield json_chunk
-                except AttributeError:
-                    continue
+                        tool_calls = getattr(delta, "tool_calls", None) or []
+                        for index, tool_call in enumerate(tool_calls):
+                            function = getattr(tool_call, "function", None)
+                            json_chunk = getattr(function, "arguments", None)
+                            if not json_chunk:
+                                continue
+                            tool_id = getattr(tool_call, "id", None) or str(index)
+                            previous = last_tool_args.get(tool_id, "")
+                            if previous and json_chunk.startswith(previous):
+                                json_chunk = json_chunk[len(previous) :]
+                            elif last_args_value and json_chunk.startswith(
+                                last_args_value
+                            ):
+                                json_chunk = json_chunk[len(last_args_value) :]
+                            last_tool_args[tool_id] = getattr(function, "arguments", "")
+                            last_args_value = getattr(function, "arguments", "")
+                            if json_chunk:
+                                yield json_chunk
 
         raw_chunks = _raw_chunks()
         if self.mode == Mode.MD_JSON:
@@ -137,16 +163,37 @@ class XAIHandlerBase(ModeHandler):
         """Extract JSON chunks from xAI async streams."""
 
         async def _raw_chunks() -> AsyncGenerator[str, None]:
+            last_tool_args: dict[str, str] = {}
+            last_args_value = ""
             async for chunk in completion:
-                try:
+                choices = getattr(chunk, "choices", None)
+                for choice in choices or [chunk]:
+                    delta = getattr(choice, "delta", None)
+                    if delta is None:
+                        continue
                     if self.mode in {Mode.JSON_SCHEMA, Mode.MD_JSON}:
-                        if json_chunk := chunk.delta.text:
+                        json_chunk = getattr(delta, "content", None)
+                        if json_chunk:
                             yield json_chunk
                     elif self.mode == Mode.TOOLS:
-                        if json_chunk := chunk.delta.partial_json:
-                            yield json_chunk
-                except AttributeError:
-                    continue
+                        tool_calls = getattr(delta, "tool_calls", None) or []
+                        for index, tool_call in enumerate(tool_calls):
+                            function = getattr(tool_call, "function", None)
+                            json_chunk = getattr(function, "arguments", None)
+                            if not json_chunk:
+                                continue
+                            tool_id = getattr(tool_call, "id", None) or str(index)
+                            previous = last_tool_args.get(tool_id, "")
+                            if previous and json_chunk.startswith(previous):
+                                json_chunk = json_chunk[len(previous) :]
+                            elif last_args_value and json_chunk.startswith(
+                                last_args_value
+                            ):
+                                json_chunk = json_chunk[len(last_args_value) :]
+                            last_tool_args[tool_id] = getattr(function, "arguments", "")
+                            last_args_value = getattr(function, "arguments", "")
+                            if json_chunk:
+                                yield json_chunk
 
         raw_chunks = _raw_chunks()
         if self.mode == Mode.MD_JSON:
@@ -170,18 +217,56 @@ class XAIHandlerBase(ModeHandler):
         if strict is not None:
             parse_kwargs["strict"] = strict
 
-        if inspect.isasyncgen(response):
+        if inspect.isasyncgen(response) or isinstance(response, AsyncIterator):
+            if inspect.isclass(response_model) and issubclass(
+                response_model, IterableBase
+            ):
+
+                async def _iter_tasks() -> AsyncGenerator[BaseModel, None]:
+                    buffer = ""
+                    async for chunk in self.extract_streaming_json_async(response):
+                        buffer += chunk
+                        try:
+                            data = json.loads(buffer)
+                        except json.JSONDecodeError:
+                            continue
+                        for item in data.get("tasks", []):
+                            yield response_model.extract_cls_task_type(  # type: ignore[attr-defined]
+                                json.dumps(item), **parse_kwargs
+                            )
+                        break
+
+                return _iter_tasks()
+
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
                 stream_extractor=self.extract_streaming_json_async,
                 **parse_kwargs,
             )
 
-        generator = response_model.from_streaming_response(  # type: ignore[attr-defined]
-            response,
-            stream_extractor=self.extract_streaming_json,
-            **parse_kwargs,
-        )
+        if inspect.isclass(response_model) and issubclass(response_model, IterableBase):
+
+            def _iter_tasks() -> Generator[BaseModel, None, None]:
+                buffer = ""
+                for chunk in self.extract_streaming_json(response):
+                    buffer += chunk
+                    try:
+                        data = json.loads(buffer)
+                    except json.JSONDecodeError:
+                        continue
+                    for item in data.get("tasks", []):
+                        yield response_model.extract_cls_task_type(  # type: ignore[attr-defined]
+                            json.dumps(item), **parse_kwargs
+                        )
+                    break
+
+            generator = _iter_tasks()
+        else:
+            generator = response_model.from_streaming_response(  # type: ignore[attr-defined]
+                response,
+                stream_extractor=self.extract_streaming_json,
+                **parse_kwargs,
+            )
         if inspect.isclass(response_model) and issubclass(response_model, IterableBase):
             return generator
         if inspect.isclass(response_model) and issubclass(response_model, PartialBase):

@@ -10,6 +10,7 @@ V2 format: Uses OpenAI-style messages
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncGenerator, Generator
 from typing import Any
 
 from pydantic import BaseModel
@@ -20,6 +21,8 @@ from instructor.core.exceptions import ConfigurationError, ResponseParsingError
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.core.handler import ModeHandler
+from instructor.dsl.iterable import IterableBase
+from instructor.dsl.partial import PartialBase
 
 
 def _detect_client_version(kwargs: dict[str, Any]) -> str:
@@ -109,6 +112,24 @@ def _extract_text_from_response(response: Any) -> str:
     )
 
 
+def _extract_text_from_stream_chunk(chunk: Any) -> str | None:
+    # Cohere V2 stream events
+    chunk_type = getattr(chunk, "type", None)
+    if chunk_type == "content-delta":
+        delta = getattr(chunk, "delta", None)
+        message = getattr(delta, "message", None)
+        content = getattr(message, "content", None)
+        text = getattr(content, "text", None)
+        if text:
+            return text
+
+    # Cohere V1 stream events (best-effort)
+    text = getattr(chunk, "text", None)
+    if text:
+        return text
+    return None
+
+
 class CohereHandlerBase(ModeHandler):
     """Base class for Cohere handlers with shared utilities."""
 
@@ -129,6 +150,20 @@ class CohereHandlerBase(ModeHandler):
             "Correct the following JSON response, based on the errors given below:\n\n"
             f"JSON:\n{response_text}\n\nExceptions:\n{exception}"
         )
+
+    def extract_streaming_json(self, completion: Any) -> Generator[str, None, None]:
+        for chunk in completion:
+            text = _extract_text_from_stream_chunk(chunk)
+            if text:
+                yield text
+
+    async def extract_streaming_json_async(
+        self, completion: AsyncGenerator[Any, None]
+    ) -> AsyncGenerator[str, None]:
+        async for chunk in completion:
+            text = _extract_text_from_stream_chunk(chunk)
+            if text:
+                yield text
 
 
 @register_mode_handler(Provider.COHERE, Mode.TOOLS)
@@ -217,8 +252,31 @@ Respond with JSON only. Do not include code fences, markdown, or extra text.
         is_async: bool = False,  # noqa: ARG002
     ) -> BaseModel:
         if stream:
-            raise ConfigurationError(
-                "Streaming is not supported for Cohere in TOOLS mode."
+            if not (
+                isinstance(response_model, type)
+                and issubclass(response_model, (IterableBase, PartialBase))
+            ):
+                raise ConfigurationError(
+                    "Streaming is only supported for Iterable or Partial response models in Cohere TOOLS mode."
+                )
+
+            parse_kwargs: dict[str, Any] = {}
+            if validation_context is not None:
+                parse_kwargs["context"] = validation_context
+            if strict is not None:
+                parse_kwargs["strict"] = strict
+
+            if is_async:
+                return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
+                    response,
+                    stream_extractor=self.extract_streaming_json_async,
+                    **parse_kwargs,
+                )
+
+            return response_model.from_streaming_response(  # type: ignore[attr-defined]
+                response,
+                stream_extractor=self.extract_streaming_json,
+                **parse_kwargs,
             )
         # Check for V1 native tool calls first
         if hasattr(response, "tool_calls") and response.tool_calls:

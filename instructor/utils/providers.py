@@ -5,6 +5,8 @@ This module contains provider-related enums and detection logic.
 
 from enum import Enum
 
+from instructor.mode import Mode
+
 
 class Provider(Enum):
     OPENAI = "openai"
@@ -27,6 +29,49 @@ class Provider(Enum):
     BEDROCK = "bedrock"
     PERPLEXITY = "perplexity"
     OPENROUTER = "openrouter"
+
+
+def provider_from_mode(mode: Mode, default: Provider = Provider.OPENAI) -> Provider:
+    """Infer provider from a provider-specific Mode."""
+    mapping = {
+        Mode.ANTHROPIC_TOOLS: Provider.ANTHROPIC,
+        Mode.ANTHROPIC_JSON: Provider.ANTHROPIC,
+        Mode.ANTHROPIC_PARALLEL_TOOLS: Provider.ANTHROPIC,
+        Mode.ANTHROPIC_REASONING_TOOLS: Provider.ANTHROPIC,
+        Mode.COHERE_TOOLS: Provider.COHERE,
+        Mode.COHERE_JSON_SCHEMA: Provider.COHERE,
+        Mode.MISTRAL_TOOLS: Provider.MISTRAL,
+        Mode.MISTRAL_STRUCTURED_OUTPUTS: Provider.MISTRAL,
+        Mode.VERTEXAI_TOOLS: Provider.VERTEXAI,
+        Mode.VERTEXAI_JSON: Provider.VERTEXAI,
+        Mode.VERTEXAI_PARALLEL_TOOLS: Provider.VERTEXAI,
+        Mode.GEMINI_TOOLS: Provider.GEMINI,
+        Mode.GEMINI_JSON: Provider.GEMINI,
+        Mode.GENAI_TOOLS: Provider.GENAI,
+        Mode.GENAI_JSON: Provider.GENAI,
+        Mode.GENAI_STRUCTURED_OUTPUTS: Provider.GENAI,
+        Mode.XAI_TOOLS: Provider.XAI,
+        Mode.XAI_JSON: Provider.XAI,
+        Mode.CEREBRAS_TOOLS: Provider.CEREBRAS,
+        Mode.CEREBRAS_JSON: Provider.CEREBRAS,
+        Mode.FIREWORKS_TOOLS: Provider.FIREWORKS,
+        Mode.FIREWORKS_JSON: Provider.FIREWORKS,
+        Mode.WRITER_TOOLS: Provider.WRITER,
+        Mode.WRITER_JSON: Provider.WRITER,
+        Mode.BEDROCK_TOOLS: Provider.BEDROCK,
+        Mode.BEDROCK_JSON: Provider.BEDROCK,
+        Mode.PERPLEXITY_JSON: Provider.PERPLEXITY,
+        Mode.OPENROUTER_STRUCTURED_OUTPUTS: Provider.OPENROUTER,
+    }
+    return mapping.get(mode, default)
+
+
+def normalize_mode_for_provider(mode: Mode, provider: Provider) -> Mode:
+    """Apply provider-specific mode overrides before registry lookup."""
+    if provider is Provider.ANTHROPIC and mode is Mode.ANTHROPIC_JSON:
+        Mode.warn_deprecated_mode(mode)
+        return Mode.JSON
+    return mode
 
 
 def get_provider(base_url: str) -> Provider:

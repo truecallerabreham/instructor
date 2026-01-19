@@ -497,12 +497,12 @@ def from_provider(
                 api_key=api_key,
                 **client_kwargs,
             )  # type: ignore
-            # Use v2 from_genai with generic Mode.TOOLS as default
+            # Default to GENAI_TOOLS for backward compatibility
             # Extract model from kwargs if present, otherwise use model_name
             model_param = kwargs.pop("model", model_name)
             result = from_genai(
                 client,
-                mode=mode if mode else instructor.Mode.TOOLS,
+                mode=mode if mode else instructor.Mode.GENAI_TOOLS,
                 use_async=async_client,
                 model=model_param,
                 **kwargs,

@@ -19,7 +19,7 @@ from ..core.exceptions import (
     ConfigurationError,
 )
 from ..mode import Mode
-from ..utils.providers import Provider
+from ..utils.providers import Provider, normalize_mode_for_provider, provider_from_mode
 from ..utils import (
     classproperty,
     extract_json_from_codeblock,
@@ -165,6 +165,8 @@ class OpenAISchema(BaseModel):
 
         importlib.import_module("instructor.v2")
 
+        provider = provider_from_mode(mode, provider)
+        mode = normalize_mode_for_provider(mode, provider)
         handlers = mode_registry.get_handlers(provider, mode)
         return handlers.response_parser(
             response=completion,
@@ -752,9 +754,7 @@ def openai_schema(cls: type[BaseModel]) -> OpenAISchema:
     Wrap a Pydantic model class to add OpenAISchema functionality.
     """
     if not issubclass(cls, BaseModel):
-        raise ConfigurationError(
-            f"response_model must be a Pydantic BaseModel subclass, got {type(cls).__name__}"
-        )
+        raise TypeError("must be a subclass of pydantic.BaseModel")
 
     # Create the wrapped model
     schema = wraps(cls, updated=())(

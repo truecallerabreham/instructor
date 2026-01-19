@@ -13,6 +13,9 @@ from instructor.providers.openai.utils import (
     reask_default,
 )
 from instructor.v2.core.decorators import register_mode_handler
+
+# Register OpenAI-compatible handlers (TOOLS, MD_JSON, PARALLEL_TOOLS) for OpenRouter.
+from instructor.v2.providers.openai import handlers as _openai_handlers  # noqa: F401
 from instructor.v2.providers.openai.handlers import OpenAIJSONSchemaHandler
 
 

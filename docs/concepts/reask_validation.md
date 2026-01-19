@@ -207,12 +207,13 @@ Here's a complete example showing context-based validation:
 ```python
 import instructor
 from pydantic import BaseModel, ValidationInfo, field_validator
-from typing import List
 
 client = instructor.from_provider("openai/gpt-4.1-mini")
 
+
 class QuoteExtraction(BaseModel):
     """Extract a claim with a supporting quote from source text."""
+
     claim: str
     supporting_quote: str
     
@@ -220,15 +221,21 @@ class QuoteExtraction(BaseModel):
     @classmethod
     def verify_quote_in_source(cls, v: str, info: ValidationInfo):
         """Verify the quote exists in the source text."""
+        import re
+
         context = info.context
         if context:
             source_text = context.get('source_text', '')
-            if v not in source_text:
+            # Normalize whitespace for comparison
+            normalized_source = re.sub(r'\s+', ' ', source_text.strip())
+            normalized_quote = re.sub(r'\s+', ' ', v.strip())
+            if normalized_quote not in normalized_source:
                 raise ValueError(
                     f"The quote must be an exact substring from the source text. "
                     f"Quote '{v}' was not found in the source."
                 )
         return v
+
 
 source_text = """
 The Python programming language was created by Guido van Rossum 
@@ -242,14 +249,14 @@ extraction = client.create(
     messages=[
         {
             "role": "system",
-            "content": "Extract a claim and find an exact quote from the text that supports it."
+            "content": "Extract a claim and find an exact quote from the text that supports it.",
         },
         {
             "role": "user",
-            "content": "Source text: {{ source_text }}\n\nExtract a claim about Python."
-        }
+            "content": "Source text: {{ source_text }}\n\nExtract a claim about Python.",
+        },
     ],
-    context={"source_text": source_text}
+    context={"source_text": source_text},
 )
 
 print(f"Claim: {extraction.claim}")

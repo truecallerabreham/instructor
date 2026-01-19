@@ -191,7 +191,7 @@ _HANDLER_SPECS: dict[Provider, tuple[str, list[Mode]]] = {
     ),
     Provider.OPENROUTER: (
         "instructor.v2.providers.openrouter.handlers",
-        [Mode.JSON_SCHEMA],
+        [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON, Mode.PARALLEL_TOOLS],
     ),
     Provider.ANTHROPIC: (
         "instructor.v2.providers.anthropic.handlers",

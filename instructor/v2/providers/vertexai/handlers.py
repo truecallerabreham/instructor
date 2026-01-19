@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import AsyncGenerator, Generator, Iterable as TypingIterable
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Generator,
+    Iterable as TypingIterable,
+)
 from typing import Any
 
 from pydantic import BaseModel
@@ -82,7 +87,7 @@ class VertexAIHandlerBase(ModeHandler):
         ):
             task_parser = response_model.tasks_from_task_list_chunks  # type: ignore[attr-defined]
 
-        if inspect.isasyncgen(response):
+        if inspect.isasyncgen(response) or isinstance(response, AsyncIterator):
             return response_model.from_streaming_response_async(  # type: ignore[attr-defined]
                 response,
                 stream_extractor=self.extract_streaming_json_async,

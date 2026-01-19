@@ -105,6 +105,7 @@ def _create_sync_wrapper(
     ) -> T_Model:
         """Patched synchronous create function."""
         context = handle_context(context, validation_context)
+        autodetect_images = bool(kwargs.get("autodetect_images", False))
 
         # Inject default model if not provided and available
         if default_model is not None and "model" not in kwargs:
@@ -117,6 +118,12 @@ def _create_sync_wrapper(
         response_model, new_kwargs = handlers.request_handler(
             response_model=response_model, kwargs=kwargs
         )
+        new_kwargs.pop("autodetect_images", None)
+        if handlers.message_converter and "messages" in new_kwargs:
+            new_kwargs["messages"] = handlers.message_converter(
+                new_kwargs["messages"],
+                autodetect_images=autodetect_images,
+            )
 
         # Handle templating
         new_kwargs = handle_templating(
@@ -166,6 +173,7 @@ def _create_async_wrapper(
     ) -> T_Model:
         """Patched asynchronous create function."""
         context = handle_context(context, validation_context)
+        autodetect_images = bool(kwargs.get("autodetect_images", False))
 
         # Inject default model if not provided and available
         if default_model is not None and "model" not in kwargs:
@@ -178,6 +186,12 @@ def _create_async_wrapper(
         response_model, new_kwargs = handlers.request_handler(
             response_model=response_model, kwargs=kwargs
         )
+        new_kwargs.pop("autodetect_images", None)
+        if handlers.message_converter and "messages" in new_kwargs:
+            new_kwargs["messages"] = handlers.message_converter(
+                new_kwargs["messages"],
+                autodetect_images=autodetect_images,
+            )
 
         # Handle templating
         new_kwargs = handle_templating(
