@@ -15,7 +15,7 @@ characters"
 }"""
 
 
-class _AnthropicTestModel(instructor.OpenAISchema):  # type: ignore[misc]
+class _AnthropicTestModel(instructor.ResponseSchema):  # type: ignore[misc]
     data: str
 
 

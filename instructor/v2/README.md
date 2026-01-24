@@ -370,7 +370,7 @@ Determine which generic v2 modes your provider supports:
 - `Mode.JSON` - JSON mode with schema instructions
 - `Mode.JSON_SCHEMA` - Native structured outputs (if supported)
 - `Mode.PARALLEL_TOOLS` - Parallel tool calling (if supported)
-Provider-specific legacy modes are not supported in v2. Use the generic modes directly.
+Provider-specific legacy modes are deprecated in v2. They emit warnings and normalize to generic modes. Use the generic modes directly.
 
 #### Step 4: Extract Handler Logic from V1
 
@@ -833,7 +833,7 @@ Use this checklist when migrating a provider:
 
 **Issue**: Provider-specific modes not working
 
-- **Solution**: Use v2 generic modes only (provider-specific legacy modes are not supported)
+- **Solution**: Use v2 generic modes only (legacy modes are deprecated and normalize with warnings)
 
 **Issue**: Tests failing with import errors
 
@@ -893,7 +893,7 @@ When a user calls `client.create(response_model=MyModel, ...)`, the following ha
 
 ### Mode Usage
 
-V2 expects generic modes (e.g., `Mode.TOOLS`, `Mode.JSON`, `Mode.JSON_SCHEMA`). Provider-specific legacy modes are not normalized in v2 and should be treated as unsupported.
+V2 expects generic modes (e.g., `Mode.TOOLS`, `Mode.JSON`, `Mode.JSON_SCHEMA`). Provider-specific legacy modes are normalized with deprecation warnings.
 
 ### Handler Lifecycle
 

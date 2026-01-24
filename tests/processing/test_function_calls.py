@@ -11,7 +11,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import BaseModel, ValidationError
 
 import instructor
-from instructor import OpenAISchema, openai_schema
+from instructor import ResponseSchema, response_schema, OpenAISchema, openai_schema
 from instructor.core.exceptions import IncompleteOutputException
 from instructor.utils import disable_pydantic_error_url
 
@@ -19,8 +19,8 @@ T = TypeVar("T")
 
 
 @pytest.fixture  # type: ignore[misc]
-def test_model() -> type[OpenAISchema]:
-    class TestModel(OpenAISchema):  # type: ignore[misc]
+def test_model() -> type[ResponseSchema]:
+    class TestModel(ResponseSchema):  # type: ignore[misc]
         name: str = "TestModel"
         data: str
 
@@ -83,8 +83,8 @@ def mock_anthropic_message(request: Any) -> Message:
     )
 
 
-def test_openai_schema() -> None:
-    @openai_schema
+def test_response_schema() -> None:
+    @response_schema
     class Dataframe(BaseModel):  # type: ignore[misc]
         """
         Class representing a dataframe. This class is used to convert
@@ -103,7 +103,37 @@ def test_openai_schema() -> None:
     assert Dataframe.openai_schema["name"] == "Dataframe"
 
 
-def test_openai_schema_raises_error() -> None:
+def test_response_schema_raises_error() -> None:
+    with pytest.raises(
+        TypeError,
+        match="response_model must be a subclass of pydantic.BaseModel",
+    ):
+
+        @response_schema
+        class Dummy:
+            pass
+
+
+def test_openai_schema_alias() -> None:
+    """Test that OpenAISchema alias still works for backward compatibility."""
+
+    @openai_schema
+    class Dataframe(BaseModel):  # type: ignore[misc]
+        """
+        Class representing a dataframe. This class is used to convert
+        data into a frame that can be used by pandas.
+        """
+
+        data: str
+        columns: str
+
+    assert hasattr(Dataframe, "openai_schema")
+    assert hasattr(Dataframe, "from_response")
+    assert Dataframe.openai_schema["name"] == "Dataframe"
+
+
+def test_openai_schema_alias_raises_error() -> None:
+    """Test that openai_schema alias still works for backward compatibility."""
     with pytest.raises(
         TypeError,
         match="response_model must be a subclass of pydantic.BaseModel",
@@ -115,6 +145,13 @@ def test_openai_schema_raises_error() -> None:
 
 
 def test_no_docstring() -> None:
+    class Dummy(ResponseSchema):  # type: ignore[misc]
+        attr: str
+
+
+def test_openai_schema_backward_compat() -> None:
+    """Test that OpenAISchema alias still works for backward compatibility."""
+
     class Dummy(OpenAISchema):  # type: ignore[misc]
         attr: str
 
@@ -130,14 +167,14 @@ def test_no_docstring() -> None:
     indirect=True,
 )  # type: ignore[misc]
 def test_incomplete_output_exception(
-    test_model: type[OpenAISchema], mock_completion: ChatCompletion
+    test_model: type[ResponseSchema], mock_completion: ChatCompletion
 ) -> None:
     with pytest.raises(IncompleteOutputException):
         test_model.from_response(mock_completion, mode=instructor.Mode.FUNCTIONS)
 
 
 def test_complete_output_no_exception(
-    test_model: type[OpenAISchema], mock_completion: ChatCompletion
+    test_model: type[ResponseSchema], mock_completion: ChatCompletion
 ) -> None:
     test_model_instance = cast(
         Any,
@@ -153,14 +190,14 @@ def test_complete_output_no_exception(
     indirect=True,
 )  # type: ignore[misc]
 def test_incomplete_output_exception_raise(
-    test_model: type[OpenAISchema], mock_completion: ChatCompletion
+    test_model: type[ResponseSchema], mock_completion: ChatCompletion
 ) -> None:
     with pytest.raises(IncompleteOutputException):
         test_model.from_response(mock_completion, mode=instructor.Mode.TOOLS)
 
 
 def test_anthropic_no_exception(
-    test_model: type[OpenAISchema], mock_anthropic_message: Message
+    test_model: type[ResponseSchema], mock_anthropic_message: Message
 ) -> None:
     test_model_instance = cast(
         Any,
@@ -178,7 +215,7 @@ def test_anthropic_no_exception(
     indirect=True,
 )  # type: ignore[misc]
 def test_control_characters_not_allowed_in_anthropic_json_strict_mode(
-    test_model: type[OpenAISchema], mock_anthropic_message: Message
+    test_model: type[ResponseSchema], mock_anthropic_message: Message
 ) -> None:
     with pytest.raises(ValidationError) as exc_info:
         test_model.from_response(
@@ -200,7 +237,7 @@ def test_control_characters_not_allowed_in_anthropic_json_strict_mode(
     indirect=True,
 )  # type: ignore[misc]
 def test_control_characters_allowed_in_anthropic_json_non_strict_mode(
-    test_model: type[OpenAISchema], mock_anthropic_message: Message
+    test_model: type[ResponseSchema], mock_anthropic_message: Message
 ) -> None:
     test_model_instance = cast(
         Any,
@@ -234,7 +271,7 @@ def test_pylance_url_config() -> None:
     assert "https://errors.pydantic.dev" not in str(exc_info.value)
 
 
-def test_refusal_attribute(test_model: type[OpenAISchema]):
+def test_refusal_attribute(test_model: type[ResponseSchema]):
     completion = ChatCompletion(
         id="test_id",
         created=1234567890,
@@ -261,7 +298,7 @@ def test_refusal_attribute(test_model: type[OpenAISchema]):
         assert "Unable to generate a response due to test_refusal" in str(e)
 
 
-def test_no_refusal_attribute(test_model: type[OpenAISchema]):
+def test_no_refusal_attribute(test_model: type[ResponseSchema]):
     completion = ChatCompletion(
         id="test_id",
         created=1234567890,
@@ -296,7 +333,7 @@ def test_no_refusal_attribute(test_model: type[OpenAISchema]):
     assert resp.name == "TestModel"
 
 
-def test_missing_refusal_attribute(test_model: type[OpenAISchema]):
+def test_missing_refusal_attribute(test_model: type[ResponseSchema]):
     message_without_refusal_attribute = ChatCompletionMessage(
         content="test_content",
         refusal="test_refusal",

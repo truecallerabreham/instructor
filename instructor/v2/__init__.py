@@ -36,8 +36,12 @@ def _lazy_import(module_path: str, func_name: str):
 
 
 def _maybe_export_client(func_name: str, module_path: str, sdk_module: str | None):
-    if sdk_module and importlib.util.find_spec(sdk_module) is None:
-        return None
+    if sdk_module:
+        try:
+            if importlib.util.find_spec(sdk_module) is None:
+                return None
+        except ModuleNotFoundError:
+            return None
     return _lazy_import(module_path, func_name)
 
 

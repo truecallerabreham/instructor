@@ -96,32 +96,32 @@ from instructor import Mode
 
 # Override the default mode for a provider
 client = instructor.from_provider(
-    "anthropic/claude-3-sonnet", mode=Mode.ANTHROPIC_TOOLS
+    "anthropic/claude-3-sonnet", mode=Mode.TOOLS
 )
 
 # Use JSON mode instead of the default tools mode
 client = instructor.from_provider(
-    "mistral/mistral-large", mode=Mode.MISTRAL_STRUCTURED_OUTPUTS
+    "mistral/mistral-large", mode=Mode.JSON_SCHEMA
 )
 
 # Use reasoning tools instead of regular tools for Anthropic
 client = instructor.from_provider(
-    "anthropic/claude-3-opus", mode=Mode.ANTHROPIC_REASONING_TOOLS
+    "anthropic/claude-3-opus", mode=Mode.TOOLS
 )
 ```
 
 If not specified, each provider will use its recommended default mode:
 
 - OpenAI: `Mode.OPENAI_FUNCTIONS`
-- Anthropic: `Mode.ANTHROPIC_TOOLS`
-- Google Gemini: `Mode.GEMINI_JSON`
-- Mistral: `Mode.MISTRAL_TOOLS`
-- Cohere: `Mode.COHERE_TOOLS`
+- Anthropic: `Mode.TOOLS`
+- Google Gemini: `Mode.MD_JSON`
+- Mistral: `Mode.TOOLS`
+- Cohere: `Mode.TOOLS`
 - Perplexity: `Mode.JSON`
 - Groq: `Mode.GROQ_TOOLS`
-- Writer: `Mode.WRITER_JSON`
-- Bedrock: `Mode.ANTHROPIC_TOOLS` (for Claude on Bedrock)
-- Vertex AI: `Mode.VERTEXAI_TOOLS`
+- Writer: `Mode.MD_JSON`
+- Bedrock: `Mode.TOOLS` (for Claude on Bedrock)
+- Vertex AI: `Mode.TOOLS`
 
 You can always customize this based on your specific needs and model capabilities.
 

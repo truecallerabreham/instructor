@@ -76,7 +76,7 @@ class User(BaseModel):
 client = instructor.from_provider(
     "vertex_ai/gemini-1.5-pro-preview-0409",
     async_client=True,
-    mode=instructor.Mode.VERTEXAI_TOOLS,
+    mode=instructor.Mode.TOOLS,
 )
 
 async def extract_user():
@@ -118,7 +118,7 @@ class UserExtract(BaseModel):
 
 client = instructor.from_provider(
     "vertex_ai/gemini-1.5-pro-preview-0409",
-    mode=instructor.Mode.VERTEXAI_TOOLS,
+    mode=instructor.Mode.TOOLS,
 )
 
 # Stream partial responses
@@ -153,7 +153,7 @@ class UserExtract(BaseModel):
 
 client = instructor.from_provider(
     "vertex_ai/gemini-1.5-pro-preview-0409",
-    mode=instructor.Mode.VERTEXAI_TOOLS,
+    mode=instructor.Mode.TOOLS,
 )
 
 # Stream iterable responses
@@ -192,7 +192,7 @@ class UserExtract(BaseModel):
 client = instructor.from_provider(
     "vertex_ai/gemini-1.5-pro-preview-0409",
     async_client=True,
-    mode=instructor.Mode.VERTEXAI_TOOLS,
+    mode=instructor.Mode.TOOLS,
 )
 
 async def stream_partial():
@@ -243,7 +243,7 @@ from vertexai.generative_models import GenerativeModel
 vertexai.init(project="your-project", location="us-central1")
 
 client = instructor.from_provider("google/gemini-2.5-flash", vertexai=True),
-    mode=instructor.Mode.VERTEXAI_TOOLS,
+    mode=instructor.Mode.TOOLS,
 )
 ```
 

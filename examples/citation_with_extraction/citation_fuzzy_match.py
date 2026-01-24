@@ -58,7 +58,7 @@ class Fact(BaseModel):
             yield from self._get_span(quote, context)
 
 
-class QuestionAnswer(instructor.OpenAISchema):
+class QuestionAnswer(instructor.ResponseSchema):
     """
     Class representing a question and its answer as a list of facts each one should have a soruce.
     each sentence contains a body and a list of sources."""

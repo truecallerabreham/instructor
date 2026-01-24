@@ -128,7 +128,7 @@ AWS Bedrock supports the following **core** modes:
 - `TOOLS`: Uses function calling for models that support it (like Claude models)
 - `MD_JSON`: Direct JSON response generation (text extraction fallback)
 
-> Legacy modes (`BEDROCK_TOOLS`, `BEDROCK_JSON`) are deprecated and map to the core
+> Legacy modes (`BEDROCK_TOOLS`, `BEDROCK_JSON`) are deprecated and map to `Mode.TOOLS` and `Mode.MD_JSON`.
 > modes above. Use `TOOLS` or `MD_JSON` in new code.
 
 ```python

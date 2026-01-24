@@ -585,7 +585,7 @@ def prepare_response_model(response_model: type[T] | None) -> type[T] | None:
     2. If it's a simple type, it wraps it in a ModelAdapter.
     3. If it's a TypedDict, it converts it to a Pydantic BaseModel.
     4. If it's an Iterable, it wraps the element type in an IterableModel.
-    5. If it's not already a subclass of OpenAISchema, it applies the openai_schema decorator.
+    5. If it's not already a subclass of ResponseSchema, it applies the response_schema decorator.
 
     Args:
         response_model (type[T] | None): The input response model to be prepared.
@@ -668,11 +668,13 @@ def prepare_response_model(response_model: type[T] | None) -> type[T] | None:
         response_model = ModelAdapter.__class_getitem__(response_model)  # type: ignore[arg-type]
 
     # Import here to avoid circular dependency
-    from ..processing.function_calls import OpenAISchema, openai_schema
+    from ..processing.function_calls import ResponseSchema, response_schema
 
     # response_model is guaranteed to be a type at this point due to earlier checks
-    if inspect.isclass(response_model) and not issubclass(response_model, OpenAISchema):
-        response_model = openai_schema(response_model)  # type: ignore
+    if inspect.isclass(response_model) and not issubclass(
+        response_model, ResponseSchema
+    ):
+        response_model = response_schema(response_model)  # type: ignore
     elif not inspect.isclass(response_model):
         response_model = openai_schema(response_model)  # type: ignore
 

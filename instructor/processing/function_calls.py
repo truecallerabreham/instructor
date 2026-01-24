@@ -112,7 +112,7 @@ def _validate_model_from_json(
         raise
 
 
-class OpenAISchema(BaseModel):
+class ResponseSchema(BaseModel):
     # Ignore classproperty, since Pydantic doesn't understand it like it would a normal property.
     model_config = ConfigDict(ignored_types=(classproperty,))
 
@@ -157,7 +157,7 @@ class OpenAISchema(BaseModel):
             provider (Provider): The provider for handler lookup
 
         Returns:
-            cls (OpenAISchema): An instance of the class
+            cls (ResponseSchema): An instance of the class
         """
 
         import importlib
@@ -750,10 +750,8 @@ class OpenAISchema(BaseModel):
         return _validate_model_from_json(cls, json_content, validation_context, strict)
 
 
-def openai_schema(cls: type[BaseModel]) -> OpenAISchema:
-    """
-    Wrap a Pydantic model class to add OpenAISchema functionality.
-    """
+def response_schema(cls: type[BaseModel]) -> ResponseSchema:
+    """Wrap a Pydantic model class to add ResponseSchema behavior."""
     if not inspect.isclass(cls) or not issubclass(cls, BaseModel):
         got = cls.__name__ if inspect.isclass(cls) else type(cls).__name__
         raise TypeError(
@@ -764,8 +762,13 @@ def openai_schema(cls: type[BaseModel]) -> OpenAISchema:
     schema = wraps(cls, updated=())(
         create_model(
             cls.__name__ if hasattr(cls, "__name__") else str(cls),
-            __base__=(cls, OpenAISchema),
+            __base__=(cls, ResponseSchema),
         )
     )
 
-    return cast(OpenAISchema, schema)
+    return cast(ResponseSchema, schema)
+
+
+# Backward compatibility aliases
+openai_schema = response_schema
+OpenAISchema = ResponseSchema

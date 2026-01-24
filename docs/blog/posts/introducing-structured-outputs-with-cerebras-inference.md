@@ -100,7 +100,7 @@ from cerebras.cloud.sdk import Cerebras
 from pydantic import BaseModel
 from typing import Iterable
 
-client = instructor.from_cerebras(Cerebras(), mode=instructor.Mode.CEREBRAS_JSON)
+client = instructor.from_cerebras(Cerebras(), mode=instructor.Mode.MD_JSON)
 
 
 class Person(BaseModel):

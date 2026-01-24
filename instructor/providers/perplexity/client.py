@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-import openai
-import instructor
 from typing import overload, Any
+import warnings
+
+import openai
+
+import instructor
 
 
 @overload
@@ -26,6 +29,13 @@ def from_perplexity(
     mode: instructor.Mode = instructor.Mode.PERPLEXITY_JSON,
     **kwargs: Any,
 ) -> instructor.Instructor | instructor.AsyncInstructor:
+    warnings.warn(
+        "from_perplexity() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('perplexity/<model>') or "
+        "instructor.v2.providers.perplexity.from_perplexity(..., mode=Mode.MD_JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     """Create an Instructor client from a Perplexity client.
 
     Args:

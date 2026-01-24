@@ -145,20 +145,9 @@ def from_vertexai(
     import warnings
 
     warnings.warn(
-        "from_vertexai is deprecated and will be removed in a future version. "
-        "Please use from_genai with vertexai=True or from_provider instead. "
-        "Install google-genai with: pip install google-genai\n"
-        "Example migration:\n"
-        "  # Old way\n"
-        "  from instructor import from_vertexai\n"
-        "  import vertexai.generative_models as gm\n"
-        "  client = from_vertexai(gm.GenerativeModel('gemini-3-flash'))\n\n"
-        "  # New way\n"
-        "  from instructor import from_genai\n"
-        "  from google import genai\n"
-        "  client = from_genai(genai.Client(vertexai=True, project='your-project', location='us-central1'))\n"
-        "  # OR use from_provider\n"
-        "  client = instructor.from_provider('vertexai/gemini-3-flash')",
+        "from_vertexai() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('google/<model>', vertexai=True) or "
+        "instructor.v2.providers.vertexai.from_vertexai(..., mode=Mode.TOOLS or Mode.MD_JSON or Mode.PARALLEL_TOOLS).",
         DeprecationWarning,
         stacklevel=2,
     )

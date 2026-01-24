@@ -16,9 +16,9 @@ from collections.abc import Iterable
 from ..mode import Mode
 
 if TYPE_CHECKING:
-    from ..processing.function_calls import OpenAISchema
+    from ..processing.function_calls import ResponseSchema
 
-    T = TypeVar("T", bound=OpenAISchema)
+    T = TypeVar("T", bound=ResponseSchema)
 else:
     # At runtime, we'll bind to BaseModel instead to avoid circular import
     T = TypeVar("T", bound=BaseModel)
@@ -41,7 +41,7 @@ class ParallelBase:
         validation_context: Optional[Any] = None,
         strict: Optional[bool] = None,
     ) -> Generator[BaseModel, None, None]:
-        #! We expect this from the OpenAISchema class, We should address
+        #! We expect this from the ResponseSchema class, We should address
         #! this with a protocol or an abstract class... @jxnlco
         for tool_call in response.choices[0].message.tool_calls:
             name = tool_call.function.name

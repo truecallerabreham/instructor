@@ -9,6 +9,8 @@ from instructor.mode import DEPRECATED_TO_CORE, Mode
 
 
 class Provider(Enum):
+    """Supported provider identifiers."""
+
     OPENAI = "openai"
     VERTEXAI = "vertexai"
     ANTHROPIC = "anthropic"

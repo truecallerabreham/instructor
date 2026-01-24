@@ -117,7 +117,7 @@ class User(BaseModel):
 
 client = instructor.from_provider(
     "google/gemini-3-flash",
-    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
+    mode=instructor.Mode.JSON,
 )
 
 resp = client.create(
@@ -340,7 +340,7 @@ We provide several modes to make it easy to work with the different response mod
 
 !!! note "Backwards Compatibility"
 
-    The provider-specific modes (`Mode.GENAI_TOOLS`, `Mode.GENAI_JSON`, `Mode.GENAI_STRUCTURED_OUTPUTS`) are still supported and automatically map to the generic modes.
+    Legacy provider-specific modes (for example `Mode.TOOLS`, `Mode.JSON`, `Mode.JSON`, `Mode.TOOLS`) are deprecated. They emit warnings and map to the generic modes.
 
 !!! info "Mode Selection"
     When using `from_provider`, the appropriate mode is automatically selected based on the provider and model capabilities.
@@ -381,7 +381,7 @@ import google.generativeai as genai
 
 client = instructor.from_provider(
     "google/gemini-2.5-flash",
-    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
+    mode=instructor.Mode.JSON,
 )
 ```
 
@@ -389,10 +389,10 @@ client = instructor.from_provider(
 ```python
 import instructor
 
-# Option 1: Using from_provider (simplest)
+# Option 1: Using from_provider (recommended)
 client = instructor.from_provider("google/gemini-2.5-flash")
 
-# Option 2: Using from_genai directly
+# Option 2: Using from_genai directly (legacy/advanced)
 from google import genai
 from instructor import from_genai
 
@@ -411,7 +411,7 @@ from vertexai.generative_models import GenerativeModel
 
 vertexai.init(project="your-project", location="us-central1")
 client = instructor.from_provider("google/gemini-2.5-flash", vertexai=True),
-    mode=instructor.Mode.VERTEXAI_TOOLS,
+    mode=instructor.Mode.TOOLS,
 )
 ```
 
@@ -419,14 +419,14 @@ client = instructor.from_provider("google/gemini-2.5-flash", vertexai=True),
 ```python
 import instructor
 
-# Option 1: Using from_provider
+# Option 1: Using from_provider (recommended)
 client = instructor.from_provider(
     "vertexai/gemini-3-flash",
     project="your-project",
     location="us-central1"
 )
 
-# Option 2: Using from_genai with vertexai=True
+# Option 2: Using from_genai with vertexai=True (legacy/advanced)
 from google import genai
 from instructor import from_genai
 

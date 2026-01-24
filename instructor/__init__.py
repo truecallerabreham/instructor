@@ -13,7 +13,12 @@ from .dsl import (
 )
 
 from .validation import llm_validator, openai_moderation
-from .processing.function_calls import OpenAISchema, openai_schema
+from .processing.function_calls import (
+    ResponseSchema,
+    response_schema,
+    OpenAISchema,
+    openai_schema,
+)
 from .processing.schema import (
     generate_openai_schema,
     generate_anthropic_schema,
@@ -45,6 +50,8 @@ __all__ = [
     "from_provider",
     "AsyncInstructor",
     "Provider",
+    "ResponseSchema",
+    "response_schema",
     "OpenAISchema",
     "CitationMixin",
     "IterableModel",

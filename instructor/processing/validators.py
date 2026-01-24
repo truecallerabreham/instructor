@@ -1,13 +1,13 @@
-"""Validators that extend OpenAISchema for structured outputs."""
+"""Validators that extend ResponseSchema for structured outputs."""
 
 from typing import Optional
 
 from pydantic import Field
 
-from .function_calls import OpenAISchema
+from .function_calls import ResponseSchema
 
 
-class Validator(OpenAISchema):
+class Validator(ResponseSchema):
     """
     Validate if an attribute is correct and if not,
     return a new value with an error message

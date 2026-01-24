@@ -10,7 +10,7 @@ from instructor.utils import extract_json_from_codeblock, extract_json_from_stre
 from instructor.processing.function_calls import (
     _extract_text_content,
     _validate_model_from_json,
-    OpenAISchema,
+    ResponseSchema,
 )
 from pydantic import BaseModel
 
@@ -287,8 +287,8 @@ class TestModelValidation:
             _validate_model_from_json(Person, invalid_json, None, False)
 
 
-class PersonSchema(OpenAISchema):
-    """Test model that inherits from OpenAISchema."""
+class PersonSchema(ResponseSchema):
+    """Test model that inherits from ResponseSchema."""
 
     name: str
     age: int

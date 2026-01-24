@@ -82,7 +82,17 @@ ChatCompletion(
 
 ## Raw response with a list response model
 
-If your response model is a list (for example, `list[UserExtract]`), you can still use `create_with_completion()`. The returned value behaves like a normal list, but it also keeps the raw response so `create_with_completion()` does not crash.
+If your response model is a list (for example, `list[UserExtract]`), you can still use `create_with_completion()`. Instructor wraps the list in a `ResponseList` (also called `ListResponse`) that behaves like a normal list but also preserves the raw response.
+
+### What is ResponseList?
+
+`ResponseList` is a special list type that Instructor uses when your `response_model` is a list. It extends Python's built-in `list` type and adds a `_raw_response` attribute to store the provider's raw response object.
+
+This is necessary because `create_with_completion()` needs to return both the parsed result and the raw response. For single objects, this is straightforward: `(model_instance, raw_response)`. For lists, we need a way to attach the raw response to the list itself, which is what `ResponseList` does.
+
+### Using ResponseList
+
+The returned value behaves exactly like a normal Python list, but you can access the raw response using `get_raw_response()`:
 
 ```python
 import instructor
@@ -103,11 +113,21 @@ users, completion = client.create_with_completion(
     ],
 )
 
+# Use it like a normal list
 print(users[0])
 #> name='Jason' age=25
+print(len(users))
+#> 2
 
+# Access the raw response
 raw = users.get_raw_response()
 assert raw == completion
+
+# ResponseList supports all list operations
+for user in users:
+    print(user.name)
+#> Jason
+#> Ivan
 ```
 
 ## See Also

@@ -8,6 +8,10 @@ description: Migrate from provider-specific modes to the core modes in Instructo
 This guide helps you move from provider-specific modes to the core modes.
 Core modes work across providers and are the recommended choice for new code.
 
+!!! note "V2 Preview"
+
+    Provider-specific modes are deprecated in v2. They still work, emit warnings, and map to core modes.
+
 ## Core Modes
 
 These are the core modes you should use:

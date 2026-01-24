@@ -48,6 +48,13 @@ def from_bedrock(
     """
     Accepts both 'async_client' (preferred) and '_async' (deprecated) for async mode.
     """
+    warnings.warn(
+        "from_bedrock() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('bedrock/<model>') or "
+        "instructor.v2.providers.bedrock.from_bedrock(..., mode=Mode.TOOLS or Mode.MD_JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     valid_modes = {
         instructor.Mode.BEDROCK_TOOLS,
         instructor.Mode.BEDROCK_JSON,

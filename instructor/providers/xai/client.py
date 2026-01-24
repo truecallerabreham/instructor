@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING, cast, overload
 import json
+import warnings
 
 from instructor.dsl.iterable import IterableBase
 from instructor.dsl.partial import PartialBase
@@ -94,6 +95,13 @@ def from_xai(
     mode: instructor.Mode = instructor.Mode.XAI_JSON,
     **kwargs: Any,
 ) -> instructor.Instructor | instructor.AsyncInstructor:
+    warnings.warn(
+        "from_xai() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('xai/<model>') or "
+        "instructor.v2.providers.xai.from_xai(..., mode=Mode.TOOLS or Mode.JSON_SCHEMA or Mode.MD_JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     valid_modes = {instructor.Mode.XAI_JSON, instructor.Mode.XAI_TOOLS}
 
     if mode not in valid_modes:

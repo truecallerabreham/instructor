@@ -1,25 +1,32 @@
 ---
-title: Migrating to from_provider
-description: Step-by-step guide to migrating from older Instructor patterns to the modern from_provider approach.
+title: Migration Guide
+description: Migrate from older Instructor patterns to the modern from_provider approach.
 ---
 
 # Migration Guide
 
-This guide helps you migrate from older Instructor initialization patterns to the modern `from_provider` approach. The `from_provider` function provides a unified interface that works across all providers and simplifies your code.
+This guide helps you migrate from older Instructor patterns to `from_provider`, the recommended approach for all providers.
 
 ## Why Migrate?
 
-Migrating to `from_provider` offers several benefits:
-
 - **Simpler code**: Less boilerplate, easier to read
 - **Consistent interface**: Same pattern works for all providers
-- **Better type safety**: Improved IDE support and type inference
-- **Easier provider switching**: Change providers with a single string
-- **Future-proof**: This is the recommended pattern going forward
+- **Better type safety**: Improved IDE support
+- **Future-proof**: Recommended pattern going forward
 
-## Migration Patterns
+## Quick Reference
 
-### Pattern 1: Replacing `patch()`
+| Old Pattern | New Pattern |
+|-------------|-------------|
+| `instructor.patch(openai.OpenAI())` | `instructor.from_provider("openai/model")` |
+| `instructor.apatch(openai.AsyncOpenAI())` | `instructor.from_provider("openai/model", async_client=True)` |
+| `from_openai(client)` | `instructor.from_provider("openai/model")` |
+| `from_anthropic(client)` | `instructor.from_provider("anthropic/model")` |
+| `from_genai(client)` | `instructor.from_provider("google/model")` |
+| `client.chat.completions.create(...)` | `client.create(...)` |
+| `client.messages.create(...)` | `client.create(...)` |
+
+## Basic Migration
 
 **Before:**
 
@@ -34,10 +41,10 @@ class User(BaseModel):
     age: int
 
 
-client = openai.OpenAI()
-patched_client = instructor.patch(client)
+openai_client = openai.OpenAI()
+client = instructor.patch(openai_client)
 
-user = patched_client.chat.completions.create(
+user = client.chat.completions.create(
     model="gpt-4o-mini",
     response_model=User,
     messages=[{"role": "user", "content": "Extract: John is 30"}],
@@ -64,351 +71,82 @@ user = client.create(
 )
 ```
 
-**Changes:**
-- Remove `import openai` and `instructor.patch()`
-- Use `instructor.from_provider("openai/model-name")`
-- Use `client.create()` instead of `client.chat.completions.create()`
-
-### Pattern 2: Replacing `from_openai()`
+## Async Migration
 
 **Before:**
 
 ```python
 import openai
-from instructor import from_openai
-from pydantic import BaseModel
+import instructor
 
+openai_client = openai.AsyncOpenAI()
+client = instructor.apatch(openai_client)
 
-class User(BaseModel):
-    name: str
-    age: int
-
-
-client = openai.OpenAI()
-instructor_client = from_openai(client)
-
-user = instructor_client.chat.completions.create(
-    model="gpt-4o-mini",
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
+user = await client.chat.completions.create(...)
 ```
 
 **After:**
 
 ```python
 import instructor
-from pydantic import BaseModel
 
+client = instructor.from_provider("openai/gpt-4o-mini", async_client=True)
 
-class User(BaseModel):
-    name: str
-    age: int
-
-
-client = instructor.from_provider("openai/gpt-4o-mini")
-
-user = client.create(
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
+user = await client.create(...)
 ```
 
-**Changes:**
-- Remove `import openai` and `from_openai`
-- Use `instructor.from_provider("openai/model-name")`
-- Use `client.create()` instead of `client.chat.completions.create()`
+## Provider-Specific Migrations
 
-### Pattern 3: Replacing `from_anthropic()`
-
-**Before:**
+### Anthropic
 
 ```python
+# Before
 import anthropic
 from instructor import from_anthropic
-from pydantic import BaseModel
 
+client = from_anthropic(anthropic.Anthropic())
+user = client.messages.create(model="claude-3-5-sonnet", ...)
 
-class User(BaseModel):
-    name: str
-    age: int
-
-
-client = anthropic.Anthropic()
-instructor_client = from_anthropic(client)
-
-user = instructor_client.messages.create(
-    model="claude-3-5-sonnet",
-    max_tokens=1024,
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
-```
-
-**After:**
-
-```python
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
+# After
 client = instructor.from_provider("anthropic/claude-3-5-sonnet")
-
-user = client.create(
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
+user = client.create(...)
 ```
 
-**Changes:**
-- Remove `import anthropic` and `from_anthropic`
-- Use `instructor.from_provider("anthropic/model-name")`
-- Use `client.create()` instead of `client.messages.create()`
-
-### Pattern 4: Replacing `from_google()` or `from_genai()`
-
-**Before:**
+### Google/Gemini
 
 ```python
+# Before
 import google.genai as genai
 from instructor import from_genai
-from pydantic import BaseModel
 
+client = from_genai(genai.Client(), model="gemini-pro")
+user = client.generate_content(...)
 
-class User(BaseModel):
-    name: str
-    age: int
-
-
-client = genai.Client(api_key="your-key")
-instructor_client = from_genai(client, model="gemini-pro")
-
-user = instructor_client.generate_content(
-    response_model=User,
-    contents="Extract: John is 30",
-)
-```
-
-**After:**
-
-```python
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
+# After
 client = instructor.from_provider("google/gemini-pro")
-
-user = client.create(
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
+user = client.create(messages=[...])
 ```
 
-**Changes:**
-- Remove `import google.genai` and `from_genai`
-- Use `instructor.from_provider("google/model-name")`
-- Use `client.create()` with `messages` parameter
+## Configuration Options
 
-### Pattern 5: Async Clients
-
-**Before:**
-
-```python
-import asyncio
-import openai
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-async def main():
-    client = openai.AsyncOpenAI()
-    patched_client = instructor.apatch(client)
-
-    user = await patched_client.chat.completions.create(
-        model="gpt-4o-mini",
-        response_model=User,
-        messages=[{"role": "user", "content": "Extract: John is 30"}],
-    )
-
-
-asyncio.run(main())
-```
-
-**After:**
-
-```python
-import asyncio
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-async def main():
-    client = instructor.from_provider("openai/gpt-4o-mini", async_client=True)
-
-    user = await client.create(
-        response_model=User,
-        messages=[{"role": "user", "content": "Extract: John is 30"}],
-    )
-
-
-asyncio.run(main())
-```
-
-**Changes:**
-- Use `async_client=True` parameter
-- Use `client.create()` instead of `client.chat.completions.create()`
-
-### Pattern 6: Custom Mode Configuration
-
-**Before:**
-
-```python
-import openai
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-client = openai.OpenAI()
-patched_client = instructor.patch(client, mode=instructor.Mode.JSON)
-
-user = patched_client.chat.completions.create(
-    model="gpt-4o-mini",
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
-```
-
-**After:**
+Pass configuration directly to `from_provider`:
 
 ```python
 import instructor
-from pydantic import BaseModel
 
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
+# Mode configuration
 client = instructor.from_provider("openai/gpt-4o-mini", mode=instructor.Mode.JSON)
 
-user = client.create(
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
+# Custom API settings
+client = instructor.from_provider(
+    "openai/gpt-4o-mini",
+    api_key="custom-key",
+    organization="org-id",
+    timeout=30.0,
 )
 ```
 
-**Changes:**
-- Pass `mode` parameter to `from_provider`
-- Same mode options work as before
-
-## Step-by-Step Migration Checklist
-
-Follow these steps to migrate your code:
-
-### Step 1: Identify Current Pattern
-
-Check which pattern you're using:
-- [ ] `instructor.patch(client)`
-- [ ] `instructor.apatch(client)`
-- [ ] `from_openai(client)`
-- [ ] `from_anthropic(client)`
-- [ ] `from_genai(client)`
-- [ ] Other provider-specific functions
-
-### Step 2: Find Model Name
-
-Identify the model you're using:
-- OpenAI: Check `client.model` or look for model names like `"gpt-4o"`, `"gpt-4-turbo"`
-- Anthropic: Look for `"claude-3-5-sonnet"`, `"claude-3-opus"`
-- Google: Look for `"gemini-pro"`, `"gemini-2.5-flash"`
-
-### Step 3: Replace Client Creation
-
-Replace the old pattern with `from_provider`:
-
-```python
-import openai
-import instructor
-
-# Old
-client = instructor.patch(openai.OpenAI())
-
-# New
-client = instructor.from_provider("openai/gpt-4o-mini")
-```
-
-### Step 4: Update Method Calls
-
-Change from provider-specific methods to `client.create()`:
-
-```python
-from types import SimpleNamespace
-
-
-def _noop(*_args, **_kwargs):
-    return None
-
-
-client = SimpleNamespace(
-    chat=SimpleNamespace(completions=SimpleNamespace(create=_noop)),
-    messages=SimpleNamespace(create=_noop),
-    create=_noop,
-)
-
-# Old (OpenAI)
-response = client.chat.completions.create(...)
-
-# Old (Anthropic)
-response = client.messages.create(...)
-
-# New (all providers)
-response = client.create(...)
-```
-
-### Step 5: Update Message Format
-
-Ensure messages use the standard format:
-
-```python
-messages = [{"role": "user", "content": "Your prompt here"}]
-```
-
-### Step 6: Test Your Code
-
-Run your code and verify it works:
-- Check that responses are correct
-- Verify error handling still works
-- Test async code if applicable
-
-## Common Migration Scenarios
-
-### Scenario 1: Multiple Providers
+## Multiple Providers
 
 **Before:**
 
@@ -420,8 +158,6 @@ from instructor import from_anthropic
 
 openai_client = instructor.patch(openai.OpenAI())
 anthropic_client = from_anthropic(anthropic.Anthropic())
-
-# Use different clients for different tasks
 ```
 
 **After:**
@@ -431,182 +167,36 @@ import instructor
 
 openai_client = instructor.from_provider("openai/gpt-4o-mini")
 anthropic_client = instructor.from_provider("anthropic/claude-3-5-sonnet")
-
-# Same interface, easier to manage
 ```
 
-### Scenario 2: Environment-Based Provider Selection
+## Migration Checklist
 
-**Before:**
+1. **Identify your current pattern**: `patch()`, `apatch()`, or `from_*()` functions
+2. **Find your model name**: e.g., `gpt-4o-mini`, `claude-3-5-sonnet`
+3. **Replace client creation**: Use `from_provider("provider/model")`
+4. **Update method calls**: Change to `client.create(...)`
+5. **Use standard message format**: `[{"role": "user", "content": "..."}]`
+6. **Test your code**
 
-```python
-import os
-import openai
-import anthropic
-import instructor
+## Troubleshooting
 
-provider = os.getenv("LLM_PROVIDER", "openai")
-
-if provider == "openai":
-    client = instructor.patch(openai.OpenAI())
-elif provider == "anthropic":
-    client = instructor.patch(anthropic.Anthropic())
-```
-
-**After:**
-
-```python
-import os
-import instructor
-
-provider = os.getenv("LLM_PROVIDER", "openai")
-model_map = {
-    "openai": "openai/gpt-4o-mini",
-    "anthropic": "anthropic/claude-3-5-sonnet",
-}
-
-client = instructor.from_provider(model_map[provider])
-```
-
-### Scenario 3: Custom Configuration
-
-**Before:**
-
-```python
-import openai
-import instructor
-
-client = openai.OpenAI(api_key="custom-key", organization="org-id", timeout=30.0)
-patched_client = instructor.patch(client)
-```
-
-**After:**
-
-```python
-import instructor
-
-client = instructor.from_provider(
-    "openai/gpt-4o-mini", api_key="custom-key", organization="org-id", timeout=30.0
-)
-```
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `'Instructor' object has no attribute 'chat'` | Using old method call | Use `client.create()` instead of `client.chat.completions.create()` |
+| Invalid model string | Wrong format | Use `"provider/model-name"` format |
+| Message format error | Provider-specific format | Use standard `messages` list format |
 
 ## Backward Compatibility
 
-The old patterns still work, but they're deprecated:
+Old patterns still work but are deprecated:
 
-- `instructor.patch()` - Still works, but use `from_provider` instead
-- `instructor.apatch()` - Still works, but use `from_provider` with `async_client=True`
-- `from_openai()`, `from_anthropic()`, etc. - Still work, but use `from_provider` instead
+- `instructor.patch()` → Use `from_provider` instead
+- `instructor.apatch()` → Use `from_provider` with `async_client=True`
+- `from_openai()`, `from_anthropic()`, etc. → Use `from_provider`
 
 You can migrate gradually - both patterns work side by side.
 
-## Troubleshooting Migration Issues
-
-### Issue: Method Not Found
-
-If you see errors like `'Instructor' object has no attribute 'chat'`:
-
-**Problem:** You're using the old method call pattern.
-
-**Solution:** Change from `client.chat.completions.create()` to `client.create()`.
-
-### Issue: Wrong Message Format
-
-If you see errors about message format:
-
-**Problem:** Provider-specific message formats differ.
-
-**Solution:** Use the standard `messages` list format for all providers:
-
-```python
-messages = [{"role": "user", "content": "Your prompt"}]
-```
-
-### Issue: Model Not Found
-
-If you see errors about invalid model strings:
-
-**Problem:** Model name format is incorrect.
-
-**Solution:** Use format `"provider/model-name"`:
-
-```python
-# Correct
-"openai/gpt-4o-mini"
-
-# Incorrect
-"gpt-4o-mini"  # Missing provider
-```
-
-## Migration Examples
-
-### Complete Example: Before and After
-
-**Before:**
-
-```python
-import openai
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-# Create client
-client = openai.OpenAI()
-patched_client = instructor.patch(client)
-
-# Extract data
-response = patched_client.chat.completions.create(
-    model="gpt-4o-mini",
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
-
-print(response.name, response.age)
-#> John 30
-```
-
-**After:**
-
-```python
-import instructor
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-# Create client
-client = instructor.from_provider("openai/gpt-4o-mini")
-
-# Extract data
-response = client.create(
-    response_model=User,
-    messages=[{"role": "user", "content": "Extract: John is 30"}],
-)
-
-print(response.name, response.age)
-#> John 30
-```
-
-## Benefits After Migration
-
-After migrating, you'll notice:
-
-1. **Less code**: Fewer imports and lines
-2. **Easier testing**: Mock `from_provider` easily
-3. **Better IDE support**: Improved autocomplete and type hints
-4. **Easier maintenance**: One pattern to maintain
-5. **Future features**: Access to new features first
-
-## Related Documentation
+## See Also
 
 - [from_provider Guide](./from_provider.md) - Complete guide to using from_provider
-- [from_provider Guide](./from_provider.md) - Complete client configuration guide
 - [Patching](./patching.md) - How Instructor enhances clients

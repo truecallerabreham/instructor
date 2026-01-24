@@ -32,7 +32,6 @@ def test_from_provider_routes_to_v2(async_client: bool):
         assert isinstance(client, AsyncInstructor)
 
 
-@pytest.mark.skip(reason="Deprecation warning not yet implemented in v1 from_anthropic")
 @pytest.mark.parametrize(
     "client_class_name",
     ["Anthropic", "AsyncAnthropic"],

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal, overload
+import warnings
 
 from google.genai import Client
 
@@ -32,6 +33,13 @@ def from_genai(
     use_async: bool = False,
     **kwargs: Any,
 ) -> instructor.Instructor | instructor.AsyncInstructor:
+    warnings.warn(
+        "from_genai() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('google/<model>') or "
+        "instructor.v2.providers.genai.from_genai(..., mode=Mode.TOOLS or Mode.JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     mode_map = {
         instructor.Mode.TOOLS: instructor.Mode.GENAI_TOOLS,
         instructor.Mode.JSON: instructor.Mode.GENAI_STRUCTURED_OUTPUTS,

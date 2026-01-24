@@ -189,10 +189,10 @@ def IterableModel(
     description: Optional[str] = None,
 ) -> type[BaseModel]:
     # Import at runtime to avoid circular import
-    from ..processing.function_calls import OpenAISchema
+    from ..processing.function_calls import ResponseSchema
 
     """
-    Dynamically create a IterableModel OpenAISchema that can be used to segment multiple
+    Dynamically create a IterableModel ResponseSchema that can be used to segment multiple
     tasks given a base class. This creates class that can be used to create a toolkit
     for a specific task, names and descriptions are automatically generated. However
     they can be overridden.
@@ -214,7 +214,7 @@ def IterableModel(
     ## Result
 
     ```python
-    class MultiUser(OpenAISchema, MultiTaskBase):
+    class MultiUser(ResponseSchema, MultiTaskBase):
         tasks: List[User] = Field(
             default_factory=list,
             repr=False,
@@ -232,14 +232,14 @@ def IterableModel(
     ```
 
     Parameters:
-        subtask_class (Type[OpenAISchema]): The base class to use for the MultiTask
+        subtask_class (Type[ResponseSchema]): The base class to use for the MultiTask
         name (Optional[str]): The name of the MultiTask class, if None then the name
             of the subtask class is used as `Multi{subtask_class.__name__}`
         description (Optional[str]): The description of the MultiTask class, if None
             then the description is set to `Correct segmentation of `{subtask_class.__name__}` tasks`
 
     Returns:
-        schema (OpenAISchema): A new class that can be used to segment multiple tasks
+        schema (ResponseSchema): A new class that can be used to segment multiple tasks
     """
     if name is not None:
         task_name = name
@@ -264,7 +264,7 @@ def IterableModel(
         ),
     )
 
-    base_models = cast(tuple[type[BaseModel], ...], (OpenAISchema, IterableBase))
+    base_models = cast(tuple[type[BaseModel], ...], (ResponseSchema, IterableBase))
     new_cls = create_model(
         name,
         tasks=list_tasks,
@@ -280,7 +280,7 @@ def IterableModel(
         if description is None
         else description
     )
-    assert issubclass(new_cls, OpenAISchema), (
-        "The new class should be a subclass of OpenAISchema"
+    assert issubclass(new_cls, ResponseSchema), (
+        "The new class should be a subclass of ResponseSchema"
     )
     return new_cls

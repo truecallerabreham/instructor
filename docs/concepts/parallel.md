@@ -95,7 +95,7 @@ Parallel Function Calling helps you to significantly reduce the latency of your 
         vertexai.init(project="your-project-id", location="us-central1")
         client = from_vertexai(
             gm.GenerativeModel("gemini-2.5-flash"),
-            mode=instructor.Mode.VERTEXAI_PARALLEL_TOOLS,
+            mode=instructor.Mode.PARALLEL_TOOLS,
         )
         function_calls = client.create(
             messages=[
@@ -133,7 +133,7 @@ Parallel Function Calling helps you to significantly reduce the latency of your 
 
     client = instructor.from_provider(
         "anthropic/claude-3-7-sonnet-latest",
-        mode=instructor.Mode.ANTHROPIC_PARALLEL_TOOLS,
+        mode=instructor.Mode.PARALLEL_TOOLS,
     )
     function_calls = client.create(
         messages=[

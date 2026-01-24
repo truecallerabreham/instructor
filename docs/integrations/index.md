@@ -75,11 +75,8 @@ Providers support different methods for generating structured outputs:
 |------|-------------|-----------|
 | `TOOLS` | Uses OpenAI-style tools/function calling | OpenAI, Anthropic, Mistral |
 | `PARALLEL_TOOLS` | Multiple simultaneous tool calls | OpenAI |
-| `JSON` | Direct JSON response generation | OpenAI, Gemini, Cohere, Perplexity |
+| `JSON` | Direct JSON response generation | OpenAI, Gemini, Cohere, GenAI |
 | `MD_JSON` | JSON embedded in markdown | Most providers |
-| `BEDROCK_TOOLS` | AWS Bedrock function calling | AWS Bedrock |
-| `BEDROCK_JSON` | AWS Bedrock JSON generation | AWS Bedrock |
-| `PERPLEXITY_JSON` | Perplexity JSON generation | Perplexity |
 
 See the [Modes Comparison](../modes-comparison.md) guide for details.
 

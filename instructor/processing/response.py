@@ -52,7 +52,7 @@ from ..dsl.response_list import ListResponse
 from ..dsl.simple_type import AdapterBase
 
 if TYPE_CHECKING:
-    from .function_calls import OpenAISchema
+    from .function_calls import ResponseSchema
 from ..mode import Mode
 from ..utils.providers import Provider, normalize_mode_for_provider, provider_from_mode
 from ..utils.core import prepare_response_model
@@ -80,7 +80,7 @@ def _ensure_registry_loaded() -> None:
 async def process_response_async(
     response: ChatCompletion,
     *,
-    response_model: type[T_Model | OpenAISchema | BaseModel] | None,
+    response_model: type[T_Model | ResponseSchema | BaseModel] | None,
     stream: bool = False,
     validation_context: dict[str, Any] | None = None,
     strict: bool | None = None,
@@ -141,10 +141,10 @@ async def process_response_async(
         and provider is Provider.OPENAI
         and not hasattr(response, "choices")
     ):
-        from instructor.processing.function_calls import OpenAISchema
+        from instructor.processing.function_calls import ResponseSchema
 
         if inspect.isclass(response_model) and not issubclass(
-            response_model, OpenAISchema
+            response_model, ResponseSchema
         ):
             if stream and hasattr(response_model, "from_streaming_response_async"):
                 from instructor.utils import extract_json_from_stream_async
@@ -320,7 +320,7 @@ async def process_response_async(
 def process_response(
     response: T_Model,
     *,
-    response_model: type[OpenAISchema | BaseModel] | None = None,
+    response_model: type[ResponseSchema | BaseModel] | None = None,
     stream: bool,
     validation_context: dict[str, Any] | None = None,
     strict=None,
@@ -336,7 +336,7 @@ def process_response(
     Args:
         response (T_Model): The raw response from the LLM API. The actual type varies by
             provider (ChatCompletion for OpenAI, Message for Anthropic, etc.)
-        response_model (type[OpenAISchema | BaseModel] | None): The target Pydantic model
+        response_model (type[ResponseSchema | BaseModel] | None): The target Pydantic model
             class to parse the response into. Special DSL types supported:
             - IterableBase: For streaming multiple objects from a single response
             - PartialBase: For incomplete/streaming partial objects
@@ -391,10 +391,10 @@ def process_response(
         and provider is Provider.OPENAI
         and not hasattr(response, "choices")
     ):
-        from instructor.processing.function_calls import OpenAISchema
+        from instructor.processing.function_calls import ResponseSchema
 
         if inspect.isclass(response_model) and not issubclass(
-            response_model, OpenAISchema
+            response_model, ResponseSchema
         ):
             if stream and hasattr(response_model, "from_streaming_response"):
                 from instructor.utils import extract_json_from_stream

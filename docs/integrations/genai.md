@@ -31,7 +31,7 @@ We currently have two modes for Gemini
 
 !!! note "Backwards Compatibility"
 
-    The provider-specific modes (`Mode.GENAI_TOOLS`, `Mode.GENAI_JSON`, `Mode.GENAI_STRUCTURED_OUTPUTS`) are still supported for backwards compatibility and automatically map to the generic modes (`Mode.TOOLS`, `Mode.JSON`).
+    The provider-specific modes (`Mode.TOOLS`, `Mode.JSON`, `Mode.JSON`) are still supported but emit deprecation warnings and map to the generic modes (`Mode.TOOLS`, `Mode.JSON`).
 
 ## Installation
 
@@ -69,9 +69,11 @@ response = client.create(
 print(response)  # User(name='Jason', age=25)
 ```
 
-## Using the v2 GenAI client
+## Alternative: Using the v2 GenAI client
 
-If you prefer to work directly with the native `google.genai.Client`, the v2 helper keeps the Google request format intact while still giving you Instructor's structured outputs.
+!!! note "Recommended: Use `from_provider`"
+
+    The `from_provider` approach shown above is recommended for most use cases. The `from_genai` helper below is available if you need to work directly with the native `google.genai.Client` and keep the Google request format intact.
 
 ```python
 from google.genai import Client

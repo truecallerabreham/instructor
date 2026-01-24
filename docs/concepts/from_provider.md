@@ -1,21 +1,25 @@
 ---
 title: Using from_provider for Unified Client Creation
-description: Learn how to use from_provider to create Instructor clients for any LLM provider with a simple, consistent interface.
+description: Learn how to use from_provider to create Instructor clients for any LLM provider.
 ---
 
 # Using from_provider
 
-The `from_provider` function is the recommended way to create Instructor clients. It provides a unified interface that works across all supported LLM providers, making it easy to switch between different models and providers.
+The `from_provider` function creates Instructor clients for any LLM provider. It uses the same interface across all providers, making it easy to switch between models.
+
+!!! note "V2 Preview"
+
+    `from_provider` routes to the v2 implementation by default for supported providers. Legacy provider-specific modes are deprecated, emit warnings, and map to generic modes (`Mode.TOOLS`, `Mode.JSON`, `Mode.JSON_SCHEMA`, `Mode.MD_JSON`).
 
 ## Why Use from_provider?
 
-`from_provider` offers several advantages:
+`from_provider` provides:
 
-- **Simple syntax**: One function works for all providers
-- **Automatic setup**: Handles provider-specific configuration automatically
-- **Consistent interface**: Same code works across different providers
-- **Type safety**: Full IDE support with proper type inference
-- **Easy switching**: Change providers with a single string change
+- Simple syntax: One function works for all providers
+- Automatic setup: Handles provider-specific configuration automatically
+- Consistent interface: Same code works across different providers
+- Type safety: Full IDE support with proper type inference
+- Easy switching: Change providers with a single string change
 
 ## Basic Usage
 
@@ -49,30 +53,30 @@ user = client.create(
 
 ### Cloud Providers
 
-- **OpenAI**: `"openai/gpt-4o"`, `"openai/gpt-4o-mini"`, `"openai/gpt-4-turbo"`
-- **Anthropic**: `"anthropic/claude-3-5-sonnet"`, `"anthropic/claude-3-opus"`
-- **Google**: `"google/gemini-2.5-flash"`, `"google/gemini-pro"`
-- **Azure OpenAI**: `"azure_openai/gpt-4o"`
-- **AWS Bedrock**: `"bedrock/claude-3-5-sonnet"`
-- **Vertex AI**: `"vertexai/gemini-pro"` (or use `"google/gemini-pro"` with `vertexai=True`)
+- OpenAI: `"openai/gpt-4o"`, `"openai/gpt-4o-mini"`, `"openai/gpt-4-turbo"`
+- Anthropic: `"anthropic/claude-3-5-sonnet"`, `"anthropic/claude-3-opus"`
+- Google: `"google/gemini-2.5-flash"`, `"google/gemini-pro"`
+- Azure OpenAI: `"azure_openai/gpt-4o"`
+- AWS Bedrock: `"bedrock/claude-3-5-sonnet"`
+- Vertex AI: `"vertexai/gemini-pro"` (or use `"google/gemini-pro"` with `vertexai=True`)
 
 ### Fast Inference Providers
 
-- **Groq**: `"groq/llama-3.1-70b"`
-- **Fireworks**: `"fireworks/mixtral-8x7b"`
-- **Together**: `"together/meta-llama/Llama-3-70b"`
-- **Anyscale**: `"anyscale/meta-llama/Llama-3-70b"`
+- Groq: `"groq/llama-3.1-70b"`
+- Fireworks: `"fireworks/mixtral-8x7b"`
+- Together: `"together/meta-llama/Llama-3-70b"`
+- Anyscale: `"anyscale/meta-llama/Llama-3-70b"`
 
 ### Other Providers
 
-- **Mistral**: `"mistral/mistral-large"`
-- **Cohere**: `"cohere/command-r-plus"`
-- **Perplexity**: `"perplexity/llama-3.1-sonar"`
-- **DeepSeek**: `"deepseek/deepseek-chat"`
-- **xAI**: `"xai/grok-beta"`
-- **OpenRouter**: `"openrouter/meta-llama/llama-3.1-70b"`
-- **Ollama**: `"ollama/llama3"` (local models)
-- **LiteLLM**: `"litellm/gpt-4o"` (meta-provider)
+- Mistral: `"mistral/mistral-large"`
+- Cohere: `"cohere/command-r-plus"`
+- Perplexity: `"perplexity/llama-3.1-sonar"`
+- DeepSeek: `"deepseek/deepseek-chat"`
+- xAI: `"xai/grok-beta"`
+- OpenRouter: `"openrouter/meta-llama/llama-3.1-70b"`
+- Ollama: `"ollama/llama3"` (local models)
+- LiteLLM: `"litellm/gpt-4o"` (meta-provider)
 
 See the [Integrations](../integrations/index.md) section for complete provider documentation.
 
@@ -196,18 +200,17 @@ if google_api_key is not None:
 
 ## Default Modes
 
-Each provider uses a recommended default **core** mode:
+Each provider uses a recommended default mode:
 
-- **OpenAI**: `Mode.TOOLS`
-- **Anthropic**: `Mode.TOOLS`
-- **Google**: `Mode.TOOLS` or `Mode.JSON` based on the model
-- **Ollama**: `Mode.TOOLS` (if supported) or `Mode.JSON`
-- **Others**: `Mode.TOOLS` or `Mode.MD_JSON` depending on capability
+- OpenAI: `Mode.TOOLS`
+- Anthropic: `Mode.TOOLS`
+- Google: `Mode.TOOLS` or `Mode.JSON` based on the model
+- Ollama: `Mode.TOOLS` (if supported) or `Mode.JSON`
+- Others: `Mode.TOOLS` or `Mode.MD_JSON` depending on capability
 
-Legacy provider-specific modes still work, but they are deprecated.
-See the [Mode Migration Guide](./mode-migration.md) for details.
+Legacy provider-specific modes still work but are deprecated. See the [Mode Migration Guide](./mode-migration.md) for details.
 
-You can override these defaults with the `mode` parameter.
+Override these defaults with the `mode` parameter.
 
 ## Error Handling
 
@@ -304,11 +307,11 @@ user = client.create(
 
 ## Best Practices
 
-1. **Use environment variables**: Store API keys in environment variables, not in code
-2. **Use type hints**: Let your IDE help with autocomplete and type checking
-3. **Handle errors**: Wrap provider creation in try-except blocks
-4. **Cache when appropriate**: Use caching for repeated requests
-5. **Choose the right mode**: Let defaults work, but override when needed
+1. Use environment variables: Store API keys in environment variables, not in code
+2. Use type hints: Let your IDE help with autocomplete and type checking
+3. Handle errors: Wrap provider creation in try-except blocks
+4. Cache when appropriate: Use caching for repeated requests
+5. Choose the right mode: Let defaults work, but override when needed
 
 ## Comparison with Other Methods
 
@@ -319,8 +322,8 @@ user = client.create(
 import openai
 import instructor
 
-client = openai.OpenAI()
-patched_client = instructor.patch(client)
+openai_client = openai.OpenAI()
+client = instructor.patch(openai_client)
 
 # New way (recommended)
 client = instructor.from_provider("openai/gpt-4o-mini")

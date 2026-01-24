@@ -34,20 +34,9 @@ def from_gemini(
     import warnings
 
     warnings.warn(
-        "from_gemini is deprecated and will be removed in a future version. "
-        "Please use from_genai or from_provider instead. "
-        "Install google-genai with: pip install google-genai\n"
-        "Example migration:\n"
-        "  # Old way\n"
-        "  from instructor import from_gemini\n"
-        "  import google.generativeai as genai\n"
-        "  client = from_gemini(genai.GenerativeModel('gemini-3-flash'))\n\n"
-        "  # New way\n"
-        "  from instructor import from_genai\n"
-        "  from google import genai\n"
-        "  client = from_genai(genai.Client())\n"
-        "  # OR use from_provider\n"
-        "  client = instructor.from_provider('google/gemini-3-flash')",
+        "from_gemini() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('google/<model>') or "
+        "instructor.v2.providers.gemini.from_gemini(..., mode=Mode.TOOLS or Mode.MD_JSON).",
         DeprecationWarning,
         stacklevel=2,
     )

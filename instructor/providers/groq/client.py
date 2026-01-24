@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import overload, Any
+import warnings
 
 import groq
 import instructor
@@ -27,6 +28,13 @@ def from_groq(
     mode: instructor.Mode = instructor.Mode.TOOLS,
     **kwargs: Any,
 ) -> instructor.Instructor | instructor.AsyncInstructor:
+    warnings.warn(
+        "from_groq() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('groq/<model>') or "
+        "instructor.v2.providers.groq.from_groq(..., mode=Mode.TOOLS or Mode.MD_JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     valid_modes = {
         instructor.Mode.JSON,
         instructor.Mode.TOOLS,

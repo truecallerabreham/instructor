@@ -9,7 +9,7 @@ from instructor.processing.schema import (
     generate_anthropic_schema,
     generate_gemini_schema,
 )
-from instructor.processing.function_calls import OpenAISchema
+from instructor.processing.function_calls import ResponseSchema, OpenAISchema
 
 
 class TestModel(BaseModel):
@@ -34,8 +34,14 @@ class TestModelWithDocstring(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
-class TestModelOldStyle(TestModel, OpenAISchema):
-    """Test model inheriting from OpenAISchema for comparison."""
+class TestModelOldStyle(TestModel, ResponseSchema):
+    """Test model inheriting from ResponseSchema."""
+
+    pass
+
+
+class TestModelOldStyleAlias(TestModel, OpenAISchema):
+    """Test model inheriting from OpenAISchema alias for backward compatibility."""
 
     pass
 
@@ -139,7 +145,7 @@ def test_schema_name_and_title():
 
 
 def test_no_inheritance_required():
-    """Test that models don't need to inherit from OpenAISchema."""
+    """Test that models don't need to inherit from ResponseSchema."""
 
     # Plain Pydantic model should work
     class PlainModel(BaseModel):

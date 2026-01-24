@@ -42,6 +42,8 @@ def _ensure_registry_loaded() -> None:
 
 
 class Response:
+    """Helper for responses API using a patched client."""
+
     def __init__(
         self,
         client: Instructor,
@@ -221,6 +223,8 @@ class AsyncResponse(Response):
 
 
 class Instructor:
+    """Sync client wrapper that adds structured output support."""
+
     client: Any | None
     create_fn: Callable[..., Any]
     mode: instructor.Mode
@@ -586,6 +590,8 @@ class Instructor:
 
 
 class AsyncInstructor(Instructor):
+    """Async client wrapper that adds structured output support."""
+
     client: Any | None
     create_fn: Callable[..., Any]
     mode: instructor.Mode
@@ -802,6 +808,7 @@ def from_openai(
     mode: instructor.Mode = instructor.Mode.TOOLS,
     **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    """Create a patched Instructor client from an OpenAI client."""
     if hasattr(client, "base_url"):
         provider = get_provider(str(client.base_url))
     else:
@@ -893,6 +900,7 @@ def from_litellm(
     mode: instructor.Mode = instructor.Mode.TOOLS,
     **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    """Create an Instructor client from a LiteLLM completion function."""
     is_async = inspect.iscoroutinefunction(completion)
 
     if not is_async:

@@ -17,7 +17,7 @@ import pytest
 from pydantic import ValidationError
 
 from instructor import Mode, Provider
-from instructor.processing.function_calls import OpenAISchema
+from instructor.processing.function_calls import ResponseSchema
 from instructor.v2.core.registry import mode_registry
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -73,13 +73,13 @@ def _get_handlers(provider: Provider, mode: Mode):
     return mode_registry.get_handlers(provider, mode)
 
 
-class Answer(OpenAISchema):
+class Answer(ResponseSchema):
     """Simple answer model for handler tests."""
 
     answer: float
 
 
-class User(OpenAISchema):
+class User(ResponseSchema):
     """Simple user model for handler tests."""
 
     name: str

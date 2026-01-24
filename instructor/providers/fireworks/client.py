@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, overload
+import warnings
 
 import instructor
 from ...core.client import AsyncInstructor, Instructor
@@ -36,6 +37,13 @@ def from_fireworks(
     mode: instructor.Mode = instructor.Mode.FIREWORKS_JSON,
     **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    warnings.warn(
+        "from_fireworks() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('fireworks/<model>') or "
+        "instructor.v2.providers.fireworks.from_fireworks(..., mode=Mode.TOOLS or Mode.MD_JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     valid_modes = {
         instructor.Mode.FIREWORKS_TOOLS,
         instructor.Mode.FIREWORKS_JSON,

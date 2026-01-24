@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 
-from instructor.mode import Mode
+from instructor.mode import DEPRECATED_TO_CORE, Mode, reset_deprecated_mode_warnings
 from instructor.utils.providers import Provider
 
 try:
@@ -68,11 +68,14 @@ def test_normalize_mode_passthrough_for_generic_modes(mode: Mode) -> None:
         (Provider.OPENROUTER, Mode.OPENROUTER_STRUCTURED_OUTPUTS),
     ],
 )
-def test_legacy_modes_not_registered(provider: Provider, legacy_mode: Mode) -> None:
-    """Provider-specific legacy modes are not registered in v2."""
-    assert not mode_registry.is_registered(provider, legacy_mode)
-
+def test_legacy_modes_normalize_with_warnings(
+    provider: Provider, legacy_mode: Mode
+) -> None:
+    """Provider-specific legacy modes normalize to core modes with warnings."""
+    reset_deprecated_mode_warnings()
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        assert normalize_mode(provider, legacy_mode) == legacy_mode
-    assert len(caught) == 0
+        assert normalize_mode(provider, legacy_mode) == DEPRECATED_TO_CORE[legacy_mode]
+        assert mode_registry.is_registered(provider, legacy_mode)
+    assert len(caught) == 1
+    assert issubclass(caught[0].category, DeprecationWarning)

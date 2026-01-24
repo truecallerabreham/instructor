@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from collections.abc import Awaitable
 from typing import Any, TypeVar, cast, overload
 
 import cohere
-import instructor
 from pydantic import BaseModel
 from typing_extensions import ParamSpec
+
+import instructor
 
 
 T_Model = TypeVar("T_Model", bound=BaseModel)
@@ -51,6 +53,13 @@ def from_cohere(
     mode: instructor.Mode = instructor.Mode.COHERE_TOOLS,
     **kwargs: Any,
 ):
+    warnings.warn(
+        "from_cohere() is deprecated and will be removed in v2.0. "
+        "Use instructor.from_provider('cohere/<model>') or "
+        "instructor.v2.providers.cohere.from_cohere(..., mode=Mode.TOOLS or Mode.JSON_SCHEMA or Mode.MD_JSON).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     valid_modes = {
         instructor.Mode.COHERE_TOOLS,
         instructor.Mode.COHERE_JSON_SCHEMA,
