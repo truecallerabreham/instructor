@@ -14,15 +14,6 @@ from ...core.registry import mode_registry, normalize_mode
 # Ensure handlers are registered (decorators auto-register on import)
 from . import handlers  # noqa: F401
 
-VALID_MODES = {
-    Mode.TOOLS,
-    Mode.JSON,
-    # Backwards compatibility
-    Mode.GENAI_TOOLS,
-    Mode.GENAI_JSON,
-    Mode.GENAI_STRUCTURED_OUTPUTS,
-}
-
 
 @overload
 def from_genai(
@@ -55,8 +46,7 @@ def from_genai(
     """
     Create a v2 Instructor client from a google.genai.Client instance.
 
-    Supports generic modes (TOOLS, JSON) and backwards-compatible provider-specific modes
-    (GENAI_TOOLS, GENAI_JSON, GENAI_STRUCTURED_OUTPUTS).
+    Supports generic modes (TOOLS, JSON).
 
     Args:
         client: google.genai.Client instance

@@ -854,7 +854,7 @@ See `instructor/v2/providers/anthropic/` and `instructor/v2/providers/genai/` fo
 | **Mode Handling**        | Registry adapters in v1               | Registry-based handler lookup        |
 | **Mode Validation**      | Runtime (in factory function)         | Compile-time (in `patch_v2`)         |
 | **Handler Organization** | Scattered utility functions           | Centralized handler classes          |
-| **Mode Enums**           | Provider-specific (`ANTHROPIC_TOOLS`) | Generic (`TOOLS`) with normalization |
+| **Mode Enums**           | Provider-specific (`ANTHROPIC_TOOLS`) | Generic (`TOOLS`, `JSON`, `JSON_SCHEMA`) |
 | **Registration**         | Manual function calls                 | Decorator-based auto-registration    |
 | **Testing**              | Test entire flow                      | Test handlers independently          |
 
@@ -1103,7 +1103,7 @@ This checklist tracks which providers have been migrated to v2:
 
 - [x] **Anthropic** (`Provider.ANTHROPIC`)
   - Location: `instructor/v2/providers/anthropic/`
-  - Modes: `TOOLS`, `JSON`, `JSON_SCHEMA`, `PARALLEL_TOOLS`, `ANTHROPIC_REASONING_TOOLS` (deprecated)
+  - Modes: `TOOLS`, `JSON`, `JSON_SCHEMA`, `PARALLEL_TOOLS`
   - Tests: `tests/v2/test_provider_modes.py`, `tests/v2/test_handlers_parametrized.py`
   - Status: ✅ Complete
 

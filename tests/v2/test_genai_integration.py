@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from instructor.core.exceptions import ModeError
 from instructor.mode import Mode
 from instructor.utils.providers import Provider
 
@@ -66,10 +67,12 @@ def test_mode_registry_has_genai_handlers():
     # Test generic modes
     assert mode_registry.is_registered(Provider.GENAI, Mode.TOOLS)
     assert mode_registry.is_registered(Provider.GENAI, Mode.JSON)
-    # Test backwards compatibility
-    assert mode_registry.is_registered(Provider.GENAI, Mode.GENAI_TOOLS)
-    assert mode_registry.is_registered(Provider.GENAI, Mode.GENAI_JSON)
-    assert mode_registry.is_registered(Provider.GENAI, Mode.GENAI_STRUCTURED_OUTPUTS)
+    # Legacy modes are not registered in v2
+    assert not mode_registry.is_registered(Provider.GENAI, Mode.GENAI_TOOLS)
+    assert not mode_registry.is_registered(Provider.GENAI, Mode.GENAI_JSON)
+    assert not mode_registry.is_registered(
+        Provider.GENAI, Mode.GENAI_STRUCTURED_OUTPUTS
+    )
 
 
 def test_from_genai_sync_generic_mode(monkeypatch):
@@ -89,21 +92,16 @@ def test_from_genai_sync_generic_mode(monkeypatch):
     assert client.models.called
 
 
-def test_from_genai_sync_backwards_compat(monkeypatch):
-    """Test backwards compatibility with Mode.GENAI_TOOLS."""
+def test_from_genai_sync_legacy_mode_rejected(monkeypatch):
+    """Test legacy Mode.GENAI_TOOLS is rejected in v2."""
     monkeypatch.setattr(
         "instructor.v2.providers.genai.client.Client",
         DummyClient,
     )
 
     client = DummyClient()
-    instructor = from_genai(client, mode=Mode.GENAI_TOOLS, use_async=False)
-    instructor.chat.completions.create(
-        messages=[{"role": "user", "content": "Ping"}],
-        response_model=None,
-    )
-
-    assert client.models.called
+    with pytest.raises(ModeError):
+        from_genai(client, mode=Mode.GENAI_TOOLS, use_async=False)
 
 
 @pytest.mark.asyncio
@@ -123,19 +121,15 @@ async def test_from_genai_async_generic_mode(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_from_genai_async_backwards_compat(monkeypatch):
-    """Test backwards compatibility with Mode.GENAI_TOOLS and async."""
+async def test_from_genai_async_legacy_mode_rejected(monkeypatch):
+    """Test legacy Mode.GENAI_TOOLS is rejected in async v2."""
     monkeypatch.setattr(
         "instructor.v2.providers.genai.client.Client",
         DummyClient,
     )
     client = DummyClient()
-    instructor = from_genai(client, mode=Mode.GENAI_TOOLS, use_async=True)
-    await instructor.chat.completions.create(
-        messages=[{"role": "user", "content": "Ping"}],
-        response_model=None,
-    )
-    assert client.aio.models.called
+    with pytest.raises(ModeError):
+        from_genai(client, mode=Mode.GENAI_TOOLS, use_async=True)
 
 
 def test_from_genai_json_mode(monkeypatch):
@@ -155,18 +149,13 @@ def test_from_genai_json_mode(monkeypatch):
     assert client.models.called
 
 
-def test_from_genai_json_backwards_compat(monkeypatch):
-    """Test backwards compatibility with Mode.GENAI_STRUCTURED_OUTPUTS."""
+def test_from_genai_json_legacy_mode_rejected(monkeypatch):
+    """Test legacy Mode.GENAI_STRUCTURED_OUTPUTS is rejected in v2."""
     monkeypatch.setattr(
         "instructor.v2.providers.genai.client.Client",
         DummyClient,
     )
 
     client = DummyClient()
-    instructor = from_genai(client, mode=Mode.GENAI_STRUCTURED_OUTPUTS, use_async=False)
-    instructor.chat.completions.create(
-        messages=[{"role": "user", "content": "Ping"}],
-        response_model=None,
-    )
-
-    assert client.models.called
+    with pytest.raises(ModeError):
+        from_genai(client, mode=Mode.GENAI_STRUCTURED_OUTPUTS, use_async=False)

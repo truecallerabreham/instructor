@@ -200,7 +200,6 @@ _HANDLER_SPECS: dict[Provider, tuple[str, list[Mode]]] = {
             Mode.JSON,
             Mode.JSON_SCHEMA,
             Mode.PARALLEL_TOOLS,
-            Mode.ANTHROPIC_REASONING_TOOLS,
         ],
     ),
     Provider.GENAI: (

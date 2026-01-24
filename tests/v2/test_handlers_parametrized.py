@@ -129,7 +129,6 @@ PROVIDER_HANDLER_MODES: dict[Provider, list[Mode]] = {
         Mode.JSON,
         Mode.JSON_SCHEMA,
         Mode.PARALLEL_TOOLS,
-        Mode.ANTHROPIC_REASONING_TOOLS,
     ],
     Provider.GENAI: [Mode.TOOLS, Mode.JSON],
     Provider.GEMINI: [Mode.TOOLS, Mode.MD_JSON],

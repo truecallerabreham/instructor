@@ -161,11 +161,7 @@ class AnthropicHandlerBase(ModeHandler):
         """Extract JSON chunks from Anthropic streaming responses."""
         for chunk in completion:
             try:
-                if self.mode in {
-                    Mode.TOOLS,
-                    Mode.ANTHROPIC_REASONING_TOOLS,
-                    Mode.PARALLEL_TOOLS,
-                }:
+                if self.mode in {Mode.TOOLS, Mode.PARALLEL_TOOLS}:
                     yield chunk.delta.partial_json
                 elif self.mode in {Mode.JSON, Mode.JSON_SCHEMA}:
                     if json_chunk := chunk.delta.text:
@@ -179,11 +175,7 @@ class AnthropicHandlerBase(ModeHandler):
         """Extract JSON chunks from Anthropic async streams."""
         async for chunk in completion:
             try:
-                if self.mode in {
-                    Mode.TOOLS,
-                    Mode.ANTHROPIC_REASONING_TOOLS,
-                    Mode.PARALLEL_TOOLS,
-                }:
+                if self.mode in {Mode.TOOLS, Mode.PARALLEL_TOOLS}:
                     yield chunk.delta.partial_json
                 elif self.mode in {Mode.JSON, Mode.JSON_SCHEMA}:
                     if json_chunk := chunk.delta.text:
@@ -195,11 +187,7 @@ class AnthropicHandlerBase(ModeHandler):
         self, messages: list[dict[str, Any]], autodetect_images: bool = False
     ) -> list[dict[str, Any]]:
         """Convert messages for Anthropic-compatible multimodal payloads."""
-        if self.mode in {
-            Mode.TOOLS,
-            Mode.PARALLEL_TOOLS,
-            Mode.ANTHROPIC_REASONING_TOOLS,
-        }:
+        if self.mode in {Mode.TOOLS, Mode.PARALLEL_TOOLS}:
             target_mode = Mode.ANTHROPIC_TOOLS
         else:
             target_mode = Mode.ANTHROPIC_JSON
@@ -476,21 +464,6 @@ class AnthropicToolsHandler(AnthropicHandlerBase):
             context=validation_context,
             strict=strict,
         )
-
-
-@register_mode_handler(Provider.ANTHROPIC, Mode.ANTHROPIC_REASONING_TOOLS)
-class AnthropicReasoningToolsHandler(AnthropicToolsHandler):
-    """Deprecated reasoning mode that delegates to AnthropicToolsHandler."""
-
-    mode = Mode.ANTHROPIC_REASONING_TOOLS
-
-    def prepare_request(
-        self,
-        response_model: type[BaseModel] | None,
-        kwargs: dict[str, Any],
-    ) -> tuple[type[BaseModel] | None, dict[str, Any]]:
-        Mode.warn_anthropic_reasoning_tools_deprecation()
-        return super().prepare_request(response_model, kwargs)
 
 
 @register_mode_handler(Provider.ANTHROPIC, Mode.PARALLEL_TOOLS)
@@ -892,7 +865,6 @@ class AnthropicStructuredOutputsHandler(AnthropicHandlerBase):
 
 __all__ = [
     "AnthropicToolsHandler",
-    "AnthropicReasoningToolsHandler",
     "AnthropicParallelToolsHandler",
     "AnthropicJSONHandler",
     "AnthropicStructuredOutputsHandler",

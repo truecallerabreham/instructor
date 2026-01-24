@@ -154,7 +154,6 @@ PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = {
             Mode.JSON,
             Mode.JSON_SCHEMA,
             Mode.PARALLEL_TOOLS,
-            Mode.ANTHROPIC_REASONING_TOOLS,
         ],
         "unsupported_modes": [Mode.MD_JSON],
         "legacy_modes": {
