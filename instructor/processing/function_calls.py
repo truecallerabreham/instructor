@@ -2,14 +2,14 @@
 import inspect
 import json
 import logging
+import warnings
 import re
 from functools import wraps
-from typing import Annotated, Any, Optional, TypeVar, cast
+from typing import Any, Optional, TypeVar, cast
 from openai.types.chat import ChatCompletion
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     TypeAdapter,
     create_model,
 )
@@ -179,6 +179,27 @@ class ResponseSchema(BaseModel):
         )
 
     @classmethod
+    def _parse_with_registry(
+        cls: type[BaseModel],
+        completion: Any,
+        *,
+        mode: Mode,
+        provider: Provider,
+        validation_context: Optional[dict[str, Any]] = None,
+        strict: Optional[bool] = None,
+        warning: Optional[str] = None,
+    ) -> BaseModel:
+        if warning:
+            warnings.warn(warning, DeprecationWarning, stacklevel=2)
+        return cls.from_response(
+            completion,
+            validation_context=validation_context,
+            strict=strict,
+            mode=mode,
+            provider=provider,
+        )
+
+    @classmethod
     def parse_genai_structured_outputs(
         cls: type[BaseModel],
         completion: ChatCompletion,
@@ -276,29 +297,18 @@ class ResponseSchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
-        """Legacy v1 parsing method for Anthropic tools.
-
-        .. deprecated:: 1.13.0
-            This method is deprecated and will be removed in instructor v2.0.0.
-            Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.
-        """
-        from anthropic.types import Message
-
-        if isinstance(completion, Message) and completion.stop_reason == "max_tokens":
-            raise IncompleteOutputException(last_completion=completion)
-
-        # Anthropic returns arguments as a dict, dump to json for model validation below
-        tool_calls = [
-            json.dumps(c.input) for c in completion.content if c.type == "tool_use"
-        ]
-
-        tool_calls_validator = TypeAdapter(
-            Annotated[list[Any], Field(min_length=1, max_length=1)]
-        )
-        tool_call = tool_calls_validator.validate_python(tool_calls)[0]
-
-        return cls.model_validate_json(
-            tool_call, context=validation_context, strict=strict
+        """Legacy Anthropic tools parser (deprecated)."""
+        return cls._parse_with_registry(
+            completion,
+            mode=Mode.ANTHROPIC_TOOLS,
+            provider=Provider.ANTHROPIC,
+            validation_context=validation_context,
+            strict=strict,
+            warning=(
+                "ResponseSchema.parse_anthropic_tools is deprecated. "
+                "Use process_response(..., provider=Provider.ANTHROPIC, mode=Mode.TOOLS) "
+                "or ResponseSchema.from_response with core modes."
+            ),
         )
 
     @classmethod
@@ -308,47 +318,19 @@ class ResponseSchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
-        """Legacy v1 parsing method for Anthropic JSON.
-
-        .. deprecated:: 1.13.0
-            This method is deprecated and will be removed in instructor v2.0.0.
-            Use v2 handlers via instructor.v2.providers.anthropic.handlers instead.
-        """
-        from anthropic.types import Message
-
-        last_block = None
-
-        if hasattr(completion, "choices"):
-            completion = completion.choices[0]
-            if completion.finish_reason == "length":
-                raise IncompleteOutputException(last_completion=completion)
-            text = completion.message.content
-        else:
-            assert isinstance(completion, Message)
-            if completion.stop_reason == "max_tokens":
-                raise IncompleteOutputException(last_completion=completion)
-            # Find the last text block in the completion
-            # this is because the completion is a list of blocks
-            # and the last block is the one that contains the text ideally
-            # this could happen due to things like multiple tool calls
-            # read: https://docs.anthropic.com/en/docs/build-with-claude/tool-use/web-search-tool#response
-            text_blocks = [c for c in completion.content if c.type == "text"]
-            last_block = text_blocks[-1]
-            text = last_block.text
-
-        extra_text = extract_json_from_codeblock(text)
-
-        if strict:
-            model = cls.model_validate_json(
-                extra_text, context=validation_context, strict=True
-            )
-        else:
-            # Allow control characters to pass through by using the non-strict JSON parser.
-            parsed = json.loads(extra_text, strict=False)
-            # Pydantic non-strict: https://docs.pydantic.dev/latest/concepts/strict_mode/
-            model = cls.model_validate(parsed, context=validation_context, strict=False)
-
-        return model
+        """Legacy Anthropic JSON parser (deprecated)."""
+        return cls._parse_with_registry(
+            completion,
+            mode=Mode.ANTHROPIC_JSON,
+            provider=Provider.ANTHROPIC,
+            validation_context=validation_context,
+            strict=strict,
+            warning=(
+                "ResponseSchema.parse_anthropic_json is deprecated. "
+                "Use process_response(..., provider=Provider.ANTHROPIC, mode=Mode.JSON) "
+                "or ResponseSchema.from_response with core modes."
+            ),
+        )
 
     @classmethod
     def parse_bedrock_json(
@@ -641,14 +623,17 @@ class ResponseSchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
-        message = completion.choices[0].message
-        assert (
-            message.function_call.name == cls.openai_schema["name"]  # type: ignore[index]
-        ), "Function name does not match"
-        return cls.model_validate_json(
-            message.function_call.arguments,  # type: ignore[attr-defined]
-            context=validation_context,
+        """Legacy OpenAI FUNCTIONS parser (deprecated)."""
+        return cls._parse_with_registry(
+            completion,
+            mode=Mode.FUNCTIONS,
+            provider=Provider.OPENAI,
+            validation_context=validation_context,
             strict=strict,
+            warning=(
+                "ResponseSchema.parse_functions is deprecated. "
+                "Use process_response(..., mode=Mode.TOOLS) or ResponseSchema.from_response."
+            ),
         )
 
     @classmethod
@@ -658,25 +643,17 @@ class ResponseSchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
-        from openai.types.responses import ResponseFunctionToolCall
-
-        tool_call_message = None
-        for message in completion.output:
-            if isinstance(message, ResponseFunctionToolCall):
-                if message.name == cls.openai_schema["name"]:
-                    tool_call_message = message
-                    break
-        if not tool_call_message:
-            raise ResponseParsingError(
-                f"Required tool call '{cls.openai_schema['name']}' not found in response",
-                mode="RESPONSES_TOOLS",
-                raw_response=completion,
-            )
-
-        return cls.model_validate_json(
-            tool_call_message.arguments,  # type: ignore[attr-defined]
-            context=validation_context,
+        """Legacy OpenAI Responses Tools parser (deprecated)."""
+        return cls._parse_with_registry(
+            completion,
+            mode=Mode.RESPONSES_TOOLS,
+            provider=Provider.OPENAI,
+            validation_context=validation_context,
             strict=strict,
+            warning=(
+                "ResponseSchema.parse_responses_tools is deprecated. "
+                "Use process_response(..., mode=Mode.RESPONSES_TOOLS) or ResponseSchema.from_response."
+            ),
         )
 
     @classmethod
@@ -686,25 +663,17 @@ class ResponseSchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
-        message = completion.choices[0].message
-        # this field seems to be missing when using instructor with some other tools (e.g. litellm)
-        # trying to fix this by adding a check
-
-        if hasattr(message, "refusal"):
-            assert message.refusal is None, (
-                f"Unable to generate a response due to {message.refusal}"
-            )
-        assert len(message.tool_calls or []) == 1, (
-            f"Instructor does not support multiple tool calls, use List[Model] instead"
-        )
-        tool_call = message.tool_calls[0]  # type: ignore
-        assert (
-            tool_call.function.name == cls.openai_schema["name"]  # type: ignore[index]
-        ), "Tool name does not match"
-        return cls.model_validate_json(
-            tool_call.function.arguments,  # type: ignore
-            context=validation_context,
+        """Legacy OpenAI tools parser (deprecated)."""
+        return cls._parse_with_registry(
+            completion,
+            mode=Mode.TOOLS,
+            provider=Provider.OPENAI,
+            validation_context=validation_context,
             strict=strict,
+            warning=(
+                "ResponseSchema.parse_tools is deprecated. "
+                "Use process_response(..., mode=Mode.TOOLS) or ResponseSchema.from_response."
+            ),
         )
 
     @classmethod
@@ -733,21 +702,18 @@ class ResponseSchema(BaseModel):
         validation_context: Optional[dict[str, Any]] = None,
         strict: Optional[bool] = None,
     ) -> BaseModel:
-        """Parse JSON mode responses using the optimized extraction and validation."""
-        # Check for incomplete output
-        _handle_incomplete_output(completion)
-
-        # Extract text from the response
-        message = _extract_text_content(completion)
-        if not message:
-            # Fallback for OpenAI format if _extract_text_content doesn't handle it
-            message = completion.choices[0].message.content or ""
-
-        # Extract JSON from the text
-        json_content = extract_json_from_codeblock(message)
-
-        # Validate the model from the JSON
-        return _validate_model_from_json(cls, json_content, validation_context, strict)
+        """Legacy JSON parser (deprecated)."""
+        return cls._parse_with_registry(
+            completion,
+            mode=Mode.JSON,
+            provider=Provider.OPENAI,
+            validation_context=validation_context,
+            strict=strict,
+            warning=(
+                "ResponseSchema.parse_json is deprecated. "
+                "Use process_response(..., mode=Mode.JSON) or ResponseSchema.from_response."
+            ),
+        )
 
 
 def response_schema(cls: type[BaseModel]) -> ResponseSchema:

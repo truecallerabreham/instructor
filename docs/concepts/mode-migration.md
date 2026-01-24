@@ -109,4 +109,6 @@ client = instructor.from_provider(
 - Use core modes for new code and docs.
 - Core tests are parameterized by provider and mode for consistent coverage.
 - Streaming extraction is now handled by provider handlers instead of the DSL.
+- Legacy `ResponseSchema.parse_*` helpers are deprecated. Use `process_response` or
+  `ResponseSchema.from_response` with core modes so the v2 registry handles parsing.
 - See [Mode Comparison](../modes-comparison.md) for details.
