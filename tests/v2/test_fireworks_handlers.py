@@ -293,19 +293,33 @@ class TestFireworksMDJSONHandler:
 class TestFireworksHandlerInheritance:
     """Tests verifying Fireworks handlers inherit from OpenAI handlers."""
 
-    def test_tools_handler_inherits_from_openai(self):
-        """Test FireworksToolsHandler inherits from OpenAIToolsHandler."""
-        from instructor.v2.providers.fireworks.handlers import FireworksToolsHandler
-        from instructor.v2.providers.openai.handlers import OpenAIToolsHandler
+    def test_tools_handler_uses_openai_handler(self):
+        """Test Fireworks uses OpenAI TOOLS handler (registered via OPENAI_COMPAT_PROVIDERS)."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
 
-        assert issubclass(FireworksToolsHandler, OpenAIToolsHandler)
+        # Verify handlers are registered
+        assert mode_registry.is_registered(Provider.FIREWORKS, Mode.TOOLS)
+        # Get the handler and verify it's the OpenAI handler
+        fireworks_handlers = mode_registry.get_handlers(Provider.FIREWORKS, Mode.TOOLS)
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.TOOLS)
+        assert fireworks_handlers.request_handler == openai_handlers.request_handler
+        assert fireworks_handlers.response_parser == openai_handlers.response_parser
 
-    def test_md_json_handler_inherits_from_openai(self):
-        """Test FireworksMDJSONHandler inherits from OpenAIMDJSONHandler."""
-        from instructor.v2.providers.fireworks.handlers import FireworksMDJSONHandler
-        from instructor.v2.providers.openai.handlers import OpenAIMDJSONHandler
+    def test_md_json_handler_uses_openai_handler(self):
+        """Test Fireworks uses OpenAI MD_JSON handler (registered via OPENAI_COMPAT_PROVIDERS)."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
 
-        assert issubclass(FireworksMDJSONHandler, OpenAIMDJSONHandler)
+        # Verify handlers are registered
+        assert mode_registry.is_registered(Provider.FIREWORKS, Mode.MD_JSON)
+        # Get the handler and verify it's the OpenAI handler
+        fireworks_handlers = mode_registry.get_handlers(
+            Provider.FIREWORKS, Mode.MD_JSON
+        )
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.MD_JSON)
+        assert fireworks_handlers.request_handler == openai_handlers.request_handler
+        assert fireworks_handlers.response_parser == openai_handlers.response_parser
 
 
 # ============================================================================
@@ -314,31 +328,23 @@ class TestFireworksHandlerInheritance:
 
 
 class TestFireworksModeNormalization:
-    """Tests for Fireworks legacy mode normalization."""
+    """Tests for Fireworks mode handling in v2."""
 
     def test_fireworks_tools_normalizes_to_tools(self):
-        """Test FIREWORKS_TOOLS normalizes to TOOLS."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test FIREWORKS_TOOLS is not registered in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="FIREWORKS_TOOLS is deprecated"):
-            result = normalize_mode(Provider.FIREWORKS, Mode.FIREWORKS_TOOLS)
-        assert result == Mode.TOOLS
+        result = normalize_mode(Provider.FIREWORKS, Mode.FIREWORKS_TOOLS)
+        assert result == Mode.FIREWORKS_TOOLS
+        assert not mode_registry.is_registered(Provider.FIREWORKS, Mode.FIREWORKS_TOOLS)
 
     def test_fireworks_json_normalizes_to_md_json(self):
-        """Test FIREWORKS_JSON normalizes to MD_JSON."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test FIREWORKS_JSON is not registered in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="FIREWORKS_JSON is deprecated"):
-            result = normalize_mode(Provider.FIREWORKS, Mode.FIREWORKS_JSON)
-        assert result == Mode.MD_JSON
+        result = normalize_mode(Provider.FIREWORKS, Mode.FIREWORKS_JSON)
+        assert result == Mode.FIREWORKS_JSON
+        assert not mode_registry.is_registered(Provider.FIREWORKS, Mode.FIREWORKS_JSON)
 
     def test_generic_tools_passes_through(self):
         """Test generic TOOLS mode passes through unchanged."""

@@ -42,30 +42,22 @@ class TestCerebrasModeNormalization:
         assert result == Mode.MD_JSON
 
     def test_mode_normalization_cerebras_tools(self):
-        """Test CEREBRAS_TOOLS normalizes to TOOLS with deprecation warning."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test CEREBRAS_TOOLS is not supported in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="CEREBRAS_TOOLS is deprecated"):
-            result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_TOOLS)
+        result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_TOOLS)
 
-        assert result == Mode.TOOLS
+        assert result == Mode.CEREBRAS_TOOLS
+        assert not mode_registry.is_registered(Provider.CEREBRAS, Mode.CEREBRAS_TOOLS)
 
     def test_mode_normalization_cerebras_json(self):
-        """Test CEREBRAS_JSON normalizes to MD_JSON with deprecation warning."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test CEREBRAS_JSON is not supported in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="CEREBRAS_JSON is deprecated"):
-            result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_JSON)
+        result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_JSON)
 
-        assert result == Mode.MD_JSON
+        assert result == Mode.CEREBRAS_JSON
+        assert not mode_registry.is_registered(Provider.CEREBRAS, Mode.CEREBRAS_JSON)
 
 
 # ============================================================================
@@ -155,15 +147,35 @@ class TestCerebrasImports:
         # Should be None if cerebras not installed, or a function if installed
         assert from_cerebras is None or callable(from_cerebras)
 
-    def test_handlers_importable(self):
-        """Test Cerebras handlers are importable."""
-        from instructor.v2.providers.cerebras.handlers import (
-            CerebrasMDJSONHandler,
-            CerebrasToolsHandler,
+    def test_handlers_registered(self):
+        """Test Cerebras handlers are registered via OpenAI handlers."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
+
+        # Verify handlers are registered (they're registered via OpenAI handlers)
+        assert mode_registry.is_registered(Provider.CEREBRAS, Mode.TOOLS)
+        assert mode_registry.is_registered(Provider.CEREBRAS, Mode.MD_JSON)
+
+        # Verify handlers are the same as OpenAI handlers
+        cerebras_tools_handlers = mode_registry.get_handlers(
+            Provider.CEREBRAS, Mode.TOOLS
+        )
+        cerebras_md_json_handlers = mode_registry.get_handlers(
+            Provider.CEREBRAS, Mode.MD_JSON
+        )
+        openai_tools_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.TOOLS)
+        openai_md_json_handlers = mode_registry.get_handlers(
+            Provider.OPENAI, Mode.MD_JSON
         )
 
-        assert CerebrasToolsHandler is not None
-        assert CerebrasMDJSONHandler is not None
+        assert (
+            cerebras_tools_handlers.request_handler
+            == openai_tools_handlers.request_handler
+        )
+        assert (
+            cerebras_md_json_handlers.request_handler
+            == openai_md_json_handlers.request_handler
+        )
 
 
 # ============================================================================

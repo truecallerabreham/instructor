@@ -13,11 +13,7 @@ from typing import Any
 import pytest
 
 from instructor import Mode, Provider
-from instructor.v2.core.registry import (
-    mode_registry,
-    normalize_mode,
-    reset_deprecation_warnings,
-)
+from instructor.v2.core.registry import mode_registry, normalize_mode
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _HANDLER_MODULE_PATHS: dict[Provider, Path] = {
@@ -382,16 +378,15 @@ def _get_provider_unsupported_mode_params():
 
 
 def _get_provider_legacy_mode_params():
-    """Generate (provider, legacy_mode, expected_mode) parameters."""
+    """Generate (provider, legacy_mode) parameters."""
     params = []
     for provider, config in PROVIDER_CLIENT_CONFIGS.items():
-        for legacy_mode, expected_mode in config["legacy_modes"].items():
+        for legacy_mode in config["legacy_modes"].keys():
             params.append(
                 pytest.param(
                     provider,
                     legacy_mode,
-                    expected_mode,
-                    id=f"{provider.value}-{legacy_mode.value}->{expected_mode.value}",
+                    id=f"{provider.value}-{legacy_mode.value}",
                 )
             )
     return params
@@ -464,21 +459,16 @@ def test_generic_mode_passes_through(provider: Provider, mode: Mode) -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "provider,legacy_mode,expected_mode", _get_provider_legacy_mode_params()
-)
-def test_legacy_mode_normalizes(
-    provider: Provider, legacy_mode: Mode, expected_mode: Mode
-) -> None:
-    """Test that legacy modes normalize to expected modes."""
-    reset_deprecation_warnings()
-
-    with pytest.warns(DeprecationWarning):
-        result = normalize_mode(provider, legacy_mode)
-
-    assert result == expected_mode, (
-        f"Legacy mode {legacy_mode.value} should normalize to {expected_mode.value} for {provider.value}"
+@pytest.mark.parametrize("provider,legacy_mode", _get_provider_legacy_mode_params())
+def test_legacy_mode_not_supported(provider: Provider, legacy_mode: Mode) -> None:
+    """Test that legacy modes are not registered in v2."""
+    assert not mode_registry.is_registered(provider, legacy_mode), (
+        f"Legacy mode {legacy_mode.value} should NOT be registered for {provider.value}"
     )
+
+    # normalize_mode is a no-op in v2 for legacy modes
+    result = normalize_mode(provider, legacy_mode)
+    assert result == legacy_mode
 
 
 # ============================================================================
@@ -591,3 +581,166 @@ def test_from_function_raises_without_sdk(provider: Provider) -> None:
     except ImportError:
         # Module structure may vary - this is okay
         pass
+
+
+# ============================================================================
+# String-Based Initialization Tests
+# ============================================================================
+
+
+# OpenAI-compatible providers that support string-based initialization
+_OPENAI_COMPAT_PROVIDERS = [
+    Provider.ANYSCALE,
+    Provider.TOGETHER,
+    Provider.DATABRICKS,
+    Provider.DEEPSEEK,
+]
+
+
+@pytest.mark.parametrize(
+    "provider",
+    [pytest.param(p, id=p.value) for p in _OPENAI_COMPAT_PROVIDERS],
+)
+def test_string_based_initialization_delegates_to_from_provider(
+    provider: Provider,
+) -> None:
+    """Test that string-based initialization delegates to from_provider."""
+    config = PROVIDER_CLIENT_CONFIGS[provider]
+    from_function = config["from_function"]
+
+    # Import the from_* function
+    module = __import__("instructor.v2", fromlist=[from_function])
+    func = getattr(module, from_function, None)
+
+    if func is None:
+        pytest.skip(f"{from_function} not available (SDK may not be installed)")
+
+    # Mock from_provider to verify it's called
+    from unittest.mock import patch
+
+    with patch("instructor.from_provider") as mock_from_provider:
+        # Call with string (model name)
+        func("test-model", mode=Mode.TOOLS)
+
+        # Verify from_provider was called with correct provider prefix
+        mock_from_provider.assert_called_once()
+        call_args = mock_from_provider.call_args
+        assert call_args[0][0] == f"{provider.value}/test-model"
+        assert call_args[1]["mode"] == Mode.TOOLS
+
+
+@pytest.mark.parametrize(
+    "provider",
+    [pytest.param(p, id=p.value) for p in _OPENAI_COMPAT_PROVIDERS],
+)
+def test_string_based_initialization_with_async_client(provider: Provider) -> None:
+    """Test that string-based initialization supports async_client parameter."""
+    config = PROVIDER_CLIENT_CONFIGS[provider]
+    from_function = config["from_function"]
+
+    # Import the from_* function
+    module = __import__("instructor.v2", fromlist=[from_function])
+    func = getattr(module, from_function, None)
+
+    if func is None:
+        pytest.skip(f"{from_function} not available (SDK may not be installed)")
+
+    # Mock from_provider to verify it's called
+    from unittest.mock import patch
+
+    with patch("instructor.from_provider") as mock_from_provider:
+        # Call with string and async_client=True
+        func("test-model", mode=Mode.TOOLS, async_client=True)
+
+        # Verify from_provider was called with async_client=True
+        mock_from_provider.assert_called_once()
+        call_args = mock_from_provider.call_args
+        assert call_args[0][0] == f"{provider.value}/test-model"
+        assert call_args[1]["mode"] == Mode.TOOLS
+        assert call_args[1]["async_client"] is True
+
+
+@pytest.mark.parametrize(
+    "provider",
+    [pytest.param(p, id=p.value) for p in _OPENAI_COMPAT_PROVIDERS],
+)
+def test_string_based_initialization_forwards_kwargs(provider: Provider) -> None:
+    """Test that string-based initialization forwards all kwargs to from_provider."""
+    config = PROVIDER_CLIENT_CONFIGS[provider]
+    from_function = config["from_function"]
+
+    # Import the from_* function
+    module = __import__("instructor.v2", fromlist=[from_function])
+    func = getattr(module, from_function, None)
+
+    if func is None:
+        pytest.skip(f"{from_function} not available (SDK may not be installed)")
+
+    # Mock from_provider to verify it's called
+    from unittest.mock import patch
+
+    with patch("instructor.from_provider") as mock_from_provider:
+        # Call with string and additional kwargs
+        func(
+            "test-model",
+            mode=Mode.TOOLS,
+            api_key="test-key",
+            base_url="https://test.example.com",
+            timeout=30,
+        )
+
+        # Verify from_provider was called with all kwargs
+        mock_from_provider.assert_called_once()
+        call_args = mock_from_provider.call_args
+        assert call_args[0][0] == f"{provider.value}/test-model"
+        assert call_args[1]["mode"] == Mode.TOOLS
+        assert call_args[1]["api_key"] == "test-key"
+        assert call_args[1]["base_url"] == "https://test.example.com"
+        assert call_args[1]["timeout"] == 30
+
+
+@pytest.mark.parametrize(
+    "provider",
+    [pytest.param(p, id=p.value) for p in _OPENAI_COMPAT_PROVIDERS],
+)
+def test_client_based_initialization_still_works(provider: Provider) -> None:
+    """Test that client-based initialization still works (backward compatibility)."""
+    config = PROVIDER_CLIENT_CONFIGS[provider]
+    from_function = config["from_function"]
+    sdk_module = config["sdk_module"]
+
+    # Skip if SDK not installed
+    if _dependency_missing(sdk_module):
+        pytest.skip(f"{sdk_module} not installed")
+
+    # Import the from_* function
+    module = __import__("instructor.v2", fromlist=[from_function])
+    func = getattr(module, from_function, None)
+
+    if func is None:
+        pytest.skip(f"{from_function} not available")
+
+    # Import OpenAI client
+    try:
+        import openai
+    except ImportError:
+        pytest.skip("openai package not installed")
+
+    # Create a mock OpenAI client
+    client = openai.OpenAI(api_key="test-key")
+
+    # Call with client (should use _from_openai_compat, not from_provider)
+    from unittest.mock import patch
+
+    with patch(
+        "instructor.v2.providers.openai.client._from_openai_compat"
+    ) as mock_compat:
+        mock_compat.return_value = "mock_instructor"
+        result = func(client, mode=Mode.TOOLS)
+
+        # Verify _from_openai_compat was called (not from_provider)
+        mock_compat.assert_called_once()
+        call_args = mock_compat.call_args
+        assert call_args[0][0] == client
+        assert call_args[1]["provider"] == provider
+        assert call_args[1]["mode"] == Mode.TOOLS

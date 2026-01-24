@@ -330,19 +330,31 @@ class TestCerebrasHandlerRegistration:
 class TestCerebrasHandlerInheritance:
     """Tests verifying Cerebras handlers inherit from OpenAI handlers."""
 
-    def test_tools_handler_inherits_from_openai(self):
-        """Test CerebrasToolsHandler inherits from OpenAIToolsHandler."""
-        from instructor.v2.providers.cerebras.handlers import CerebrasToolsHandler
-        from instructor.v2.providers.openai.handlers import OpenAIToolsHandler
+    def test_tools_handler_uses_openai_handler(self):
+        """Test Cerebras uses OpenAI TOOLS handler (registered via OPENAI_COMPAT_PROVIDERS)."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
 
-        assert issubclass(CerebrasToolsHandler, OpenAIToolsHandler)
+        # Verify handlers are registered
+        assert mode_registry.is_registered(Provider.CEREBRAS, Mode.TOOLS)
+        # Get the handler and verify it's the OpenAI handler
+        cerebras_handlers = mode_registry.get_handlers(Provider.CEREBRAS, Mode.TOOLS)
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.TOOLS)
+        assert cerebras_handlers.request_handler == openai_handlers.request_handler
+        assert cerebras_handlers.response_parser == openai_handlers.response_parser
 
-    def test_md_json_handler_inherits_from_openai(self):
-        """Test CerebrasMDJSONHandler inherits from OpenAIMDJSONHandler."""
-        from instructor.v2.providers.cerebras.handlers import CerebrasMDJSONHandler
-        from instructor.v2.providers.openai.handlers import OpenAIMDJSONHandler
+    def test_md_json_handler_uses_openai_handler(self):
+        """Test Cerebras uses OpenAI MD_JSON handler (registered via OPENAI_COMPAT_PROVIDERS)."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
 
-        assert issubclass(CerebrasMDJSONHandler, OpenAIMDJSONHandler)
+        # Verify handlers are registered
+        assert mode_registry.is_registered(Provider.CEREBRAS, Mode.MD_JSON)
+        # Get the handler and verify it's the OpenAI handler
+        cerebras_handlers = mode_registry.get_handlers(Provider.CEREBRAS, Mode.MD_JSON)
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.MD_JSON)
+        assert cerebras_handlers.request_handler == openai_handlers.request_handler
+        assert cerebras_handlers.response_parser == openai_handlers.response_parser
 
 
 # ============================================================================
@@ -351,31 +363,23 @@ class TestCerebrasHandlerInheritance:
 
 
 class TestCerebrasModeNormalization:
-    """Tests for Cerebras legacy mode normalization."""
+    """Tests for Cerebras mode handling in v2."""
 
     def test_cerebras_tools_normalizes_to_tools(self):
-        """Test CEREBRAS_TOOLS normalizes to TOOLS."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test CEREBRAS_TOOLS is not registered in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="CEREBRAS_TOOLS is deprecated"):
-            result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_TOOLS)
-        assert result == Mode.TOOLS
+        result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_TOOLS)
+        assert result == Mode.CEREBRAS_TOOLS
+        assert not mode_registry.is_registered(Provider.CEREBRAS, Mode.CEREBRAS_TOOLS)
 
     def test_cerebras_json_normalizes_to_md_json(self):
-        """Test CEREBRAS_JSON normalizes to MD_JSON."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test CEREBRAS_JSON is not registered in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="CEREBRAS_JSON is deprecated"):
-            result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_JSON)
-        assert result == Mode.MD_JSON
+        result = normalize_mode(Provider.CEREBRAS, Mode.CEREBRAS_JSON)
+        assert result == Mode.CEREBRAS_JSON
+        assert not mode_registry.is_registered(Provider.CEREBRAS, Mode.CEREBRAS_JSON)
 
     def test_generic_tools_passes_through(self):
         """Test generic TOOLS mode passes through unchanged."""

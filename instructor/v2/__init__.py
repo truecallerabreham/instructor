@@ -224,7 +224,7 @@ _HANDLER_SPECS: dict[Provider, tuple[str, list[Mode]]] = {
         [Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON],
     ),
     Provider.GROQ: (
-        "instructor.v2.providers.groq.handlers",
+        "instructor.v2.providers.openai.handlers",
         [Mode.TOOLS, Mode.MD_JSON],
     ),
     Provider.MISTRAL: (
@@ -236,7 +236,7 @@ _HANDLER_SPECS: dict[Provider, tuple[str, list[Mode]]] = {
         [Mode.TOOLS, Mode.MD_JSON, Mode.PARALLEL_TOOLS],
     ),
     Provider.FIREWORKS: (
-        "instructor.v2.providers.fireworks.handlers",
+        "instructor.v2.providers.openai.handlers",
         [Mode.TOOLS, Mode.MD_JSON],
     ),
     Provider.BEDROCK: (
@@ -244,7 +244,7 @@ _HANDLER_SPECS: dict[Provider, tuple[str, list[Mode]]] = {
         [Mode.TOOLS, Mode.MD_JSON],
     ),
     Provider.CEREBRAS: (
-        "instructor.v2.providers.cerebras.handlers",
+        "instructor.v2.providers.openai.handlers",
         [Mode.TOOLS, Mode.MD_JSON],
     ),
     Provider.WRITER: (

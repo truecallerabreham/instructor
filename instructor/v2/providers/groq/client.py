@@ -12,7 +12,8 @@ from instructor import AsyncInstructor, Instructor, Mode, Provider
 from instructor.v2.core.patch import patch_v2
 
 # Ensure handlers are registered (decorators auto-register on import)
-from instructor.v2.providers.groq import handlers  # noqa: F401
+# Groq uses OpenAI-compatible API, so handlers are registered via OpenAI handlers
+from instructor.v2.providers.openai import handlers  # noqa: F401
 
 if TYPE_CHECKING:
     import groq

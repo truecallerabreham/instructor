@@ -133,14 +133,72 @@ def from_openai(
     )
 
 
+@overload
+def from_anyscale(
+    model: str,
+    mode: Mode = Mode.TOOLS,
+    async_client: bool = False,
+    **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+@overload
 def from_anyscale(
     client: openai.OpenAI | openai.AsyncOpenAI,
     mode: Mode = Mode.TOOLS,
     model: str | None = None,
     **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+def from_anyscale(
+    model_or_client: str | openai.OpenAI | openai.AsyncOpenAI,
+    mode: Mode = Mode.TOOLS,
+    model: str | None = None,
+    async_client: bool = False,
+    **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    """Create an Instructor instance for Anyscale.
+
+    Supports two usage patterns:
+
+    1. String-based (recommended): Pass a model name string
+       >>> from instructor.v2 import from_anyscale
+       >>> client = from_anyscale("Mixtral-8x7B-Instruct-v0.1", mode=Mode.TOOLS)
+
+    2. Client-based (backward compatible): Pass an OpenAI client instance
+       >>> from openai import OpenAI
+       >>> client = OpenAI(base_url="https://api.endpoints.anyscale.com/v1")
+       >>> instructor_client = from_anyscale(client, mode=Mode.TOOLS)
+
+    Args:
+        model_or_client: Model name string (delegates to from_provider) or OpenAI client instance
+        mode: The mode to use (defaults to Mode.TOOLS)
+        model: Optional model name (only used with client-based usage)
+        async_client: Whether to return async client (only used with string-based usage)
+        **kwargs: Additional keyword arguments passed to from_provider or Instructor constructor
+
+    Returns:
+        An Instructor instance (sync or async depending on usage pattern)
+
+    Raises:
+        ModeError: If mode is not registered for Anyscale
+        ClientError: If client is not a valid OpenAI client instance (client-based usage)
+    """
+    # String-based: delegate to from_provider
+    if isinstance(model_or_client, str):
+        from instructor import from_provider
+
+        return from_provider(
+            f"anyscale/{model_or_client}",
+            mode=mode,
+            async_client=async_client,
+            **kwargs,
+        )
+
+    # Client-based: existing behavior
     return _from_openai_compat(
-        client=client,
+        client=model_or_client,
         provider=Provider.ANYSCALE,
         mode=mode,
         model=model,
@@ -148,14 +206,72 @@ def from_anyscale(
     )
 
 
+@overload
+def from_together(
+    model: str,
+    mode: Mode = Mode.TOOLS,
+    async_client: bool = False,
+    **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+@overload
 def from_together(
     client: openai.OpenAI | openai.AsyncOpenAI,
     mode: Mode = Mode.TOOLS,
     model: str | None = None,
     **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+def from_together(
+    model_or_client: str | openai.OpenAI | openai.AsyncOpenAI,
+    mode: Mode = Mode.TOOLS,
+    model: str | None = None,
+    async_client: bool = False,
+    **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    """Create an Instructor instance for Together AI.
+
+    Supports two usage patterns:
+
+    1. String-based (recommended): Pass a model name string
+       >>> from instructor.v2 import from_together
+       >>> client = from_together("Mixtral-8x7B-Instruct-v0.1", mode=Mode.TOOLS)
+
+    2. Client-based (backward compatible): Pass an OpenAI client instance
+       >>> from openai import OpenAI
+       >>> client = OpenAI(base_url="https://api.together.xyz/v1")
+       >>> instructor_client = from_together(client, mode=Mode.TOOLS)
+
+    Args:
+        model_or_client: Model name string (delegates to from_provider) or OpenAI client instance
+        mode: The mode to use (defaults to Mode.TOOLS)
+        model: Optional model name (only used with client-based usage)
+        async_client: Whether to return async client (only used with string-based usage)
+        **kwargs: Additional keyword arguments passed to from_provider or Instructor constructor
+
+    Returns:
+        An Instructor instance (sync or async depending on usage pattern)
+
+    Raises:
+        ModeError: If mode is not registered for Together AI
+        ClientError: If client is not a valid OpenAI client instance (client-based usage)
+    """
+    # String-based: delegate to from_provider
+    if isinstance(model_or_client, str):
+        from instructor import from_provider
+
+        return from_provider(
+            f"together/{model_or_client}",
+            mode=mode,
+            async_client=async_client,
+            **kwargs,
+        )
+
+    # Client-based: existing behavior
     return _from_openai_compat(
-        client=client,
+        client=model_or_client,
         provider=Provider.TOGETHER,
         mode=mode,
         model=model,
@@ -163,14 +279,72 @@ def from_together(
     )
 
 
+@overload
+def from_databricks(
+    model: str,
+    mode: Mode = Mode.TOOLS,
+    async_client: bool = False,
+    **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+@overload
 def from_databricks(
     client: openai.OpenAI | openai.AsyncOpenAI,
     mode: Mode = Mode.TOOLS,
     model: str | None = None,
     **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+def from_databricks(
+    model_or_client: str | openai.OpenAI | openai.AsyncOpenAI,
+    mode: Mode = Mode.TOOLS,
+    model: str | None = None,
+    async_client: bool = False,
+    **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    """Create an Instructor instance for Databricks.
+
+    Supports two usage patterns:
+
+    1. String-based (recommended): Pass a model name string
+       >>> from instructor.v2 import from_databricks
+       >>> client = from_databricks("dbrx-instruct", mode=Mode.TOOLS)
+
+    2. Client-based (backward compatible): Pass an OpenAI client instance
+       >>> from openai import OpenAI
+       >>> client = OpenAI(base_url="https://workspace.cloud.databricks.com/serving-endpoints")
+       >>> instructor_client = from_databricks(client, mode=Mode.TOOLS)
+
+    Args:
+        model_or_client: Model name string (delegates to from_provider) or OpenAI client instance
+        mode: The mode to use (defaults to Mode.TOOLS)
+        model: Optional model name (only used with client-based usage)
+        async_client: Whether to return async client (only used with string-based usage)
+        **kwargs: Additional keyword arguments passed to from_provider or Instructor constructor
+
+    Returns:
+        An Instructor instance (sync or async depending on usage pattern)
+
+    Raises:
+        ModeError: If mode is not registered for Databricks
+        ClientError: If client is not a valid OpenAI client instance (client-based usage)
+    """
+    # String-based: delegate to from_provider
+    if isinstance(model_or_client, str):
+        from instructor import from_provider
+
+        return from_provider(
+            f"databricks/{model_or_client}",
+            mode=mode,
+            async_client=async_client,
+            **kwargs,
+        )
+
+    # Client-based: existing behavior
     return _from_openai_compat(
-        client=client,
+        client=model_or_client,
         provider=Provider.DATABRICKS,
         mode=mode,
         model=model,
@@ -178,14 +352,72 @@ def from_databricks(
     )
 
 
+@overload
+def from_deepseek(
+    model: str,
+    mode: Mode = Mode.TOOLS,
+    async_client: bool = False,
+    **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+@overload
 def from_deepseek(
     client: openai.OpenAI | openai.AsyncOpenAI,
     mode: Mode = Mode.TOOLS,
     model: str | None = None,
     **kwargs: Any,
+) -> Instructor | AsyncInstructor: ...
+
+
+def from_deepseek(
+    model_or_client: str | openai.OpenAI | openai.AsyncOpenAI,
+    mode: Mode = Mode.TOOLS,
+    model: str | None = None,
+    async_client: bool = False,
+    **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
+    """Create an Instructor instance for DeepSeek.
+
+    Supports two usage patterns:
+
+    1. String-based (recommended): Pass a model name string
+       >>> from instructor.v2 import from_deepseek
+       >>> client = from_deepseek("deepseek-chat", mode=Mode.TOOLS)
+
+    2. Client-based (backward compatible): Pass an OpenAI client instance
+       >>> from openai import OpenAI
+       >>> client = OpenAI(base_url="https://api.deepseek.com")
+       >>> instructor_client = from_deepseek(client, mode=Mode.TOOLS)
+
+    Args:
+        model_or_client: Model name string (delegates to from_provider) or OpenAI client instance
+        mode: The mode to use (defaults to Mode.TOOLS)
+        model: Optional model name (only used with client-based usage)
+        async_client: Whether to return async client (only used with string-based usage)
+        **kwargs: Additional keyword arguments passed to from_provider or Instructor constructor
+
+    Returns:
+        An Instructor instance (sync or async depending on usage pattern)
+
+    Raises:
+        ModeError: If mode is not registered for DeepSeek
+        ClientError: If client is not a valid OpenAI client instance (client-based usage)
+    """
+    # String-based: delegate to from_provider
+    if isinstance(model_or_client, str):
+        from instructor import from_provider
+
+        return from_provider(
+            f"deepseek/{model_or_client}",
+            mode=mode,
+            async_client=async_client,
+            **kwargs,
+        )
+
+    # Client-based: existing behavior
     return _from_openai_compat(
-        client=client,
+        client=model_or_client,
         provider=Provider.DEEPSEEK,
         mode=mode,
         model=model,

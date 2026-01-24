@@ -109,48 +109,54 @@ OPENAI_COMPATIBLE_PROVIDERS = [
     "provider", [pytest.param(p, id=p.value) for p in OPENAI_COMPATIBLE_PROVIDERS]
 )
 def test_tools_handler_inherits_from_openai(provider: Provider) -> None:
-    """Test that OpenAI-compatible providers inherit from OpenAI handlers."""
+    """Test that OpenAI-compatible providers use OpenAI handlers."""
     if Mode.TOOLS not in PROVIDER_HANDLER_MODES.get(provider, []):
         pytest.skip(f"{provider.value} does not support TOOLS mode")
 
-    from instructor.v2.providers.openai.handlers import OpenAIToolsHandler
+    from instructor.v2.core.registry import mode_registry
 
-    if provider == Provider.GROQ:
-        from instructor.v2.providers.groq.handlers import GroqToolsHandler
-
-        assert issubclass(GroqToolsHandler, OpenAIToolsHandler)
-    elif provider == Provider.FIREWORKS:
-        from instructor.v2.providers.fireworks.handlers import FireworksToolsHandler
-
-        assert issubclass(FireworksToolsHandler, OpenAIToolsHandler)
-    elif provider == Provider.CEREBRAS:
-        from instructor.v2.providers.cerebras.handlers import CerebrasToolsHandler
-
-        assert issubclass(CerebrasToolsHandler, OpenAIToolsHandler)
+    # For groq, fireworks, and cerebras, handlers are registered directly via OpenAI handlers
+    # (they're in OPENAI_COMPAT_PROVIDERS list), so they use the same handler class
+    if provider in (Provider.GROQ, Provider.FIREWORKS, Provider.CEREBRAS):
+        # Verify handlers are registered
+        assert mode_registry.is_registered(provider, Mode.TOOLS)
+        # Get the handler and verify it's the OpenAI handler
+        handlers = mode_registry.get_handlers(provider, Mode.TOOLS)
+        # The handler functions should be the same as OpenAI's
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.TOOLS)
+        assert handlers.request_handler == openai_handlers.request_handler
+        assert handlers.response_parser == openai_handlers.response_parser
+    else:
+        # For other providers that might have separate handler classes, skip this test
+        # as they may have their own implementations
+        pytest.skip(f"{provider.value} may have separate handler implementation")
 
 
 @pytest.mark.parametrize(
     "provider", [pytest.param(p, id=p.value) for p in OPENAI_COMPATIBLE_PROVIDERS]
 )
 def test_md_json_handler_inherits_from_openai(provider: Provider) -> None:
-    """Test that OpenAI-compatible providers inherit MD_JSON handlers from OpenAI."""
+    """Test that OpenAI-compatible providers use OpenAI MD_JSON handlers."""
     if Mode.MD_JSON not in PROVIDER_HANDLER_MODES.get(provider, []):
         pytest.skip(f"{provider.value} does not support MD_JSON mode")
 
-    from instructor.v2.providers.openai.handlers import OpenAIMDJSONHandler
+    from instructor.v2.core.registry import mode_registry
 
-    if provider == Provider.GROQ:
-        from instructor.v2.providers.groq.handlers import GroqMDJSONHandler
-
-        assert issubclass(GroqMDJSONHandler, OpenAIMDJSONHandler)
-    elif provider == Provider.FIREWORKS:
-        from instructor.v2.providers.fireworks.handlers import FireworksMDJSONHandler
-
-        assert issubclass(FireworksMDJSONHandler, OpenAIMDJSONHandler)
-    elif provider == Provider.CEREBRAS:
-        from instructor.v2.providers.cerebras.handlers import CerebrasMDJSONHandler
-
-        assert issubclass(CerebrasMDJSONHandler, OpenAIMDJSONHandler)
+    # For groq, fireworks, and cerebras, handlers are registered directly via OpenAI handlers
+    # (they're in OPENAI_COMPAT_PROVIDERS list), so they use the same handler class
+    if provider in (Provider.GROQ, Provider.FIREWORKS, Provider.CEREBRAS):
+        # Verify handlers are registered
+        assert mode_registry.is_registered(provider, Mode.MD_JSON)
+        # Get the handler and verify it's the OpenAI handler
+        handlers = mode_registry.get_handlers(provider, Mode.MD_JSON)
+        # The handler functions should be the same as OpenAI's
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.MD_JSON)
+        assert handlers.request_handler == openai_handlers.request_handler
+        assert handlers.response_parser == openai_handlers.response_parser
+    else:
+        # For other providers that might have separate handler classes, skip this test
+        # as they may have their own implementations
+        pytest.skip(f"{provider.value} may have separate handler implementation")
 
 
 # ============================================================================

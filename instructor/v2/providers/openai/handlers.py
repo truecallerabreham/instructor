@@ -55,6 +55,9 @@ OPENAI_COMPAT_PROVIDERS = [
     Provider.DATABRICKS,
     Provider.DEEPSEEK,
     Provider.OPENROUTER,
+    Provider.GROQ,
+    Provider.FIREWORKS,
+    Provider.CEREBRAS,
 ]
 
 OPENAI_JSON_SCHEMA_PROVIDERS = [

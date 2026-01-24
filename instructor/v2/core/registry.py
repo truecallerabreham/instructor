@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from instructor.mode import DEPRECATED_TO_CORE, Mode, reset_deprecated_mode_warnings
+from instructor.mode import Mode
 from instructor.utils.providers import Provider
 from instructor.v2.core.protocols import (
     AsyncStreamExtractor,
@@ -21,46 +21,14 @@ from instructor.v2.core.protocols import (
     TemplateHandler,
 )
 
-DEPRECATED_MODE_MAPPING = DEPRECATED_TO_CORE
-
 
 def normalize_mode(_provider: Provider, mode: Mode) -> Mode:
-    """Convert provider-specific modes to generic modes.
+    """Return the requested mode for v2 registry lookup.
 
-    This allows backward compatibility - users can still use provider-specific
-    modes like Mode.ANTHROPIC_TOOLS, and they'll be converted to generic modes
-    like Mode.TOOLS for registry lookup.
-
-    Emits a DeprecationWarning when a legacy mode is used.
-
-    Args:
-        provider: Provider enum value (for context, though mode mapping is provider-agnostic)
-        mode: Mode enum value (may be provider-specific)
-
-    Returns:
-        Generic mode enum value
+    V2 only supports generic modes directly. Provider-specific legacy modes
+    are not normalized here and should be treated as unsupported by callers.
     """
-    # Check if this is a deprecated mode
-    if mode in DEPRECATED_MODE_MAPPING:
-        Mode.warn_deprecated_mode(mode)
-        return DEPRECATED_MODE_MAPPING[mode]
-
-    # Add ANTHROPIC_STRUCTURED_OUTPUTS if it exists in the Mode enum
-    structured_mode = getattr(Mode, "ANTHROPIC_STRUCTURED_OUTPUTS", None)
-    if structured_mode is not None and mode == structured_mode:
-        Mode.warn_deprecated_mode(mode)
-        return Mode.JSON_SCHEMA
-
-    # Return as-is for core modes
     return mode
-
-
-def reset_deprecation_warnings() -> None:
-    """Reset the deprecation warning tracker.
-
-    Useful for testing to ensure warnings are shown again.
-    """
-    reset_deprecated_mode_warnings()
 
 
 @dataclass
@@ -403,12 +371,11 @@ _DEFAULT_HANDLER_MODULES = (
     "instructor.v2.providers.perplexity.handlers",
     "instructor.v2.providers.cohere.handlers",
     "instructor.v2.providers.xai.handlers",
-    "instructor.v2.providers.groq.handlers",
     "instructor.v2.providers.mistral.handlers",
-    "instructor.v2.providers.fireworks.handlers",
-    "instructor.v2.providers.cerebras.handlers",
     "instructor.v2.providers.writer.handlers",
     "instructor.v2.providers.bedrock.handlers",
+    # Note: groq, fireworks, and cerebras handlers are registered via OpenAI handlers
+    # since they use OpenAI-compatible APIs
 )
 
 

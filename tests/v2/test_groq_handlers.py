@@ -293,19 +293,31 @@ class TestGroqMDJSONHandler:
 class TestGroqHandlerInheritance:
     """Tests verifying Groq handlers inherit from OpenAI handlers."""
 
-    def test_tools_handler_inherits_from_openai(self):
-        """Test GroqToolsHandler inherits from OpenAIToolsHandler."""
-        from instructor.v2.providers.groq.handlers import GroqToolsHandler
-        from instructor.v2.providers.openai.handlers import OpenAIToolsHandler
+    def test_tools_handler_uses_openai_handler(self):
+        """Test Groq uses OpenAI TOOLS handler (registered via OPENAI_COMPAT_PROVIDERS)."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
 
-        assert issubclass(GroqToolsHandler, OpenAIToolsHandler)
+        # Verify handlers are registered
+        assert mode_registry.is_registered(Provider.GROQ, Mode.TOOLS)
+        # Get the handler and verify it's the OpenAI handler
+        groq_handlers = mode_registry.get_handlers(Provider.GROQ, Mode.TOOLS)
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.TOOLS)
+        assert groq_handlers.request_handler == openai_handlers.request_handler
+        assert groq_handlers.response_parser == openai_handlers.response_parser
 
-    def test_md_json_handler_inherits_from_openai(self):
-        """Test GroqMDJSONHandler inherits from OpenAIMDJSONHandler."""
-        from instructor.v2.providers.groq.handlers import GroqMDJSONHandler
-        from instructor.v2.providers.openai.handlers import OpenAIMDJSONHandler
+    def test_md_json_handler_uses_openai_handler(self):
+        """Test Groq uses OpenAI MD_JSON handler (registered via OPENAI_COMPAT_PROVIDERS)."""
+        from instructor import Mode, Provider
+        from instructor.v2.core.registry import mode_registry
 
-        assert issubclass(GroqMDJSONHandler, OpenAIMDJSONHandler)
+        # Verify handlers are registered
+        assert mode_registry.is_registered(Provider.GROQ, Mode.MD_JSON)
+        # Get the handler and verify it's the OpenAI handler
+        groq_handlers = mode_registry.get_handlers(Provider.GROQ, Mode.MD_JSON)
+        openai_handlers = mode_registry.get_handlers(Provider.OPENAI, Mode.MD_JSON)
+        assert groq_handlers.request_handler == openai_handlers.request_handler
+        assert groq_handlers.response_parser == openai_handlers.response_parser
 
 
 # ============================================================================

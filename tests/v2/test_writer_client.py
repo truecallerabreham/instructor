@@ -42,30 +42,22 @@ class TestWriterModeNormalization:
         assert result == Mode.MD_JSON
 
     def test_mode_normalization_writer_tools(self):
-        """Test WRITER_TOOLS normalizes to TOOLS with deprecation warning."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test WRITER_TOOLS is not supported in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="WRITER_TOOLS is deprecated"):
-            result = normalize_mode(Provider.WRITER, Mode.WRITER_TOOLS)
+        result = normalize_mode(Provider.WRITER, Mode.WRITER_TOOLS)
 
-        assert result == Mode.TOOLS
+        assert result == Mode.WRITER_TOOLS
+        assert not mode_registry.is_registered(Provider.WRITER, Mode.WRITER_TOOLS)
 
     def test_mode_normalization_writer_json(self):
-        """Test WRITER_JSON normalizes to MD_JSON with deprecation warning."""
-        from instructor.v2.core.registry import (
-            normalize_mode,
-            reset_deprecation_warnings,
-        )
+        """Test WRITER_JSON is not supported in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
-        reset_deprecation_warnings()
-        with pytest.warns(DeprecationWarning, match="WRITER_JSON is deprecated"):
-            result = normalize_mode(Provider.WRITER, Mode.WRITER_JSON)
+        result = normalize_mode(Provider.WRITER, Mode.WRITER_JSON)
 
-        assert result == Mode.MD_JSON
+        assert result == Mode.WRITER_JSON
+        assert not mode_registry.is_registered(Provider.WRITER, Mode.WRITER_JSON)
 
 
 # ============================================================================

@@ -304,7 +304,7 @@ This guide walks through migrating a provider from v1 to v2 architecture.
 **V1 Architecture**:
 
 - Registry lookup from v1 entry points for request, response, and reask
-- Legacy mode enums still accepted but normalized in the registry
+- Legacy mode enums still accepted (v1 only) and normalized in the registry
 - Thin adapters in v1 call handler methods
 
 **V2 Architecture**:
@@ -312,7 +312,7 @@ This guide walks through migrating a provider from v1 to v2 architecture.
 - Centralized registry-based handler system
 - Pluggable handlers per provider/mode combination
 - Compile-time mode validation
-- Generic mode enums with normalization (e.g., `TOOLS`, `JSON`)
+- Generic mode enums only (e.g., `TOOLS`, `JSON`)
 
 ### Step-by-Step Migration Process
 
@@ -370,8 +370,7 @@ Determine which generic v2 modes your provider supports:
 - `Mode.JSON` - JSON mode with schema instructions
 - `Mode.JSON_SCHEMA` - Native structured outputs (if supported)
 - `Mode.PARALLEL_TOOLS` - Parallel tool calling (if supported)
-
-**Mode Normalization**: Provider-specific modes (e.g., `COHERE_TOOLS`) map to generic modes (`TOOLS`) via `normalize_mode()`.
+Provider-specific legacy modes are not supported in v2. Use the generic modes directly.
 
 #### Step 4: Extract Handler Logic from V1
 
@@ -494,7 +493,7 @@ Create the factory function using `patch_v2`:
 # instructor/v2/providers/your_provider/client.py
 from instructor.v2.core.patch import patch_v2
 from instructor import Instructor, AsyncInstructor, Mode, Provider
-from instructor.v2.core.registry import mode_registry, normalize_mode
+from instructor.v2.core.registry import mode_registry
 from typing import overload, Any
 
 # Ensure handlers are registered (import triggers decorators)
@@ -529,11 +528,8 @@ def from_cohere(
     Returns:
         Instructor instance (sync or async)
     """
-    # Normalize provider-specific modes to generic modes
-    normalized_mode = normalize_mode(Provider.COHERE, mode)
-
     # Validate mode is registered
-    if not mode_registry.is_registered(Provider.COHERE, normalized_mode):
+    if not mode_registry.is_registered(Provider.COHERE, mode):
         from instructor.core.exceptions import ModeError
         available_modes = mode_registry.get_modes_for_provider(Provider.COHERE)
         raise ModeError(
@@ -552,7 +548,7 @@ def from_cohere(
     patched_create = patch_v2(
         func=create_func,
         provider=Provider.COHERE,
-        mode=normalized_mode,
+        mode=mode,
     )
 
     # Return appropriate instructor type
@@ -561,7 +557,7 @@ def from_cohere(
             client=client,
             create=patched_create,
             provider=Provider.COHERE,
-            mode=mode,  # Keep original mode for client
+            mode=mode,
             **kwargs,
         )
     else:
@@ -578,7 +574,6 @@ def from_cohere(
 
 - Uses `patch_v2()` instead of `instructor.patch()`
 - Validates mode registration via registry
-- Normalizes provider-specific modes
 - Uses generic `Mode` enum values
 
 #### Step 7: Export Provider
@@ -785,7 +780,7 @@ Use this checklist when migrating a provider:
 
 - [ ] Understand v1 implementation structure
 - [ ] Identify all supported modes
-- [ ] Map provider-specific modes to generic modes
+- [ ] Map v1 modes to v2 generic modes
 - [ ] Identify request preparation logic
 - [ ] Identify response parsing logic
 - [ ] Identify reask/retry logic
@@ -838,7 +833,7 @@ Use this checklist when migrating a provider:
 
 **Issue**: Provider-specific modes not working
 
-- **Solution**: Ensure `normalize_mode()` handles your provider-specific modes
+- **Solution**: Use v2 generic modes only (provider-specific legacy modes are not supported)
 
 **Issue**: Tests failing with import errors
 
@@ -896,15 +891,9 @@ When a user calls `client.create(response_model=MyModel, ...)`, the following ha
    - Retry logic calls API again with updated kwargs
    - Process repeats up to `max_retries` times
 
-### Mode Normalization
+### Mode Usage
 
-Provider-specific modes (e.g., `Mode.ANTHROPIC_TOOLS`) are automatically normalized to generic modes (e.g., `Mode.TOOLS`) for registry lookup. This allows:
-
-- Backward compatibility with provider-specific mode names
-- Shared handler implementations across providers
-- Consistent mode semantics
-
-The normalization happens in `normalize_mode()` function in `registry.py`.
+V2 expects generic modes (e.g., `Mode.TOOLS`, `Mode.JSON`, `Mode.JSON_SCHEMA`). Provider-specific legacy modes are not normalized in v2 and should be treated as unsupported.
 
 ### Handler Lifecycle
 

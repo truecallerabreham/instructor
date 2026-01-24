@@ -468,21 +468,23 @@ class TestCohereMDJSONHandler:
 
 
 class TestCohereModeNormalization:
-    """Tests for Cohere legacy mode normalization."""
+    """Tests for Cohere mode handling in v2."""
 
-    def test_cohere_tools_normalizes_to_tools(self):
-        """Test COHERE_TOOLS normalizes to TOOLS."""
-        from instructor.v2.core.registry import normalize_mode
+    def test_cohere_tools_not_registered(self):
+        """Test COHERE_TOOLS is not registered in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
         result = normalize_mode(Provider.COHERE, Mode.COHERE_TOOLS)
-        assert result == Mode.TOOLS
+        assert result == Mode.COHERE_TOOLS
+        assert not mode_registry.is_registered(Provider.COHERE, Mode.COHERE_TOOLS)
 
-    def test_cohere_json_schema_normalizes_to_json_schema(self):
-        """Test COHERE_JSON_SCHEMA normalizes to JSON_SCHEMA."""
-        from instructor.v2.core.registry import normalize_mode
+    def test_cohere_json_schema_not_registered(self):
+        """Test COHERE_JSON_SCHEMA is not registered in v2."""
+        from instructor.v2.core.registry import mode_registry, normalize_mode
 
         result = normalize_mode(Provider.COHERE, Mode.COHERE_JSON_SCHEMA)
-        assert result == Mode.JSON_SCHEMA
+        assert result == Mode.COHERE_JSON_SCHEMA
+        assert not mode_registry.is_registered(Provider.COHERE, Mode.COHERE_JSON_SCHEMA)
 
     def test_generic_tools_passes_through(self):
         """Test generic TOOLS mode passes through unchanged."""
