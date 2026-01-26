@@ -30,27 +30,6 @@ logger = logging.getLogger("instructor.v2")
 T_Model = TypeVar("T_Model", bound=BaseModel)
 
 
-def handle_context(
-    context: dict[str, Any] | None = None,
-    validation_context: dict[str, Any] | None = None,
-) -> dict[str, Any] | None:
-    """Handle context and validation_context parameters.
-
-    Args:
-        context: New-style context parameter
-        validation_context: Deprecated validation_context parameter
-
-    Returns:
-        Merged context dict or None
-
-    Raises:
-        ValidationContextError: If both parameters are provided
-    """
-    return RegistryValidationMixin.validate_context_parameters(
-        context, validation_context
-    )
-
-
 def patch_v2(
     func: Callable[..., Any],
     provider: Provider,
@@ -95,7 +74,6 @@ def _create_sync_wrapper(
     @wraps(func)
     def new_create_sync(
         response_model: type[T_Model] | None = None,
-        validation_context: dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
         max_retries: int | Retrying = 1,
         strict: bool = True,
@@ -104,8 +82,10 @@ def _create_sync_wrapper(
         **kwargs: Any,
     ) -> T_Model:
         """Patched synchronous create function."""
-        context = handle_context(context, validation_context)
         autodetect_images = bool(kwargs.get("autodetect_images", False))
+        cache = kwargs.pop("cache", None)
+        cache_ttl_raw = kwargs.pop("cache_ttl", None)
+        cache_ttl = cache_ttl_raw if isinstance(cache_ttl_raw, int) else None
 
         # Inject default model if not provided and available
         if default_model is not None and "model" not in kwargs:
@@ -133,6 +113,23 @@ def _create_sync_wrapper(
             context=context,
         )
 
+        # Attempt cache lookup before retry layer
+        if cache is not None and response_model is not None:
+            from instructor.cache import BaseCache, make_cache_key, load_cached_response
+
+            if isinstance(cache, BaseCache):
+                key = make_cache_key(
+                    messages=new_kwargs.get("messages")
+                    or new_kwargs.get("contents")
+                    or new_kwargs.get("chat_history"),
+                    model=new_kwargs.get("model"),
+                    response_model=response_model,
+                    mode=mode.value if hasattr(mode, "value") else str(mode),
+                )
+                cached = load_cached_response(cache, key, response_model)
+                if cached is not None:
+                    return cached  # type: ignore[return-value]
+
         # Use v2 retry logic with registry handlers
         response = retry_sync_v2(
             func=func,
@@ -146,6 +143,25 @@ def _create_sync_wrapper(
             strict=strict,
             hooks=hooks,
         )
+
+        # Store in cache after successful call
+        if cache is not None and response_model is not None:
+            try:
+                from instructor.cache import BaseCache, make_cache_key, store_cached_response
+                from pydantic import BaseModel as _BM  # type: ignore[import-not-found]
+
+                if isinstance(cache, BaseCache) and isinstance(response, _BM):
+                    key = make_cache_key(
+                        messages=new_kwargs.get("messages")
+                        or new_kwargs.get("contents")
+                        or new_kwargs.get("chat_history"),
+                        model=new_kwargs.get("model"),
+                        response_model=response_model,
+                        mode=mode.value if hasattr(mode, "value") else str(mode),
+                    )
+                    store_cached_response(cache, key, response, ttl=cache_ttl)
+            except ModuleNotFoundError:
+                pass
 
         return response  # type: ignore[return-value]
 
@@ -163,7 +179,6 @@ def _create_async_wrapper(
     @wraps(func)
     async def new_create_async(
         response_model: type[T_Model] | None = None,
-        validation_context: dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
         max_retries: int | AsyncRetrying = 1,
         strict: bool = True,
@@ -172,8 +187,10 @@ def _create_async_wrapper(
         **kwargs: Any,
     ) -> T_Model:
         """Patched asynchronous create function."""
-        context = handle_context(context, validation_context)
         autodetect_images = bool(kwargs.get("autodetect_images", False))
+        cache = kwargs.pop("cache", None)
+        cache_ttl_raw = kwargs.pop("cache_ttl", None)
+        cache_ttl = cache_ttl_raw if isinstance(cache_ttl_raw, int) else None
 
         # Inject default model if not provided and available
         if default_model is not None and "model" not in kwargs:
@@ -201,6 +218,23 @@ def _create_async_wrapper(
             context=context,
         )
 
+        # Attempt cache lookup before retry layer
+        if cache is not None and response_model is not None:
+            from instructor.cache import BaseCache, make_cache_key, load_cached_response
+
+            if isinstance(cache, BaseCache):
+                key = make_cache_key(
+                    messages=new_kwargs.get("messages")
+                    or new_kwargs.get("contents")
+                    or new_kwargs.get("chat_history"),
+                    model=new_kwargs.get("model"),
+                    response_model=response_model,
+                    mode=mode.value if hasattr(mode, "value") else str(mode),
+                )
+                cached = load_cached_response(cache, key, response_model)
+                if cached is not None:
+                    return cached  # type: ignore[return-value]
+
         # Use v2 retry logic with registry handlers
         response = await retry_async_v2(
             func=func,
@@ -214,6 +248,25 @@ def _create_async_wrapper(
             strict=strict,
             hooks=hooks,
         )
+
+        # Store in cache after successful call
+        if cache is not None and response_model is not None:
+            try:
+                from instructor.cache import BaseCache, make_cache_key, store_cached_response
+                from pydantic import BaseModel as _BM  # type: ignore[import-not-found]
+
+                if isinstance(cache, BaseCache) and isinstance(response, _BM):
+                    key = make_cache_key(
+                        messages=new_kwargs.get("messages")
+                        or new_kwargs.get("contents")
+                        or new_kwargs.get("chat_history"),
+                        model=new_kwargs.get("model"),
+                        response_model=response_model,
+                        mode=mode.value if hasattr(mode, "value") else str(mode),
+                    )
+                    store_cached_response(cache, key, response, ttl=cache_ttl)
+            except ModuleNotFoundError:
+                pass
 
         return response  # type: ignore[return-value]
 

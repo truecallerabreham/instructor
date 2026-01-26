@@ -20,7 +20,7 @@ from instructor.utils.providers import Provider
 from instructor.core.exceptions import ConfigurationError, IncompleteOutputException
 from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.schema import generate_openai_schema
-from instructor.providers.writer.utils import reask_writer_json, reask_writer_tools
+from instructor.v2.providers.writer.utils import reask_writer_json, reask_writer_tools
 from instructor.utils.core import merge_consecutive_messages
 from instructor.v2.core.decorators import register_mode_handler
 from instructor.v2.core.handler import ModeHandler

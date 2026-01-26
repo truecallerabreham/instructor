@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from instructor.mode import Mode
 from instructor.utils.providers import Provider
 from instructor.core.exceptions import ConfigurationError, ResponseParsingError
-from instructor.providers.bedrock.utils import (
+from instructor.v2.providers.bedrock.utils import (
     handle_bedrock_json,
     handle_bedrock_tools,
     reask_bedrock_json,

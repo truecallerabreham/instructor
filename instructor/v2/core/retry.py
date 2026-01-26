@@ -15,15 +15,17 @@ from tenacity import (
     Retrying,
     retry_if_exception_type,
     stop_after_attempt,
+    stop_after_delay,
 )
 
 from instructor.mode import Mode
 from instructor.utils.providers import Provider
 from instructor.core.exceptions import FailedAttempt, InstructorRetryException
-from instructor.core.retry import extract_messages
+from instructor.utils.core import extract_messages
 from instructor.dsl.iterable import IterableBase
 from instructor.dsl.response_list import ListResponse
 from instructor.dsl.simple_type import AdapterBase
+from instructor.utils.core import update_total_usage
 from instructor.v2.core.exceptions import RegistryValidationMixin
 from instructor.v2.core.registry import mode_registry
 
@@ -47,6 +49,34 @@ def _finalize_parsed_response(parsed: Any, response: Any) -> Any:
     if isinstance(parsed, BaseModel):
         parsed._raw_response = response  # type: ignore[attr-defined]
     return parsed
+
+
+def _initialize_usage(mode: Mode) -> Any:
+    from openai.types.completion_usage import (
+        CompletionTokensDetails,
+        CompletionUsage,
+        PromptTokensDetails,
+    )
+
+    total_usage: Any = CompletionUsage(
+        completion_tokens=0,
+        prompt_tokens=0,
+        total_tokens=0,
+        completion_tokens_details=CompletionTokensDetails(
+            audio_tokens=0, reasoning_tokens=0
+        ),
+        prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0),
+    )
+    if mode in {Mode.ANTHROPIC_TOOLS, Mode.ANTHROPIC_JSON}:
+        from anthropic.types import Usage as AnthropicUsage
+
+        total_usage = AnthropicUsage(
+            input_tokens=0,
+            output_tokens=0,
+            cache_read_input_tokens=0,
+            cache_creation_input_tokens=0,
+        )
+    return total_usage
 
 
 def retry_sync_v2(
@@ -91,8 +121,12 @@ def retry_sync_v2(
 
     # Setup retrying
     if isinstance(max_retries, int):
-        max_retries_instance: Retrying = Retrying(
-            stop=stop_after_attempt(max_retries),
+        stop_condition = stop_after_attempt(max_retries)
+        timeout = kwargs.get("timeout")
+        if isinstance(timeout, (int, float)):
+            stop_condition = stop_condition | stop_after_delay(timeout)
+        max_retries_instance = Retrying(
+            stop=stop_condition,
             retry=retry_if_exception_type(ValidationError),
             reraise=True,
         )
@@ -101,7 +135,7 @@ def retry_sync_v2(
 
     failed_attempts: list[FailedAttempt] = []
     last_exception: Exception | None = None
-    total_usage = 0
+    total_usage = _initialize_usage(mode)
 
     try:
         for attempt in max_retries_instance:
@@ -121,6 +155,8 @@ def retry_sync_v2(
 
                 if hooks:
                     hooks.emit_completion_response(response)
+
+                update_total_usage(response=response, total_usage=total_usage)
 
                 # Parse response using registry
                 try:
@@ -239,8 +275,12 @@ async def retry_async_v2(
 
     # Setup retrying
     if isinstance(max_retries, int):
-        max_retries_instance: AsyncRetrying = AsyncRetrying(
-            stop=stop_after_attempt(max_retries),
+        stop_condition = stop_after_attempt(max_retries)
+        timeout = kwargs.get("timeout")
+        if isinstance(timeout, (int, float)):
+            stop_condition = stop_condition | stop_after_delay(timeout)
+        max_retries_instance = AsyncRetrying(
+            stop=stop_condition,
             retry=retry_if_exception_type(ValidationError),
             reraise=True,
         )
@@ -249,7 +289,7 @@ async def retry_async_v2(
 
     failed_attempts: list[FailedAttempt] = []
     last_exception: Exception | None = None
-    total_usage = 0
+    total_usage = _initialize_usage(mode)
 
     try:
         async for attempt in max_retries_instance:
@@ -269,6 +309,8 @@ async def retry_async_v2(
 
                 if hooks:
                     hooks.emit_completion_response(response)
+
+                update_total_usage(response=response, total_usage=total_usage)
 
                 # Parse response using registry
                 try:

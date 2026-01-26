@@ -38,7 +38,7 @@ from instructor.processing.function_calls import extract_json_from_codeblock
 from instructor.processing.schema import generate_openai_schema
 from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
 from instructor.processing.multimodal import convert_messages as convert_messages_v1
-from instructor.providers.openai.utils import (
+from instructor.v2.providers.openai.utils import (
     reask_md_json,
     reask_responses_tools,
     reask_tools,

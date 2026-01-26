@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from instructor.mode import Mode
 from instructor.utils.providers import Provider
-from instructor.providers.perplexity.utils import (
+from instructor.v2.providers.perplexity.utils import (
     handle_perplexity_json,
     reask_perplexity_json,
 )

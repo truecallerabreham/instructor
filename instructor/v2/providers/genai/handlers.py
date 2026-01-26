@@ -11,7 +11,7 @@ from ....dsl.parallel import ParallelBase
 from ....dsl.partial import Partial, PartialBase
 from ....dsl.simple_type import AdapterBase
 from ....processing.multimodal import extract_genai_multimodal_content
-from ....providers.gemini import utils as gemini_utils
+from ...providers.gemini import utils as gemini_utils
 from ....utils.core import prepare_response_model
 from ...core.decorators import register_mode_handler
 from ...core.handler import ModeHandler

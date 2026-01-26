@@ -20,7 +20,7 @@ from instructor.dsl.iterable import IterableBase
 from instructor.dsl.parallel import ParallelBase
 from instructor.dsl.partial import PartialBase
 from instructor.dsl.simple_type import AdapterBase
-from instructor.providers.gemini.utils import (
+from instructor.v2.providers.gemini.utils import (
     handle_vertexai_json,
     handle_vertexai_parallel_tools,
     handle_vertexai_tools,

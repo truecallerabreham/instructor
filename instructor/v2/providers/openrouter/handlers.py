@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from instructor.mode import Mode
 from instructor.utils.providers import Provider
-from instructor.providers.openai.utils import (
+from instructor.v2.providers.openai.utils import (
     handle_openrouter_structured_outputs,
     reask_default,
 )
