@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -108,6 +109,7 @@ PARSE_SCENARIOS: dict[Provider, dict[Mode, str]] = {
         Mode.TOOLS: "tool_call",
         Mode.JSON_SCHEMA: "text",
         Mode.MD_JSON: "markdown",
+        Mode.PARALLEL_TOOLS: "parallel_tool_call",
         Mode.RESPONSES_TOOLS: "responses_output",
     },
     Provider.COHERE: {
@@ -283,6 +285,25 @@ class MockResponseBuilder:
         item = SimpleNamespace(type="function_call", arguments=json.dumps(args))
         return SimpleNamespace(output=[item])
 
+    def parallel_tool_response(
+        self, tool_payloads: list[tuple[str, dict[str, Any]]]
+    ) -> Any:
+        if self.provider != Provider.OPENAI:
+            raise NotImplementedError("Parallel tools only apply to OpenAI")
+        tool_calls = []
+        for name, args in tool_payloads:
+            tool_calls.append(
+                SimpleNamespace(
+                    function=SimpleNamespace(
+                        name=name,
+                        arguments=json.dumps(args),
+                    )
+                )
+            )
+        message = SimpleNamespace(content=None, tool_calls=tool_calls)
+        choice = SimpleNamespace(message=message, finish_reason="stop")
+        return SimpleNamespace(choices=[choice])
+
     def reask_response(self) -> Any:
         if self.provider == Provider.ANTHROPIC:
             return SimpleNamespace(
@@ -416,6 +437,7 @@ def test_parse_response(provider: Provider, mode: Mode) -> None:
     handlers = _get_handlers(provider, mode)
     builder = MockResponseBuilder(provider)
     payload = {"answer": 4.0}
+    response_model: type[Any] = Answer
 
     if scenario == "tool_call":
         response = builder.tool_response(payload)
@@ -425,20 +447,33 @@ def test_parse_response(provider: Provider, mode: Mode) -> None:
         response = builder.markdown_response(json.dumps(payload))
     elif scenario == "responses_output":
         response = builder.responses_output_response(payload)
+    elif scenario == "parallel_tool_call":
+        response = builder.parallel_tool_response(
+            [
+                ("Answer", {"answer": 4.0}),
+                ("User", {"name": "Ada", "age": 37}),
+            ]
+        )
+        response_model = Iterable[Answer | User]
     else:
         raise ValueError(f"Unsupported scenario {scenario}")
 
     result = handlers.response_parser(
         response=response,
-        response_model=Answer,
+        response_model=response_model,
         validation_context=None,
         strict=None,
         stream=False,
         is_async=False,
     )
 
-    assert isinstance(result, Answer)
-    assert result.answer == 4.0
+    if scenario == "parallel_tool_call":
+        assert iter(result) is result
+        parsed = list(result)
+        assert parsed == [Answer(answer=4.0), User(name="Ada", age=37)]
+    else:
+        assert isinstance(result, Answer)
+        assert result.answer == 4.0
 
 
 @pytest.mark.parametrize("provider,mode", _provider_mode_params())
@@ -451,6 +486,7 @@ def test_parse_response_validation_error(provider: Provider, mode: Mode) -> None
     handlers = _get_handlers(provider, mode)
     builder = MockResponseBuilder(provider)
     invalid_payload = {"wrong": "field"}
+    response_model: type[Any] = Answer
 
     if scenario == "tool_call":
         response = builder.tool_response(invalid_payload)
@@ -460,13 +496,21 @@ def test_parse_response_validation_error(provider: Provider, mode: Mode) -> None
         response = builder.markdown_response(json.dumps(invalid_payload))
     elif scenario == "responses_output":
         response = builder.responses_output_response(invalid_payload)
+    elif scenario == "parallel_tool_call":
+        response = builder.parallel_tool_response(
+            [
+                ("Answer", invalid_payload),
+                ("User", {"name": "Ada", "age": 37}),
+            ]
+        )
+        response_model = Iterable[Answer | User]
     else:
         raise ValueError(f"Unsupported scenario {scenario}")
 
     with pytest.raises(ValidationError):
         handlers.response_parser(
             response=response,
-            response_model=Answer,
+            response_model=response_model,
             validation_context=None,
             strict=None,
             stream=False,
