@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import ModuleType
+
 import pytest
 from instructor.auto_client import from_provider
 from pydantic import BaseModel
@@ -319,6 +321,140 @@ def test_databricks_provider_requires_host():
             ):
                 with pytest.raises(ConfigurationError):
                     from_provider("databricks/dbrx-instruct")
+
+
+def _build_module_tree(module_path: str, **attributes: object) -> dict[str, ModuleType]:
+    modules: dict[str, ModuleType] = {}
+    parent_module: ModuleType | None = None
+    for idx in range(len(module_path.split("."))):
+        name = ".".join(module_path.split(".")[: idx + 1])
+        module = ModuleType(name)
+        modules[name] = module
+        if parent_module is not None:
+            setattr(parent_module, name.split(".")[-1], module)
+        parent_module = module
+    for key, value in attributes.items():
+        setattr(modules[module_path], key, value)
+    return modules
+
+
+def test_mistral_uses_v2_factory():
+    """Ensure Mistral provider uses v2 factory and normalized modes."""
+    from unittest.mock import MagicMock, patch
+    import sys
+    import instructor
+
+    mock_client = MagicMock()
+    mock_mistral_class = MagicMock(return_value=mock_client)
+    mistral_modules = _build_module_tree("mistralai", Mistral=mock_mistral_class)
+
+    with patch.dict(sys.modules, mistral_modules):
+        with patch("instructor.v2.from_mistral") as mock_from_mistral:
+            mock_from_mistral.return_value = MagicMock()
+
+            client = from_provider("mistral/ministral-8b-latest", api_key="key")
+
+            mock_from_mistral.assert_called_once()
+            _, kwargs = mock_from_mistral.call_args
+            assert kwargs["model"] == "ministral-8b-latest"
+            assert kwargs["mode"] == instructor.Mode.TOOLS
+            assert kwargs["use_async"] is False
+            assert client is mock_from_mistral.return_value
+
+
+@pytest.mark.parametrize(
+    "provider_string,module_path,sync_class,async_class,factory_name",
+    [
+        (
+            "groq/llama-3.1-8b-instant",
+            "groq",
+            "Groq",
+            "AsyncGroq",
+            "from_groq",
+        ),
+        (
+            "writer/palmyra-x5",
+            "writerai",
+            "Writer",
+            "AsyncWriter",
+            "from_writer",
+        ),
+        (
+            "cerebras/llama-4-scout-17b-16e-instruct",
+            "cerebras.cloud.sdk",
+            "Cerebras",
+            "AsyncCerebras",
+            "from_cerebras",
+        ),
+        (
+            "fireworks/accounts/fireworks/models/llama4-maverick-instruct-basic",
+            "fireworks.client",
+            "Fireworks",
+            "AsyncFireworks",
+            "from_fireworks",
+        ),
+    ],
+)
+def test_v2_factories_invoked_for_sdk_clients(
+    provider_string,
+    module_path,
+    sync_class,
+    async_class,
+    factory_name,
+):
+    """Ensure v2 provider factories are invoked for SDK-backed providers."""
+    from unittest.mock import MagicMock, patch
+    import sys
+    import instructor
+
+    mock_client = MagicMock()
+    sync_cls = MagicMock(return_value=mock_client)
+    async_cls = MagicMock(return_value=mock_client)
+    modules = _build_module_tree(
+        module_path, **{sync_class: sync_cls, async_class: async_cls}
+    )
+
+    with patch.dict(sys.modules, modules):
+        with patch(f"instructor.v2.{factory_name}") as mock_factory:
+            mock_factory.return_value = MagicMock()
+
+            client = from_provider(provider_string, api_key="key")
+
+            mock_factory.assert_called_once()
+            _, kwargs = mock_factory.call_args
+            assert kwargs["model"] == provider_string.split("/", 1)[1]
+            assert kwargs["mode"] == instructor.Mode.TOOLS
+            assert client is mock_factory.return_value
+
+
+@pytest.mark.parametrize(
+    "model_name,expected_mode",
+    [
+        ("anthropic.claude-3-haiku", "TOOLS"),
+        ("amazon.titan-text-lite", "MD_JSON"),
+    ],
+)
+def test_bedrock_uses_v2_factory_with_default_modes(model_name, expected_mode):
+    """Ensure Bedrock provider uses v2 factory with model-based defaults."""
+    from unittest.mock import MagicMock, patch
+    import instructor
+    import sys
+
+    mock_client = MagicMock()
+    boto3_modules = _build_module_tree("boto3", client=MagicMock())
+
+    with patch.dict(sys.modules, boto3_modules):
+        with patch("boto3.client", return_value=mock_client):
+            with patch("instructor.v2.from_bedrock") as mock_from_bedrock:
+                mock_from_bedrock.return_value = MagicMock()
+
+                client = from_provider(f"bedrock/{model_name}")
+
+                mock_from_bedrock.assert_called_once()
+                _, kwargs = mock_from_bedrock.call_args
+                assert kwargs["mode"] == getattr(instructor.Mode, expected_mode)
+                assert kwargs["model"] == model_name
+                assert client is mock_from_bedrock.return_value
 
 
 def test_genai_mode_parameter_passed_to_provider():

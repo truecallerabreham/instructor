@@ -517,7 +517,7 @@ def from_provider(
     elif provider == "mistral":
         try:
             from mistralai import Mistral
-            from instructor import from_mistral  # type: ignore[attr-defined]
+            from instructor.v2 import from_mistral, normalize_mode
             import os
 
             api_key = api_key or os.environ.get("MISTRAL_API_KEY")
@@ -530,12 +530,17 @@ def from_provider(
                     "Set it with `export MISTRAL_API_KEY=<your-api-key>`."
                 )
 
-            if async_client:
-                result = from_mistral(
-                    client, model=model_name, use_async=True, **kwargs
-                )
-            else:
-                result = from_mistral(client, model=model_name, **kwargs)
+            normalized_mode = normalize_mode(
+                instructor.Provider.MISTRAL,
+                mode if mode else instructor.Mode.TOOLS,
+            )
+            result = from_mistral(
+                client,
+                model=model_name,
+                use_async=async_client,
+                mode=normalized_mode,
+                **kwargs,
+            )
             logger.info(
                 "Client initialized",
                 extra={**provider_info, "status": "success"},
@@ -645,14 +650,23 @@ def from_provider(
     elif provider == "groq":
         try:
             import groq
-            from instructor import from_groq  # type: ignore[attr-defined]
+            from instructor.v2 import from_groq, normalize_mode
 
             client = (
                 groq.AsyncGroq(api_key=api_key)
                 if async_client
                 else groq.Groq(api_key=api_key)
             )
-            result = from_groq(client, model=model_name, **kwargs)
+            normalized_mode = normalize_mode(
+                instructor.Provider.GROQ,
+                mode if mode else instructor.Mode.TOOLS,
+            )
+            result = from_groq(
+                client,
+                model=model_name,
+                mode=normalized_mode,
+                **kwargs,
+            )
             logger.info(
                 "Client initialized",
                 extra={**provider_info, "status": "success"},
@@ -678,14 +692,23 @@ def from_provider(
     elif provider == "writer":
         try:
             from writerai import AsyncWriter, Writer
-            from instructor import from_writer  # type: ignore[attr-defined]
+            from instructor.v2 import from_writer, normalize_mode
 
             client = (
                 AsyncWriter(api_key=api_key)
                 if async_client
                 else Writer(api_key=api_key)
             )
-            result = from_writer(client, model=model_name, **kwargs)
+            normalized_mode = normalize_mode(
+                instructor.Provider.WRITER,
+                mode if mode else instructor.Mode.TOOLS,
+            )
+            result = from_writer(
+                client,
+                model=model_name,
+                mode=normalized_mode,
+                **kwargs,
+            )
             logger.info(
                 "Client initialized",
                 extra={**provider_info, "status": "success"},
@@ -712,7 +735,7 @@ def from_provider(
         try:
             import os
             import boto3
-            from instructor import from_bedrock  # type: ignore[attr-defined]
+            from instructor.v2 import from_bedrock, normalize_mode
 
             # Get AWS configuration from environment or kwargs
             if "region" in kwargs:
@@ -749,17 +772,22 @@ def from_provider(
                 if model_name and (
                     "anthropic" in model_name.lower() or "claude" in model_name.lower()
                 ):
-                    default_mode = instructor.Mode.BEDROCK_TOOLS
+                    default_mode = instructor.Mode.TOOLS
                 else:
-                    default_mode = instructor.Mode.BEDROCK_JSON
+                    default_mode = instructor.Mode.MD_JSON
             else:
                 default_mode = mode
 
+            normalized_mode = normalize_mode(
+                instructor.Provider.BEDROCK,
+                default_mode,
+            )
             result = from_bedrock(
                 client,
-                mode=default_mode,
+                mode=normalized_mode,
                 async_client=async_client,
                 _async=async_client,  # for backward compatibility
+                model=model_name,
                 **kwargs,
             )
             logger.info(
@@ -787,14 +815,23 @@ def from_provider(
     elif provider == "cerebras":
         try:
             from cerebras.cloud.sdk import AsyncCerebras, Cerebras
-            from instructor import from_cerebras  # type: ignore[attr-defined]
+            from instructor.v2 import from_cerebras, normalize_mode
 
             client = (
                 AsyncCerebras(api_key=api_key)
                 if async_client
                 else Cerebras(api_key=api_key)
             )
-            result = from_cerebras(client, model=model_name, **kwargs)
+            normalized_mode = normalize_mode(
+                instructor.Provider.CEREBRAS,
+                mode if mode else instructor.Mode.TOOLS,
+            )
+            result = from_cerebras(
+                client,
+                model=model_name,
+                mode=normalized_mode,
+                **kwargs,
+            )
             logger.info(
                 "Client initialized",
                 extra={**provider_info, "status": "success"},
@@ -820,14 +857,23 @@ def from_provider(
     elif provider == "fireworks":
         try:
             from fireworks.client import AsyncFireworks, Fireworks
-            from instructor import from_fireworks  # type: ignore[attr-defined]
+            from instructor.v2 import from_fireworks, normalize_mode
 
             client = (
                 AsyncFireworks(api_key=api_key)
                 if async_client
                 else Fireworks(api_key=api_key)
             )
-            result = from_fireworks(client, model=model_name, **kwargs)
+            normalized_mode = normalize_mode(
+                instructor.Provider.FIREWORKS,
+                mode if mode else instructor.Mode.TOOLS,
+            )
+            result = from_fireworks(
+                client,
+                model=model_name,
+                mode=normalized_mode,
+                **kwargs,
+            )
             logger.info(
                 "Client initialized",
                 extra={**provider_info, "status": "success"},
