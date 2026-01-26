@@ -19,22 +19,16 @@ certifi==2025.10.5
     #   httpcore
     #   httpx
     #   requests
-cfgv==3.5.0
-    # via pre-commit
 charset-normalizer==3.4.4
     # via requests
 click==8.1.8
     # via typer
 diskcache==5.6.3
     # via instructor (pyproject.toml)
-distlib==0.4.0
-    # via virtualenv
 distro==1.9.0
     # via openai
 docstring-parser==0.17.0
     # via instructor (pyproject.toml)
-filelock==3.19.1
-    # via virtualenv
 frozenlist==1.8.0
     # via
     #   aiohttp
@@ -45,8 +39,6 @@ httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via openai
-identify==2.6.15
-    # via pre-commit
 idna==3.11
     # via
     #   anyio
@@ -69,13 +61,7 @@ multidict==6.7.0
     # via
     #   aiohttp
     #   yarl
-nodeenv==1.9.1
-    # via pre-commit
 openai==2.6.1
-    # via instructor (pyproject.toml)
-platformdirs==4.4.0
-    # via virtualenv
-pre-commit==4.4.0
     # via instructor (pyproject.toml)
 propcache==0.4.1
     # via
@@ -91,10 +77,6 @@ pydantic-core==2.41.4
     #   pydantic
 pygments==2.19.2
     # via rich
-pyyaml==6.0.3
-    # via pre-commit
-redis==7.1.0
-    # via instructor (pyproject.toml)
 requests==2.32.5
     # via instructor (pyproject.toml)
 rich==14.2.0
@@ -111,8 +93,6 @@ tenacity==9.1.2
     # via instructor (pyproject.toml)
 tqdm==4.67.1
     # via openai
-ty==0.0.1a27
-    # via instructor (pyproject.toml)
 typer==0.20.0
     # via instructor (pyproject.toml)
 typing-extensions==4.15.0
@@ -128,7 +108,5 @@ typing-inspection==0.4.2
     # via pydantic
 urllib3==2.5.0
     # via requests
-virtualenv==20.35.4
-    # via pre-commit
 yarl==1.22.0
     # via aiohttp
