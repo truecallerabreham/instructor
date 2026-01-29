@@ -12,6 +12,11 @@
 - Build docs: `uv run mkdocs serve` (local) or `./build_mkdocs.sh` (production)
 - Waiting: use `sleep <seconds>` for explicit pauses (e.g., CI waits) or to let external processes finish
 
+## Before you push
+- Run `uv run ruff check instructor examples tests`
+- Run `uv run ruff format instructor examples tests`
+- Run `uv run pytest tests/` (or a targeted subset if you know what changed)
+
 ## Architecture
 - **Core**: `instructor/` - Pydantic-based structured outputs for LLMs
 - **Base classes**: `Instructor` and `AsyncInstructor` in `client.py`
