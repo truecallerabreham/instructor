@@ -73,7 +73,8 @@ def from_gemini(
     # We avoid importing `google.generativeai` at import-time (it emits a FutureWarning).
     # Since `from_gemini` is deprecated, a simple duck-type check is enough here.
     if not (
-        hasattr(client, "generate_content") and hasattr(client, "generate_content_async")
+        hasattr(client, "generate_content")
+        and hasattr(client, "generate_content_async")
     ):
         from ...core.exceptions import ClientError
 
