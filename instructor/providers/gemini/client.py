@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, Literal, overload
-
-import google.generativeai as genai  # type: ignore[import-not-found]
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import instructor
 
 
+if TYPE_CHECKING:
+    import google.generativeai as genai  # type: ignore[import-not-found]
+
+    GeminiGenerativeModel = genai.GenerativeModel
+else:
+    GeminiGenerativeModel = Any
+
+
 @overload
 def from_gemini(
-    client: genai.GenerativeModel,
+    client: GeminiGenerativeModel,
     mode: instructor.Mode = instructor.Mode.GEMINI_JSON,
     use_async: Literal[True] = True,
     **kwargs: Any,
@@ -18,7 +24,7 @@ def from_gemini(
 
 @overload
 def from_gemini(
-    client: genai.GenerativeModel,
+    client: GeminiGenerativeModel,
     mode: instructor.Mode = instructor.Mode.GEMINI_JSON,
     use_async: Literal[False] = False,
     **kwargs: Any,
@@ -26,7 +32,7 @@ def from_gemini(
 
 
 def from_gemini(
-    client: genai.GenerativeModel,
+    client: GeminiGenerativeModel,
     mode: instructor.Mode = instructor.Mode.GEMINI_JSON,
     use_async: bool = False,
     **kwargs: Any,
@@ -64,11 +70,15 @@ def from_gemini(
             mode=str(mode), provider="Gemini", valid_modes=[str(m) for m in valid_modes]
         )
 
-    if not isinstance(client, genai.GenerativeModel):
+    # We avoid importing `google.generativeai` at import-time (it emits a FutureWarning).
+    # Since `from_gemini` is deprecated, a simple duck-type check is enough here.
+    if not (
+        hasattr(client, "generate_content") and hasattr(client, "generate_content_async")
+    ):
         from ...core.exceptions import ClientError
 
         raise ClientError(
-            f"Client must be an instance of genai.GenerativeModel. "
+            "Client must look like a google.generativeai GenerativeModel. "
             f"Got: {type(client).__name__}"
         )
 

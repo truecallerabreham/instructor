@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. The format 
 
 <!-- Add upcoming changes here -->
 
+### Fixed
+- Avoid importing `google.generativeai` during `import instructor`, which prevents an upstream `FutureWarning` in projects that are not using the legacy Gemini client.
+
 ## [1.14.4] - 2026-01-16
 
 ### Changed
