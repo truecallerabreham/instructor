@@ -1,6 +1,7 @@
 """Provider implementations for instructor."""
 
 import importlib.util
+from typing import TYPE_CHECKING, Any
 
 __all__ = []
 
@@ -34,7 +35,16 @@ if (
     importlib.util.find_spec("google")
     and importlib.util.find_spec("google.generativeai") is not None
 ):
-    from .gemini.client import from_gemini  # noqa: F401
+    if TYPE_CHECKING:
+        # Import for type checkers only; at runtime this stays lazy to avoid
+        # importing `google.generativeai` (which emits a FutureWarning).
+        from .gemini.client import from_gemini as from_gemini  # noqa: F401
+    else:
+
+        def from_gemini(*args: Any, **kwargs: Any):  # type: ignore[no-redef]
+            from .gemini.client import from_gemini as _from_gemini
+
+            return _from_gemini(*args, **kwargs)
 
     __all__.append("from_gemini")
 

@@ -1,4 +1,5 @@
 import importlib.util
+from typing import TYPE_CHECKING, Any
 
 __version__ = "1.14.4"
 
@@ -86,7 +87,16 @@ if (
     importlib.util.find_spec("google")
     and importlib.util.find_spec("google.generativeai") is not None
 ):
-    from .providers.gemini.client import from_gemini
+    if TYPE_CHECKING:
+        # Import for type checkers only; at runtime this stays lazy to avoid
+        # importing `google.generativeai` (which emits a FutureWarning).
+        from .providers.gemini.client import from_gemini as from_gemini
+    else:
+
+        def from_gemini(*args: Any, **kwargs: Any):  # type: ignore[no-redef]
+            from .providers.gemini.client import from_gemini as _from_gemini
+
+            return _from_gemini(*args, **kwargs)
 
     __all__ += ["from_gemini"]
 
