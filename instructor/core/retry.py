@@ -45,6 +45,45 @@ T_ParamSpec = ParamSpec("T_ParamSpec")
 T = TypeVar("T")
 
 
+def _is_tool_choice_object_not_supported_error(exc: Exception) -> bool:
+    """Return True if provider rejects object tool_choice payloads.
+
+    Some OpenAI-compatible servers (for example, LM Studio) only accept string values for
+    `tool_choice` (e.g. "none", "auto", "required"). They reject OpenAI's newer object
+    form (e.g. {"type":"function", ...}) with a 400 error.
+    """
+    message = str(exc)
+    return (
+        "Invalid tool_choice type" in message
+        and "Supported string values" in message
+        and "'object'" in message
+    )
+
+
+def _coerce_tool_choice_to_string(tool_choice: Any) -> str | None:
+    """Coerce object tool_choice payloads to their string equivalent.
+
+    Returns None when no change is needed.
+    """
+    if isinstance(tool_choice, str) or tool_choice is None:
+        return None
+    if not isinstance(tool_choice, dict):
+        return None
+
+    tool_choice_type = tool_choice.get("type")
+    if isinstance(tool_choice_type, str) and tool_choice_type in {
+        "none",
+        "auto",
+        "required",
+    }:
+        return tool_choice_type
+
+    # Most object forms represent a forced tool/function call. If the server only supports
+    # string tool_choice, "required" is the closest behavior (and works well when only
+    # one tool is provided, which is the common Instructor structured output case).
+    return "required"
+
+
 def initialize_retrying(
     max_retries: int | Retrying | AsyncRetrying,
     is_async: bool,
@@ -262,6 +301,17 @@ def retry_sync(
                         )
                     )
 
+                    # Some OpenAI-compatible servers only accept string tool_choice values.
+                    # If we see that specific 400 error, coerce tool_choice and retry.
+                    if _is_tool_choice_object_not_supported_error(e):
+                        coerced = _coerce_tool_choice_to_string(kwargs.get("tool_choice"))
+                        if coerced is not None:
+                            logger.debug(
+                                "Coercing tool_choice object to string for compatibility: %s",
+                                coerced,
+                            )
+                            kwargs["tool_choice"] = coerced
+
                     # Check if this is the last attempt for completion errors
                     if isinstance(max_retries, Retrying) and hasattr(
                         max_retries, "stop"
@@ -418,6 +468,17 @@ async def retry_async(
                             completion=response,
                         )
                     )
+
+                    # Some OpenAI-compatible servers only accept string tool_choice values.
+                    # If we see that specific 400 error, coerce tool_choice and retry.
+                    if _is_tool_choice_object_not_supported_error(e):
+                        coerced = _coerce_tool_choice_to_string(kwargs.get("tool_choice"))
+                        if coerced is not None:
+                            logger.debug(
+                                "Coercing tool_choice object to string for compatibility: %s",
+                                coerced,
+                            )
+                            kwargs["tool_choice"] = coerced
 
                     # Check if this is the last attempt for completion errors
                     if isinstance(max_retries, AsyncRetrying) and hasattr(

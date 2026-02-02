@@ -464,3 +464,11 @@ Read more about how to use it [here](../examples/batch_job_oai.md)
 ## Updates and Compatibility
 
 Instructor maintains compatibility with the latest OpenAI API versions and models. Check the [changelog](https://github.com/jxnl/instructor/blob/main/CHANGELOG.md) for updates.
+
+## OpenAI-compatible servers (LM Studio, local models)
+
+Some OpenAI-compatible servers only accept string values for `tool_choice` (`"none"`, `"auto"`, `"required"`) and reject OpenAI’s newer object form (for example `{"type": "function", ...}`) with a 400 error like:
+
+`Invalid tool_choice type: 'object'. Supported string values: none, auto, required`
+
+If you see this error (common with local Qwen models served through LM Studio), Instructor will automatically retry with a string `tool_choice` as long as you allow at least 2 attempts (the default `max_retries` is already higher than this).
