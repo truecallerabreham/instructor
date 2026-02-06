@@ -100,7 +100,7 @@ Response = Union[SuccessResponse, ErrorResponse]
 
 ### Nested Unions
 ```python
-from typing import Literal, Union, List
+from typing import Union, List
 from pydantic import BaseModel
 
 
@@ -154,32 +154,7 @@ With this pattern, the LLM can decide whether to perform a search or a lookup ba
 
 ```python
 import instructor
-from pydantic import BaseModel
-from typing import Union
-
-
-class Search(BaseModel):
-    query: str
-
-    def execute(self):
-        # Implementation for search
-        return f"Searching for: {self.query}"
-
-
-class Lookup(BaseModel):
-    key: str
-
-    def execute(self):
-        # Implementation for lookup
-        return f"Looking up key: {self.key}"
-
-
-class Action(BaseModel):
-    action: Union[Search, Lookup]
-
-    def execute(self):
-        return self.action.execute()
-
+from openai import OpenAI
 
 client = instructor.from_provider("openai/gpt-4.1-mini")
 
@@ -197,53 +172,29 @@ result = client.create(
 
 # Execute the chosen action
 print(result.execute())  # Likely outputs: "Searching for: climate change"
-#> Searching for: climate change
 ```
 
 ## Integration with Instructor
 
-### import instructor
-from typing import Union, Literal
-from pydantic import BaseModel
+### Validation with Unions
+```python
+from instructor import patch
+from openai import OpenAI
+
+client = patch(OpenAI())
 
 
-class SuccessResponse(BaseModel):
-    status: Literal["success"]
-    data: dict
+def validate_response(response: Response) -> bool:
+    if isinstance(response, ErrorResponse):
+        return len(response.message) > 0
+    return True
 
-
-class ErrorResponse(BaseModel):
-    status: Literal["error"]
-    message: str
-
-
-Response = Union[SuccessResponse, ErrorResponse]
-
-client = instructor.from_provider("openai/gpt-4.1-mini")
 
 result = client.create(
     response_model=Response,
-    messages=[
-        {
-            "role": "system",
-            "content": "You are a helpful assistant that processes requests and returns either a success or error response.",
-        },
-        {
-            "role": "user",
-            "content": "Process this request: Get user information for id 123",
-        },
-    ],
+    validation_hook=validate_response,
+    messages=[{"role": "user", "content": "Process this request"}],
 )
-
-# Check the result type
-if isinstance(result, ErrorResponse):
-    print(f"Error: {result.message}")
-    #> Error: Request not supported: Get user information for id 123
-else:
-    print(f"Success: {result.data}")
-: User information for id 123 is not available.
-else:
-    print(f"Success: {result.data}")
 ```
 
 ### Streaming with Unions
@@ -260,40 +211,20 @@ def stream_content():
                 if isinstance(item, TextContent):
                     print(f"Text: {item.text}")
                 elif isinstance(item, ImageContent):
-                    print(ffrom pydantic import ValidationError, BaseModel
-from typing import Union, Literal
+                    print(f"Image: {item.url}")
+```
 
+## Error Handling
 
-class SuccessResponse(BaseModel):
-    status: Literal["success"]
-    data: dict
+Handle union type validation errors:
 
-
-class ErrorResponse(BaseModel):
-    status: Literal["error"]
-    message: str
-
-
-Response = Union[SuccessResponse, ErrorResponse]
+```python
+from pydantic import ValidationError
 
 try:
-    # This will fail because "invalid" is not a valid status
-    response = SuccessResponse(status="invalid", data={"key": "value"})
+    response = Response(status="invalid", data={"key": "value"})  # Invalid status
 except ValidationError as e:
     print(f"Validation error: {e}")
-    """
-    Validation error: 1 validation error for SuccessResponse
-    status
-      Input should be 'success' [type=literal_error, input_value='invalid', input_type=str]
-    """
-id", data={"key": "value"})
-except ValidationError as e:
-    print(f"Validation error: {e}")
-    """
-    Validation error: 1 validation error for SuccessResponse
-    status
-      Input should be 'success' [type=literal_error, input_value='invalid', input_type=str]
-    """
 ```
 
 ## Type Checking
@@ -301,30 +232,13 @@ except ValidationError as e:
 Use isinstance() for runtime type checking:
 
 ```python
-from typing import Union, Literal
-from pydantic import BaseModel
-
-
-class SuccessResponse(BaseModel):
-    status: Literal["success"]
-    data: dict
-
-
-class ErrorResponse(BaseModel):
-    status: Literal["error"]
-    message: str
-
-
-Response = Union[SuccessResponse, ErrorResponse]
-
-
 def process_response(response: Response):
     if isinstance(response, SuccessResponse):
         # Handle success case
-        print(f"Success: {response.data}")
+        process_data(response.data)
     elif isinstance(response, ErrorResponse):
         # Handle error case
-        print(f"Error: {response.message}")
+        log_error(response.message)
 ```
 
 For more information about union types, check out the [Pydantic documentation on unions](https://docs.pydantic.dev/latest/concepts/types/#unions).

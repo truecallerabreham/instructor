@@ -12,14 +12,15 @@ Replaces old API patterns with simplified versions:
 import argparse
 import re
 from pathlib import Path
+from typing import List, Tuple
 
 
-def find_markdown_files(docs_dir: Path) -> list[Path]:
+def find_markdown_files(docs_dir: Path) -> List[Path]:
     """Find all markdown files in the docs directory."""
     return list(docs_dir.rglob("*.md")) + list(docs_dir.rglob("*.ipynb"))
 
 
-def replace_api_calls(content: str, dry_run: bool = False) -> tuple[str, int]:  # noqa: ARG001
+def replace_api_calls(content: str, dry_run: bool = False) -> Tuple[str, int]:
     """
     Replace old API call patterns with simplified versions.
 

@@ -65,7 +65,6 @@ The **`ask_ai`** function utilizes OpenAI's API to extract and resolve entities 
 
 ```python
 import instructor
-
 # Apply the patch to the OpenAI client
 # enables response_model keyword
 client = instructor.from_provider("openai/gpt-5-nano")
@@ -204,7 +203,6 @@ from pydantic import BaseModel, Field
 from typing import List
 from graphviz import Digraph
 import instructor
-
 # Apply the patch to the OpenAI client
 # enables response_model keyword
 client = instructor.from_provider("openai/gpt-5-nano")

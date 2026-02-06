@@ -2,12 +2,12 @@ import instructor
 
 from openai import OpenAI
 from pydantic import Field
-from instructor import ResponseSchema
+from instructor import OpenAISchema
 
 client = instructor.from_openai(OpenAI())
 
 
-class File(ResponseSchema):
+class File(OpenAISchema):
     """
     Correctly named file with contents.
     """
@@ -22,7 +22,7 @@ class File(ResponseSchema):
             f.write(self.body)
 
 
-class Program(ResponseSchema):
+class Program(OpenAISchema):
     """
     Set of files that represent a complete and correct program
     """

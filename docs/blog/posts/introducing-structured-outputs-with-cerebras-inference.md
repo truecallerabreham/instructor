@@ -63,6 +63,7 @@ Once you've done so, you can use the following code to get started.
 
 ```python
 import instructor
+from cerebras.cloud.sdk import Cerebras
 from pydantic import BaseModel
 
 client = instructor.from_provider("cerebras/llama3.1-70b")
@@ -100,7 +101,7 @@ from cerebras.cloud.sdk import Cerebras
 from pydantic import BaseModel
 from typing import Iterable
 
-client = instructor.from_cerebras(Cerebras(), mode=instructor.Mode.MD_JSON)
+client = instructor.from_cerebras(Cerebras(), mode=instructor.Mode.CEREBRAS_JSON)
 
 
 class Person(BaseModel):

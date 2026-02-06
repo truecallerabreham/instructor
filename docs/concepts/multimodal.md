@@ -46,6 +46,7 @@ You can create an `Image` instance from a URL, Google Cloud Storage (GCS) URL, o
 ```python
 import instructor
 from instructor.processing.multimodal import Image
+import openai
 from pydantic import BaseModel
 
 
@@ -73,9 +74,7 @@ response = client.create(
 )
 
 print(response)
-"""
-description='Blueberry bushes with clusters of ripe and unripe blueberries. The berries are blue to purplish in color, and the leaves are green. The sky in the background is cloudy.' items=['blueberry bushes', 'ripe blueberries', 'unripe blueberries', 'green leaves', 'cloudy sky']
-"""
+# > description='A bush with numerous clusters of blueberries surrounded by green leaves, under a cloudy sky.' items=['blueberries', 'green leaves', 'cloudy sky']
 ```
 
 ### Google Cloud Storage Support
@@ -112,9 +111,6 @@ response = client.create(
 )
 
 print(response)
-"""
-description='A sample image loaded from Google Cloud Storage.' items=['sample image']
-"""
 ```
 
 > **Note**: GCS URLs must point to publicly accessible objects. The `from_gs_url` method converts `gs://` URLs to `https://storage.googleapis.com/` URLs for access.
@@ -125,6 +121,8 @@ You can see an example below.
 
 ```python
 import instructor
+from instructor.processing.multimodal import Image
+import openai
 from pydantic import BaseModel
 
 
@@ -150,9 +148,7 @@ response = client.create(
 )
 
 print(response)
-"""
-description='The image shows a close-up of a blueberry bush with ripe blueberries and green leaves. The background includes more blueberry bushes and a cloudy sky.' items=['Blueberry bush', 'Ripe blueberries', 'Green leaves', 'Cloudy sky']
-"""
+# > description='A bush with numerous clusters of blueberries surrounded by green leaves, under a cloudy sky.' items=['blueberries', 'green leaves', 'cloudy sky']
 ```
 
 If you'll like to support Anthropic prompt caching with images, we provide the `ImageWithCacheControl` Object to do so. Simply use the `from_image_params` method and you'll be able to leverage Anthropic's prompt caching.
@@ -160,6 +156,7 @@ If you'll like to support Anthropic prompt caching with images, we provide the `
 ```python
 import instructor
 from instructor.processing.multimodal import ImageWithCacheControl
+import anthropic
 from pydantic import BaseModel
 
 
@@ -196,12 +193,10 @@ response, completion = client.create_with_completion(
 )
 
 print(response)
-"""
-description='A bush with numerous clusters of blueberries surrounded by green leaves, under a cloudy sky.' items=['blueberries', 'green leaves', 'cloudy sky']
-"""
+# > description='A bush with numerous clusters of blueberries surrounded by green leaves, under a cloudy sky.' items=['blueberries', 'green leaves', 'cloudy sky']
 
 print(completion.usage.cache_creation_input_tokens)
-#> 1820
+# > 1820
 ```
 
 By leveraging Instructor's multimodal capabilities, you can focus on building your application logic without worrying about the intricacies of each provider's image handling format. This not only saves development time but also makes your code more maintainable and adaptable to future changes in AI provider APIs.
@@ -225,9 +220,11 @@ The `Audio` class represents an audio file that can be loaded from a URL, Google
 The `Audio` class will automatically convert it to the right format and include it in the API request.
 
 ```python
+from openai import OpenAI
 from pydantic import BaseModel
 import instructor
 from instructor.processing.multimodal import Audio
+import base64
 
 # Initialize the client
 client = instructor.from_provider("openai/gpt-4o-audio-preview")
@@ -258,9 +255,6 @@ resp = client.create(
 )
 
 print(resp)
-"""
-summary='This excerpt is from a famous historical speech discussing the founding principles of equality and liberty, and the ongoing civil war testing the endurance of those principles.' transcript='Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure.'
-"""
 ```
 
 ### Google Cloud Storage Support
@@ -268,6 +262,7 @@ summary='This excerpt is from a famous historical speech discussing the founding
 You can also load audio files directly from Google Cloud Storage:
 
 ```python
+from openai import OpenAI
 from pydantic import BaseModel
 import instructor
 from instructor.processing.multimodal import Audio
@@ -275,12 +270,10 @@ from instructor.processing.multimodal import Audio
 # Initialize the client
 client = instructor.from_provider("openai/gpt-4o-audio-preview")
 
-
 # Define our response model
 class AudioDescription(BaseModel):
     summary: str
     transcript: str
-
 
 # Load audio from GCS URL (must be publicly accessible)
 gs_url = "gs://my-bucket/path/to/audio.wav"
@@ -302,9 +295,6 @@ resp = client.create(
 )
 
 print(resp)
-"""
-summary='A short historical speech about equality and liberty.' transcript='Four score and seven years ago our fathers brought forth...'
-"""
 ```
 
 ## `PDF`
@@ -332,39 +322,38 @@ For Bedrock, you can convert a `PDF` into the Bedrock-native document format wit
 ### Usage
 
 ```python
-import instructor
-from pydantic import BaseModel
-from instructor.processing.multimodal import PDF
+ from openai import OpenAI
+ import instructor
+ from pydantic import BaseModel
+ from instructor.processing.multimodal import PDF
 
-# Set up the client
-url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
-client = instructor.from_provider("openai/gpt-4.1-mini")
-
-
-# Create a model for analyzing PDFs
-class Invoice(BaseModel):
-    total: float
-    items: list[str]
+ # Set up the client
+ url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
+ client = instructor.from_provider("openai/gpt-4.1-mini")
 
 
-# Load and analyze a PDF
-response = client.create(
-    response_model=Invoice,
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "Analyze this document",
-                PDF.from_url(url),
-            ],
-        }
-    ],
-)
+ # Create a model for analyzing PDFs
+ class Invoice(BaseModel):
+     total: float
+     items: list[str]
 
-print(response)
-"""
-total=220.0 items=['English Tea - 2 units at $100 each', 'Tofu - 10 units at $2 each']
-"""
+
+ # Load and analyze a PDF
+ response = client.create(
+     response_model=Invoice,
+     messages=[
+         {
+             "role": "user",
+             "content": [
+                 "Analyze this document",
+                 PDF.from_url(url),
+             ],
+         }
+     ],
+ )
+
+ print(response)
+ # > Total = 220, items = ['English Tea', 'Tofu']
 ```
 
 ### Google Cloud Storage Support
@@ -372,6 +361,7 @@ total=220.0 items=['English Tea - 2 units at $100 each', 'Tofu - 10 units at $2 
 You can load PDF files directly from Google Cloud Storage URLs:
 
 ```python
+from openai import OpenAI
 import instructor
 from pydantic import BaseModel
 from instructor.processing.multimodal import PDF
@@ -380,12 +370,10 @@ from instructor.processing.multimodal import PDF
 gs_url = "gs://my-bucket/path/to/document.pdf"
 client = instructor.from_provider("openai/gpt-4.1-mini")
 
-
 # Create a model for analyzing PDFs
 class Invoice(BaseModel):
     total: float
     items: list[str]
-
 
 # Load and analyze a PDF from GCS (must be publicly accessible)
 response = client.create(
@@ -401,8 +389,8 @@ response = client.create(
     ],
 )
 
-print(f"Total = {response.total:.0f}, items = {response.items}")
-#> Total = 220, items = ['English Tea', 'Tofu']
+print(response)
+# > Total = 220, items = ['English Tea', 'Tofu']
 ```
 
 ### Caching
@@ -410,6 +398,7 @@ print(f"Total = {response.total:.0f}, items = {response.items}")
 If you'd like to cache the PDF for Anthropic, we provide the `PDFWithCacheControl` class which has caching configured by default.
 
 ```python
+from anthropic import Anthropic
 import instructor
 from pydantic import BaseModel
 from instructor.processing.multimodal import PDFWithCacheControl
@@ -440,11 +429,11 @@ response, completion = client.create_with_completion(
     max_tokens=1000,
 )
 
-print(f"Total = {response.total:.0f}, items = {response.items}")
-#> Total = 220, items = ['English Tea', 'Tofu']
+print(response)
+# > Total = 220, items = ['English Tea', 'Tofu']
 
 print(completion.usage.cache_creation_input_tokens)
-#> 2091
+# > 2091
 ```
 
 ### Using Files
@@ -454,6 +443,7 @@ We also provide a convinient wrapper around the Files API - allowing you to use 
 In this example below, we download the sample PDF and then upload it using the `Files` api provided by the `google.genai` sdk.
 
 ```python
+from google.genai import Client
 import instructor
 from pydantic import BaseModel
 from instructor.processing.multimodal import PDFWithGenaiFile
@@ -463,6 +453,11 @@ import requests
 url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
 client = instructor.from_provider("google/gemini-2.5-flash")
 
+with requests.get(url) as response:
+    pdf_data = response.content
+    with open("./invoice.pdf", "wb") as f:
+        f.write(pdf_data)
+
 
 # Create a model for analyzing PDFs
 class Invoice(BaseModel):
@@ -471,11 +466,6 @@ class Invoice(BaseModel):
 
 
 # Load and analyze a PDF
-with requests.get(url) as download_response:
-    pdf_data = download_response.content
-    with open("./invoice.pdf", "wb") as f:
-        f.write(pdf_data)
-
 response = client.create(
     response_model=Invoice,
     messages=[
@@ -494,12 +484,13 @@ response = client.create(
 )
 
 print(response)
-#> total=220.0 items=['English Tea', 'Tofu']
+# > Total = 220, items = ['English Tea', 'Tofu']
 ```
 
 If you've already uploaded your file ahead of time, we also support it. Just provide us with the file name as seen below
 
 ```python
+from google.genai import Client
 import instructor
 from pydantic import BaseModel
 from instructor.processing.multimodal import PDFWithGenaiFile
@@ -509,6 +500,15 @@ import requests
 url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
 client = instructor.from_provider("google/gemini-2.5-flash")
 
+with requests.get(url) as response:
+    pdf_data = response.content
+    with open("./invoice.pdf", "wb") as f:
+        f.write(pdf_data)
+
+file = client.files.upload(
+    file="invoice.pdf",
+)
+
 
 # Create a model for analyzing PDFs
 class Invoice(BaseModel):
@@ -517,15 +517,6 @@ class Invoice(BaseModel):
 
 
 # Load and analyze a PDF
-with requests.get(url) as download_response:
-    pdf_data = download_response.content
-    with open("./invoice.pdf", "wb") as f:
-        f.write(pdf_data)
-
-file = client.files.upload(
-    file="invoice.pdf",
-)
-
 response = client.create(
     response_model=Invoice,
     messages=[
@@ -540,7 +531,7 @@ response = client.create(
 )
 
 print(response)
-#> total=220.0 items=['English Tea', 'Tofu']
+# > Total = 220, items = ['English Tea', 'Tofu']
 ```
 
 This way you have more granular control over how the file is uploaded, potentially also processing multiple file uploads at once too.

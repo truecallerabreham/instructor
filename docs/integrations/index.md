@@ -20,7 +20,8 @@ Learn how to integrate Instructor with various AI model providers. These compreh
     [:octicons-arrow-right-16: Google.GenerativeAI](./google.md)          ·
     [:octicons-arrow-right-16: Vertex AI](./vertex.md)       ·
     [:octicons-arrow-right-16: AWS Bedrock](./bedrock.md)    ·
-    [:octicons-arrow-right-16: Google.GenAI](./genai.md)
+    [:octicons-arrow-right-16: Google.GenAI](./genai.md)     ·
+    [:octicons-arrow-right-16: xAI](./xai.md)
 
 - :material-cloud-outline: **Additional Cloud Providers**
 
@@ -75,8 +76,11 @@ Providers support different methods for generating structured outputs:
 |------|-------------|-----------|
 | `TOOLS` | Uses OpenAI-style tools/function calling | OpenAI, Anthropic, Mistral |
 | `PARALLEL_TOOLS` | Multiple simultaneous tool calls | OpenAI |
-| `JSON` | Direct JSON response generation | OpenAI, Gemini, Cohere, GenAI |
+| `JSON` | Direct JSON response generation | OpenAI, Gemini, Cohere, Perplexity |
 | `MD_JSON` | JSON embedded in markdown | Most providers |
+| `BEDROCK_TOOLS` | AWS Bedrock function calling | AWS Bedrock |
+| `BEDROCK_JSON` | AWS Bedrock JSON generation | AWS Bedrock |
+| `PERPLEXITY_JSON` | Perplexity JSON generation | Perplexity |
 
 See the [Modes Comparison](../modes-comparison.md) guide for details.
 

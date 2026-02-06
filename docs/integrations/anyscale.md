@@ -26,6 +26,7 @@ export ANYSCALE_API_KEY=your_api_key_here
 Here's how to extract structured data from Anyscale models:
 
 ```python
+import os
 import instructor
 from pydantic import BaseModel
 

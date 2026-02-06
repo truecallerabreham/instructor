@@ -39,11 +39,9 @@ from instructor import Instructions  # pip install instructor
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 
-from instructor import Instructions, FinetuneFormat
-
 instructions = Instructions(
     name="three_digit_multiply",
-    finetune_format=FinetuneFormat.MESSAGES,  # or FinetuneFormat.RAW
+    finetune_format="messages",
     # log handler is used to save the data to a file
     # you can imagine saving it to a database or other storage
     # based on your needs!
@@ -99,41 +97,9 @@ The library offers two main benefits:
 
 The `from instructor import Instructions` feature is a time saver. It auto-generates a fine-tuning dataset, making it a breeze to imitate a function's behavior.
 
-## FinetuneFormat Options
-
-The `finetune_format` parameter controls how the fine-tuning data is structured. There are two options:
-
-### MESSAGES Format (Default)
-
-The `MESSAGES` format creates data in OpenAI's chat completion format with messages and function calls. This is the recommended format for most use cases as it matches OpenAI's fine-tuning API format.
-
-```python
-from instructor import Instructions, FinetuneFormat
-
-instructions = Instructions(
-    name="my_function",
-    finetune_format=FinetuneFormat.MESSAGES,
-    log_handlers=[logging.FileHandler("output.jsonl")],
-)
-```
-
-### RAW Format
-
-The `RAW` format creates a simpler format with function metadata, arguments, and response. Use this format if you need more control over the data structure or are using a custom fine-tuning pipeline.
-
-```python
-from instructor import Instructions, FinetuneFormat
-
-instructions = Instructions(
-    name="my_function",
-    finetune_format=FinetuneFormat.RAW,
-    log_handlers=[logging.FileHandler("output.jsonl")],
-)
-```
-
 ## Logging Output and Running a Finetune
 
-Here's how the logging output would look for MESSAGES format:
+Here's how the logging output would look:
 
 ```python
 {
@@ -151,18 +117,6 @@ Here's how the logging output would look for MESSAGES format:
     "functions": [
         {"name": "Multiply", "description": "Correctly extracted `Multiply`..."}
     ],
-}
-```
-
-For RAW format, the output would look like:
-
-```python
-{
-    "fn_name": "three_digit_multiply",
-    "fn_repr": "def fn(a: int, b: int) -> Multiply:\n    ...",
-    "args": [133],
-    "kwargs": {"b": 539},
-    "response": {"a": 133, "b": 539, "result": 89509}
 }
 ```
 

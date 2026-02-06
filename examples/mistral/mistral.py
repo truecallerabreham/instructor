@@ -15,7 +15,7 @@ client = MistralClient(api_key=os.environ.get("MISTRAL_API_KEY"))
 instructor_client = from_mistral(
     client=client,
     model="mistral-large-latest",
-    mode=Mode.TOOLS,
+    mode=Mode.MISTRAL_TOOLS,
     max_tokens=1000,
 )
 

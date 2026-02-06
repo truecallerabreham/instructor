@@ -14,7 +14,7 @@ client = instructor.from_openai(client, mode=instructor.Mode.TOOLS)
 
 
 # Now, we can use the response_model parameter using only a base model
-# rather than having to use the ResponseSchema class
+# rather than having to use the OpenAISchema class
 class UserExtract(BaseModel):
     name: str
     age: int

@@ -91,7 +91,6 @@ Here's how you can implement prompt caching with Instructor and Anthropic:
 
 ```python
 from pydantic import BaseModel
-
 # Set up the client with prompt caching
 client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
 

@@ -26,7 +26,6 @@ from instructor import openai_moderation
 
 from typing_extensions import Annotated
 from pydantic import BaseModel, AfterValidator
-
 client = instructor.from_provider("openai/gpt-5-nano")
 
 

@@ -56,7 +56,6 @@ To extract competitors from slides we will define a function which will read ima
 
 ```python
 import instructor
-
 # Apply the patch to the OpenAI client
 # enables response_model keyword
 client = instructor.from_provider("openai/gpt-5-nano")
@@ -133,7 +132,6 @@ As we can see, our model extracted the relevant information for each competitor 
 ```python
 # <%hide%>
 import instructor
-
 # Apply the patch to the OpenAI client
 # enables response_model keyword
 client = instructor.from_provider("openai/gpt-5-nano")
@@ -207,29 +205,32 @@ print(model.model_dump_json(indent=2))
 {
   "industry_list": [
     {
-      "name": "Accommodation Booking",
+      "name": "Accommodation Services",
       "competitor_list": [
         {
           "name": "CouchSurfing",
           "features": [
             "Free accommodation",
+            "Cultural exchange",
             "Community-driven",
-            "Cultural exchange"
+            "User profiles and reviews"
           ]
         },
         {
           "name": "Craigslist",
           "features": [
             "Local listings",
-            "Variety of options",
-            "User-generated content"
+            "Variety of accommodation types",
+            "Direct communication with hosts",
+            "No booking fees"
           ]
         },
         {
           "name": "BedandBreakfast.com",
           "features": [
             "Specialized in B&Bs",
-            "Personalized service",
+            "User reviews",
+            "Booking options",
             "Local experiences"
           ]
         },
@@ -238,23 +239,26 @@ print(model.model_dump_json(indent=2))
           "features": [
             "Wide range of accommodations",
             "User reviews",
-            "Instant booking"
+            "Instant booking",
+            "Host profiles"
           ]
         },
         {
           "name": "Hostels.com",
           "features": [
             "Budget-friendly hostels",
-            "Global reach",
-            "User ratings"
+            "User reviews",
+            "Booking options",
+            "Global reach"
           ]
         },
         {
           "name": "RentDigs.com",
           "features": [
             "Rental listings",
-            "Long-term stays",
-            "User-friendly interface"
+            "User-friendly interface",
+            "Local listings",
+            "Direct communication with landlords"
           ]
         },
         {
@@ -262,14 +266,16 @@ print(model.model_dump_json(indent=2))
           "features": [
             "Vacation rentals",
             "Family-friendly options",
-            "Direct owner contact"
+            "User reviews",
+            "Booking protection"
           ]
         },
         {
           "name": "Hotels.com",
           "features": [
-            "Wide selection of hotels",
+            "Wide range of hotels",
             "Rewards program",
+            "User reviews",
             "Price match guarantee"
           ]
         }

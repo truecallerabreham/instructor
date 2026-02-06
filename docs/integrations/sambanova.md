@@ -24,6 +24,7 @@ pip install "instructor[openai]"
 
 ```python
 import instructor
+import os
 from pydantic import BaseModel
 
 client = instructor.from_provider("sambanova/Meta-Llama-3.1-405B-Instruct")
@@ -47,6 +48,7 @@ print(user)
 
 ```python
 import instructor
+import os
 from pydantic import BaseModel
 
 client = instructor.from_provider(

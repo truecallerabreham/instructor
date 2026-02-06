@@ -59,7 +59,8 @@ We'll then convert this to a probability distribution with two outcomes and calc
 Next we'll compare the Mutual Information value for different prompts before choosing what the best prompt is. For this example, we'll be using values from the Story Cloze set.
 
 ```python
-import instructor
+from openai import AsyncOpenAI
+from instructor import from_openai
 from pydantic import BaseModel
 from typing import Callable, Literal
 from textwrap import dedent
@@ -89,7 +90,7 @@ class Response(BaseModel):
         return confidence_scores[self.confidence]
 
 
-client = instructor.from_provider("openai/gpt-4o-mini", async_client=True)
+client = from_openai(AsyncOpenAI())
 
 
 def prompt_template_1(question: str, options: list[str]):

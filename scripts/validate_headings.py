@@ -12,14 +12,15 @@ import argparse
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 
-def find_markdown_files(docs_dir: Path) -> list[Path]:
+def find_markdown_files(docs_dir: Path) -> List[Path]:
     """Find all markdown files in the docs directory."""
     return list(docs_dir.rglob("*.md"))
 
 
-def extract_headings(content: str) -> list[tuple[int, str, int]]:
+def extract_headings(content: str) -> List[Tuple[int, str, int]]:
     """
     Extract all headings from markdown content.
 
@@ -40,7 +41,7 @@ def extract_headings(content: str) -> list[tuple[int, str, int]]:
     return headings
 
 
-def validate_headings(headings: list[tuple[int, str, int]]) -> dict[str, list[str]]:
+def validate_headings(headings: List[Tuple[int, str, int]]) -> Dict[str, List[str]]:
     """Validate heading structure."""
     issues = {}
 
@@ -73,7 +74,7 @@ def validate_headings(headings: list[tuple[int, str, int]]) -> dict[str, list[st
     return issues
 
 
-def process_file(file_path: Path) -> dict[str, list[str]]:
+def process_file(file_path: Path) -> Dict[str, List[str]]:
     """Process a single file and return issues."""
     try:
         content = file_path.read_text(encoding="utf-8")

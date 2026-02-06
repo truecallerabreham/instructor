@@ -2,13 +2,13 @@ import instructor
 
 from openai import OpenAI
 from pydantic import Field, parse_file_as
-from instructor import ResponseSchema
+from instructor import OpenAISchema
 from generate import Program
 
 client = instructor.from_openai(OpenAI())
 
 
-class Diff(ResponseSchema):
+class Diff(OpenAISchema):
     """
     Changes that must be correctly made in a program's code repository defined as a
     complete diff (Unified Format) file which will be used to `patch` the repository.

@@ -131,7 +131,6 @@ import shutil
 from agents import Agent, Runner, trace
 from agents.mcp import MCPServer, MCPServerStdio
 
-
 async def run(mcp_server: MCPServer, directory_path: str):
     agent = Agent(
         name="Assistant",
@@ -152,7 +151,6 @@ async def run(mcp_server: MCPServer, directory_path: str):
     result = await Runner.run(starting_agent=agent, input=message)
     print(result.final_output)
 
-
 async def main():
     # Ask the user for the directory path
     directory_path = input("Please enter the path to the git repository: ")
@@ -163,7 +161,6 @@ async def main():
     ) as server:
         with trace(workflow_name="MCP Git Example"):
             await run(server, directory_path)
-
 
 if __name__ == "__main__":
     if not shutil.which("uvx"):

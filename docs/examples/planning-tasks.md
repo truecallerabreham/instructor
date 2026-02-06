@@ -69,7 +69,6 @@ Now, let's demonstrate how to plan and execute a query plan using the defined mo
 
 ```python
 import instructor
-
 # <%hide%>
 from typing import List, Literal
 from pydantic import Field, BaseModel

@@ -1,8 +1,20 @@
 import pytest
-from pytest_examples import CodeExample, EvalExample
-from tests.docs._example_groups import collect_examples, core_example_files
+from pytest_examples import find_examples, CodeExample, EvalExample
+import glob
+import os
 
-code_examples = collect_examples(core_example_files())
+exclusions = ["ollama.md", "watsonx.md", "local_classification.md"]
+
+markdown_files = [
+    file
+    for file in glob.glob("docs/examples/*.md")
+    if os.path.basename(file) not in exclusions
+]
+
+code_examples = []
+
+for markdown_file in markdown_files:
+    code_examples.extend(find_examples(markdown_file))
 
 
 @pytest.mark.parametrize("example", code_examples, ids=str)

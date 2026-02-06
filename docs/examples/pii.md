@@ -48,7 +48,6 @@ The OpenAI API is utilized to extract PII information from a given document.
 
 ```python
 import instructor
-
 # <%hide%>
 from typing import List
 from pydantic import BaseModel

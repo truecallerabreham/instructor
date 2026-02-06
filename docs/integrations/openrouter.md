@@ -21,6 +21,7 @@ We support simple tool calling with this
 
 ```python
 from openai import OpenAI
+import os
 import instructor
 from pydantic import BaseModel
 
@@ -90,6 +91,7 @@ print(user)
 
 ```python
 from pydantic import BaseModel
+import os
 from openai import OpenAI
 import instructor
 from pydantic import BaseModel
@@ -143,6 +145,7 @@ Instructor also supports Structured Outputs with OpenRouter as documented in the
 
 ```python
 from pydantic import BaseModel, Field
+import os
 from openai import OpenAI
 import instructor
 
@@ -191,6 +194,7 @@ In this case, we recommend using the `JSON` mode instead as seen below.
 
 ```python
 from pydantic import BaseModel, Field
+import os
 from openai import OpenAI
 import instructor
 
@@ -233,6 +237,7 @@ You can also use streaming with as seen below using the `create_partial` method.
 
 ```python
 from pydantic import BaseModel, Field
+import os
 from openai import OpenAI
 import instructor
 

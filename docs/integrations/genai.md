@@ -20,18 +20,14 @@ This guide demonstrates how to use Instructor with Google's `genai` SDK to extra
 
 We currently have two modes for Gemini
 
-- `Mode.TOOLS` : This leverages function calling under the hood and returns a structured response
-- `Mode.JSON` : This provides Gemini with a JSON Schema that it will use to respond in a structured format with
+- `Mode.GENAI_TOOLS` : This leverages function calling under the hood and returns a structured response
+- `Mode.GENAI_STRUCTURED_OUTPUTS` : This provides Gemini with a JSON Schema that it will use to respond in a structured format with
 
 !!! info "Gemini Thought Parts Filtering"
 
-    When using `Mode.TOOLS`, Instructor automatically filters out thought parts from Gemini responses. Gemini 2.5 models include internal reasoning parts with `thought: true` by default, which cannot be disabled. Instructor removes these thought parts before processing the structured output to prevent runtime errors.
+    When using `Mode.GENAI_TOOLS`, Instructor automatically filters out thought parts from Gemini responses. Gemini 2.5 models include internal reasoning parts with `thought: true` by default, which cannot be disabled. Instructor removes these thought parts before processing the structured output to prevent runtime errors.
 
     This filtering happens automatically and requires no additional configuration. For more information about Gemini's thinking feature, see the [official documentation](https://ai.google.dev/gemini-api/docs/thinking).
-
-!!! note "Backwards Compatibility"
-
-    The provider-specific modes (`Mode.TOOLS`, `Mode.JSON`, `Mode.JSON`) are still supported but emit deprecation warnings and map to the generic modes (`Mode.TOOLS`, `Mode.JSON`).
 
 ## Installation
 
@@ -68,37 +64,6 @@ response = client.create(
 
 print(response)  # User(name='Jason', age=25)
 ```
-
-## Alternative: Using the v2 GenAI client
-
-!!! note "Recommended: Use `from_provider`"
-
-    The `from_provider` approach shown above is recommended for most use cases. The `from_genai` helper below is available if you need to work directly with the native `google.genai.Client` and keep the Google request format intact.
-
-```python
-from google.genai import Client
-from instructor import Mode
-from instructor.v2 import from_genai
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-raw_client = Client(api_key="YOUR_KEY")
-client = from_genai(raw_client, mode=Mode.TOOLS)
-
-result = client.chat.completions.create(
-    messages=[{"role": "user", "content": "Extract: Jason is 25 years old"}],
-    response_model=User,
-)
-
-print(result)
-```
-
-Behind the scenes the v2 client registers the correct mode handler, converts OpenAI-style messages to the GenAI `contents` format, and parses the response while filtering Gemini thought parts.
 
 ## Message Formatting
 
@@ -549,7 +514,7 @@ print(response)
 
     **As of July 11, 2025, Google GenAI does not support streaming with tool/function calling or structured outputs for regular models.** 
     
-    - `Mode.TOOLS` and `Mode.JSON` do not support streaming with regular models
+    - `Mode.GENAI_TOOLS` and `Mode.GENAI_STRUCTURED_OUTPUTS` do not support streaming with regular models
     - To use streaming, you must use `Partial[YourModel]` explicitly or switch to other modes like `Mode.JSON`
     - Alternatively, set `stream=False` to disable streaming
 
@@ -566,7 +531,7 @@ import instructor
 
 client = instructor.from_provider(
     "google/gemini-2.5-flash",
-    mode=instructor.Mode.JSON,
+    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
 )
 
 

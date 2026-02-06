@@ -5,7 +5,7 @@ from pydantic import BaseModel
 # Noticed thhat we use JSON not TOOLS mode
 client = instructor.from_provider(
     "anthropic/claude-3-7-sonnet-latest",
-    mode=instructor.Mode.JSON,
+    mode=instructor.Mode.ANTHROPIC_JSON,
     async_client=False,
 )
 

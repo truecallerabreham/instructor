@@ -31,6 +31,7 @@ Make sure to set the `WRITER_API_KEY` environment variable with your Writer API 
 
 ```python
 import instructor
+from writerai import Writer
 from pydantic import BaseModel
 
 # Initialize Writer client
@@ -63,6 +64,7 @@ This is particularly valuable for maintaining responsive applications and delive
 
 ```python
 import instructor
+from writerai import Writer
 from pydantic import BaseModel
 
 # Initialize Writer client
@@ -125,6 +127,7 @@ As with all our integrations, `instructor` ships with the ability to automatical
 ```python
 import instructor
 from typing import Annotated
+from writerai import Writer
 from pydantic import BaseModel, AfterValidator, Field
 
 # Initialize Writer client

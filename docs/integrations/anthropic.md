@@ -1,6 +1,6 @@
 ---
 title: "Anthropic Claude Tutorial: Structured Outputs with Instructor"
-description: "Complete guide to using Anthropic's Claude models with Instructor for structured data extraction. Learn how to use Claude Haiku for type-safe outputs in Python."
+description: "Complete guide to using Anthropic's Claude models with Instructor for structured data extraction. Learn how to use Claude 3 Opus, Sonnet, and Haiku for type-safe outputs in Python."
 ---
 
 ## See Also
@@ -12,7 +12,7 @@ description: "Complete guide to using Anthropic's Claude models with Instructor 
 
 # Anthropic Claude Tutorial: Structured Outputs with Instructor
 
-Learn how to use Anthropic's Claude Haiku models with Instructor to extract structured, validated data. This tutorial covers everything from basic setup to advanced patterns for production use.
+Learn how to use Anthropic's Claude models (Claude 3 Opus, Sonnet, and Haiku) with Instructor to extract structured, validated data. This tutorial covers everything from basic setup to advanced patterns for production use.
 
 ## Quick Start: Install Instructor for Claude
 
@@ -53,8 +53,8 @@ class User(BaseModel):
     properties: List[Properties] = Field(description="List of user properties")
 
 client = instructor.from_provider(
-    "anthropic/claude-4-5-haiku-latest",
-    mode=instructor.Mode.TOOLS
+    "anthropic/claude-3-5-haiku-latest",
+    mode=instructor.Mode.ANTHROPIC_TOOLS
 )
 
 try:
@@ -104,9 +104,9 @@ except Exception as e:
 import asyncio
 
 async_client = instructor.from_provider(
-    "anthropic/claude-4-5-haiku-latest",
+    "anthropic/claude-3-5-haiku-latest",
     async_client=True,
-    mode=instructor.Mode.TOOLS,
+    mode=instructor.Mode.ANTHROPIC_TOOLS,
 )
 
 async def extract_user():
@@ -120,11 +120,6 @@ print(user)
 ```
 
 ### Parallel Tool Calling
-
-Parallel tool mode is automatically detected when your response model is `Iterable[Union[Model1, Model2, ...]]`. Just use `Mode.TOOLS` (or let it default) and the handler will automatically:
-- Set tool_choice to "auto" (required for parallel)
-- Generate schemas for all union members
-- Return a generator yielding each tool result
 
 ```python
 from typing import Iterable, Literal
@@ -141,10 +136,9 @@ class GoogleSearch(BaseModel):
     query: str
 
 
-# No need to specify Mode.PARALLEL_TOOLS - it's auto-detected!
 client = instructor.from_provider(
     "anthropic/claude-3-5-haiku-latest",
-    mode=instructor.Mode.TOOLS,  # or just omit and use default
+    mode=instructor.Mode.ANTHROPIC_PARALLEL_TOOLS,
 )
 
 results = client.create(
@@ -155,18 +149,12 @@ results = client.create(
             "content": "What is the weather in toronto and dallas and who won the super bowl?",
         },
     ],
-    response_model=Iterable[Weather | GoogleSearch],  # Auto-detects parallel mode
+    response_model=Iterable[Weather | GoogleSearch],
 )
 
 for item in results:
     print(item)
 ```
-
-**How it works**: When Instructor detects `Iterable[Union[...]]`, it automatically:
-1. Sets `tool_choice` to `"auto"` (allows model to call any tool)
-2. Generates tool schemas from all union members
-3. Returns a generator that yields each extracted tool call
-4. Each yielded item is validated against its corresponding Pydantic model
 
 ## Multimodal
 
@@ -204,7 +192,7 @@ class ImageDescription(BaseModel):
     colors: list[str] = Field(..., description="The colors in the image")
 
 
-client = instructor.from_provider("anthropic/claude-4-5-haiku-latest")
+client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
 url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg"
 # Multiple ways to load an image:
 response = client.create(
@@ -258,7 +246,7 @@ class Receipt(BaseModel):
     items: list[str]
 
 
-client = instructor.from_provider("anthropic/claude-4-5-haiku-latest")
+client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
 url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
 # Multiple ways to load an PDF:
 response = client.create(
@@ -300,7 +288,7 @@ class Receipt(BaseModel):
     items: list[str]
 
 
-client = instructor.from_provider("anthropic/claude-4-5-haiku-latest")
+client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
 url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
 # Multiple ways to load an PDF:
 response, completion = client.create_with_completion(
@@ -357,8 +345,8 @@ from pydantic import BaseModel, Field
 
 # Initialize client with explicit mode
 client = instructor.from_provider(
-    "anthropic/claude-4-5-haiku-latest",
-    mode=instructor.Mode.TOOLS,
+    "anthropic/claude-3-5-haiku-latest",
+    mode=instructor.Mode.ANTHROPIC_TOOLS,
 )
 
 # Define your model with proper annotations
@@ -406,7 +394,7 @@ from pydantic import BaseModel, Field
 
 # Initialize client with explicit mode
 client = from_provider(
-    mode=instructor.Mode.TOOLS
+    mode=instructor.Mode.ANTHROPIC_TOOLS
 )
 
 # Define your model with proper annotations
@@ -453,22 +441,11 @@ except Exception as e:
 
 We provide several modes to make it easy to work with the different response models that Anthropic supports
 
-1. `instructor.Mode.JSON` : This uses the text completion API from the Anthropic API and then extracts out the desired response model from the text completion model
-2. `instructor.Mode.TOOLS` : This uses Anthropic's [tools calling API](https://docs.anthropic.com/en/docs/build-with-claude/tool-use) to return structured outputs. Automatically detects parallel tools from `Iterable[Union[...]]` response models.
-3. `instructor.Mode.PARALLEL_TOOLS` : **Deprecated** - Use `Mode.TOOLS` with `Iterable[Union[Model1, Model2, ...]]` instead. Auto-detected automatically.
+1. `instructor.Mode.ANTHROPIC_JSON` : This uses the text completion API from the Anthropic API and then extracts out the desired response model from the text completion model
+2. `instructor.Mode.ANTHROPIC_TOOLS` : This uses Anthropic's [tools calling API](https://docs.anthropic.com/en/docs/build-with-claude/tool-use) to return structured outputs to the client
+3. `instructor.Mode.ANTHROPIC_PARALLEL_TOOLS` : Runs multiple tools in parallel and returns a list of tool calls
 
-### Mode Auto-Detection
-
-`Mode.TOOLS` now intelligently adapts based on your response model and parameters:
-
-| Response Model | Parameters | Behavior |
-|---|---|---|
-| `Model` | Regular | Single tool (forced) |
-| `Model` | `thinking={...}` | Single tool with extended thinking (auto) |
-| `Iterable[Union[Model1, Model2]]` | Regular | Parallel tools (auto) |
-| `Iterable[Union[Model1, Model2]]` | `thinking={...}` | Parallel with thinking |
-
-In general, we recommend using `Mode.TOOLS` because it automatically handles all these cases and is the best way to ensure you have the desired response schema.
+In general, we recommend using `Mode.ANTHROPIC_TOOLS` because it's the best way to ensure you have the desired response schema that you want.
 
 ## Caching
 
@@ -499,9 +476,8 @@ class Character(BaseModel):
     description: str = Field(description="A description of the character")
 
 # Initialize client with explicit mode and prompt caching
-client = instructor.from_provider(
-    "anthropic/claude-4-5-haiku-latest",
-    mode=instructor.Mode.TOOLS,
+client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
+    mode=instructor.Mode.ANTHROPIC_TOOLS,
 )
 
 try:
@@ -574,9 +550,8 @@ class ImageAnalyzer(BaseModel):
     scene_type: str = Field(description="Type of scene shown in the images (indoor, outdoor, etc.)")
 
 # Initialize client with explicit mode and image caching enabled
-client = instructor.from_provider(
-    "anthropic/claude-4-5-haiku-latest",
-    mode=instructor.Mode.TOOLS,
+client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
+    mode=instructor.Mode.ANTHROPIC_TOOLS,
 )
 
 try:
@@ -624,11 +599,9 @@ except Exception as e:
     print(f"Error during image analysis: {e}")
 ```
 
-## Thinking (Extended Thinking)
+## Thinking
 
-Anthropic supports extended thinking with their Claude models, enabling the model to think through complex problems before providing structured outputs. In Instructor, use `Mode.TOOLS` with the `thinking` parameter to enable this feature.
-
-### Using Extended Thinking with TOOLS
+Anthropic recently released support for extended thinking with their `sonnet-3.7` model series. In instructor, we support getting a validated tool call with the `instructor.Mode.ANTHROPIC_REASONING_TOOLS` Mode as seen below.
 
 ```python
 from anthropic import Anthropic
@@ -640,13 +613,14 @@ class Answer(BaseModel):
     answer: float
 
 
+client = Anthropic()
 client = instructor.from_provider("anthropic/claude-3-5-haiku-latest")
 response = client.create(
     response_model=Answer,
     messages=[
         {
             "role": "user",
-            "content": "Which is larger, 9.11 or 9.8?",
+            "content": "Which is larger, 9.11 or 9.8",
         },
     ],
     temperature=1,
@@ -654,20 +628,10 @@ response = client.create(
     thinking={"type": "enabled", "budget_tokens": 1024},
 )
 
-# Response is a validated Answer object
+
+# Assertions to validate the response
 assert isinstance(response, Answer)
 assert response.answer == 9.8
 ```
 
-### How It Works
-
-When you provide the `thinking` parameter with `type: "enabled"`:
-
-1. **Automatic Mode Detection**: `Mode.TOOLS` automatically detects the thinking parameter and adjusts the tool choice strategy to `auto` (required by Anthropic's API when thinking is enabled)
-2. **Model Reasoning**: Claude uses the allocated `budget_tokens` to reason about the problem
-3. **Structured Output**: After reasoning, the model returns a valid tool call with your response model
-4. **Validation**: The response is automatically validated against your Pydantic model
-
-### Deprecation Notice
-
-`Mode.ANTHROPIC_REASONING_TOOLS` is deprecated. Use `Mode.TOOLS` with the `thinking` parameter instead. Both modes now support thinking, but using the standard `TOOLS` mode is preferred and more flexible.
+This then returns the response as a validated `Answer` object.

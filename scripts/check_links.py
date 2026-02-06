@@ -11,14 +11,15 @@ Finds:
 import argparse
 import re
 from pathlib import Path
+from typing import Dict, List, Set, Tuple
 
 
-def find_markdown_files(docs_dir: Path) -> list[Path]:
+def find_markdown_files(docs_dir: Path) -> List[Path]:
     """Find all markdown files in the docs directory."""
     return list(docs_dir.rglob("*.md"))
 
 
-def extract_links(content: str, file_path: Path) -> list[tuple[str, int]]:  # noqa: ARG001
+def extract_links(content: str, file_path: Path) -> List[Tuple[str, int]]:
     """
     Extract internal markdown links from content.
 
@@ -42,7 +43,7 @@ def extract_links(content: str, file_path: Path) -> list[tuple[str, int]]:  # no
     return links
 
 
-def resolve_link(link_url: str, source_file: Path, docs_dir: Path) -> tuple[bool, str]:  # noqa: ARG001
+def resolve_link(link_url: str, source_file: Path, docs_dir: Path) -> Tuple[bool, str]:
     """
     Resolve a relative link and check if target exists.
 
@@ -66,7 +67,7 @@ def resolve_link(link_url: str, source_file: Path, docs_dir: Path) -> tuple[bool
     return exists, str(target_path)
 
 
-def check_file(file_path: Path, docs_dir: Path) -> dict[str, list[tuple[str, int]]]:
+def check_file(file_path: Path, docs_dir: Path) -> Dict[str, List[Tuple[str, int]]]:
     """Check all links in a file."""
     issues = {}
 
@@ -88,7 +89,7 @@ def check_file(file_path: Path, docs_dir: Path) -> dict[str, list[tuple[str, int
         return {"error": [(str(e), 0)]}
 
 
-def find_orphaned_pages(files: list[Path], docs_dir: Path) -> set[Path]:
+def find_orphaned_pages(files: List[Path], docs_dir: Path) -> Set[Path]:
     """Find pages with no incoming links."""
     all_files = set(files)
     referenced_files = set()
@@ -102,7 +103,7 @@ def find_orphaned_pages(files: list[Path], docs_dir: Path) -> set[Path]:
                 exists, resolved_path = resolve_link(link_url, file_path, docs_dir)
                 if exists:
                     referenced_files.add(Path(resolved_path))
-        except Exception:
+        except:
             pass
 
     # Files that are not referenced (orphaned)

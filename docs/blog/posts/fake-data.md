@@ -27,7 +27,6 @@ from typing import Iterable
 from pydantic import BaseModel
 import instructor
 
-
 # Define the UserDetail model
 class UserDetail(BaseModel):
     name: str
@@ -52,9 +51,9 @@ for user in generate_fake_users(5):
     print(user)
     #> name='Alice' age=25
     #> name='Bob' age=30
-    #> name='Charlie' age=22
-    #> name='David' age=28
-    #> name='Eve' age=35
+    #> name='Charlie' age=35
+    #> name='David' age=40
+    #> name='Eve' age=22
 ```
 
 ## Leveraging Simple Examples
@@ -65,7 +64,6 @@ We might want to set examples as part of the prompt by leveraging Pydantics conf
 from typing import Iterable
 from pydantic import BaseModel, Field
 import instructor
-
 
 # Define the UserDetail model
 class UserDetail(BaseModel):
@@ -90,10 +88,10 @@ def generate_fake_users(count: int) -> Iterable[UserDetail]:
 for user in generate_fake_users(5):
     print(user)
     #> name='John Doe' age=25
-    #> name='Alice Smith' age=30
-    #> name='Bob Johnson' age=28
-    #> name='Emily Brown' age=35
-    #> name='Michael Williams' age=27
+    #> name='Jane Smith' age=30
+    #> name='Michael Johnson' age=22
+    #> name='Emily Davis' age=28
+    #> name='David Brown' age=35
 ```
 
 By incorporating names of celebrities as examples, we have shifted towards generating synthetic data featuring well-known personalities, moving away from the simplistic, single-word names previously used.
@@ -107,7 +105,6 @@ import instructor
 
 from typing import Iterable
 from pydantic import BaseModel, ConfigDict
-
 
 # Define the UserDetail model
 class UserDetail(BaseModel):
@@ -142,11 +139,11 @@ def generate_fake_users(count: int) -> Iterable[UserDetail]:
 
 for user in generate_fake_users(5):
     print(user)
-    #> name='Merlin' age=600
-    #> name='Radagast the Brown' age=950
-    #> name='Rincewind' age=70
-    #> name='Harry Potter' age=17
+    #> name='Merlin' age=1000
+    #> name='Saruman the White' age=700
+    #> name='Radagast the Brown' age=600
     #> name='Elminster Aumar' age=1200
+    #> name='Mordenkainen' age=850
 ```
 
 ## Leveraging Descriptions
@@ -161,7 +158,6 @@ import instructor
 
 from typing import Iterable
 from pydantic import BaseModel, Field
-
 
 # Define the UserDetail model
 class UserDetail(BaseModel):
@@ -185,9 +181,9 @@ def generate_fake_users(count: int) -> Iterable[UserDetail]:
 
 for user in generate_fake_users(5):
     print(user)
-    #> name='Jean Luc' age=25
-    #> name='Marcelle' age=30
-    #> name='Antoinette' age=22
-    #> name='Gaspard' age=28
-    #> name='Eloise' age=35
+    #> name='Jean Luc' age=30
+    #> name='Claire Belle' age=25
+    #> name='Pierre Leclair' age=40
+    #> name='Amelie Rousseau' age=35
+    #> name='Etienne Lefevre' age=28
 ```

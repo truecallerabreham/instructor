@@ -24,8 +24,10 @@ export GROQ_API_KEY=<your-api-key>
 
 An example:
 ```python
+import os
 from pydantic import BaseModel, Field
 from typing import List
+from groq import Groq
 import instructor
 
 

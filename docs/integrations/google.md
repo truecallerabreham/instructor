@@ -117,7 +117,7 @@ class User(BaseModel):
 
 client = instructor.from_provider(
     "google/gemini-3-flash",
-    mode=instructor.Mode.JSON,
+    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
 )
 
 resp = client.create(
@@ -335,12 +335,8 @@ These limitations are specific to Google Gemini and do not affect other provider
 
 We provide several modes to make it easy to work with the different response models that Gemini supports:
 
-1. `instructor.Mode.TOOLS` : This uses Gemini's tool calling API to return structured outputs (default)
-2. `instructor.Mode.JSON` : This uses Gemini's JSON schema mode for structured outputs
-
-!!! note "Backwards Compatibility"
-
-    Legacy provider-specific modes (for example `Mode.TOOLS`, `Mode.JSON`, `Mode.JSON`, `Mode.TOOLS`) are deprecated. They emit warnings and map to the generic modes.
+1. `instructor.Mode.GENAI_TOOLS` : This uses Gemini's tool calling API to return structured outputs (default)
+2. `instructor.Mode.GENAI_STRUCTURED_OUTPUTS` : This uses Gemini's JSON schema mode for structured outputs
 
 !!! info "Mode Selection"
     When using `from_provider`, the appropriate mode is automatically selected based on the provider and model capabilities.
@@ -381,7 +377,7 @@ import google.generativeai as genai
 
 client = instructor.from_provider(
     "google/gemini-2.5-flash",
-    mode=instructor.Mode.JSON,
+    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
 )
 ```
 
@@ -389,10 +385,10 @@ client = instructor.from_provider(
 ```python
 import instructor
 
-# Option 1: Using from_provider (recommended)
+# Option 1: Using from_provider (simplest)
 client = instructor.from_provider("google/gemini-2.5-flash")
 
-# Option 2: Using from_genai directly (legacy/advanced)
+# Option 2: Using from_genai directly
 from google import genai
 from instructor import from_genai
 
@@ -411,7 +407,7 @@ from vertexai.generative_models import GenerativeModel
 
 vertexai.init(project="your-project", location="us-central1")
 client = instructor.from_provider("google/gemini-2.5-flash", vertexai=True),
-    mode=instructor.Mode.TOOLS,
+    mode=instructor.Mode.VERTEXAI_TOOLS,
 )
 ```
 
@@ -419,14 +415,14 @@ client = instructor.from_provider("google/gemini-2.5-flash", vertexai=True),
 ```python
 import instructor
 
-# Option 1: Using from_provider (recommended)
+# Option 1: Using from_provider
 client = instructor.from_provider(
     "vertexai/gemini-3-flash",
     project="your-project",
     location="us-central1"
 )
 
-# Option 2: Using from_genai with vertexai=True (legacy/advanced)
+# Option 2: Using from_genai with vertexai=True
 from google import genai
 from instructor import from_genai
 

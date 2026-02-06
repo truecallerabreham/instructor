@@ -60,7 +60,8 @@ We bias this sampling towards samples that the model is more confident towards b
 ```python
 from pydantic import BaseModel
 from typing import Literal
-import instructor
+from instructor import from_openai
+from openai import AsyncOpenAI
 import asyncio
 from collections import defaultdict
 
@@ -82,7 +83,7 @@ class Classification(BaseModel):
         return confidence_order[self.confidence]
 
 
-client = instructor.from_provider("openai/gpt-4o-mini", async_client=True)
+client = from_openai(AsyncOpenAI())
 
 
 async def generate_prediction(query: str):

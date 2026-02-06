@@ -53,7 +53,6 @@ Let's see how to use this recursive schema with Instructor:
 
 ```python
 import instructor
-
 client = instructor.from_provider("openai/gpt-5-nano")
 
 
