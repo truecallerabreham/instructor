@@ -163,9 +163,6 @@ def _openai_image_part_to_bedrock(part: dict[str, Any]) -> dict[str, Any]:
     if not image_url:
         raise ValueError("image_url.url is required for OpenAI-style image parts")
 
-    guessed_mime = mimetypes.guess_type(image_url)[0] or "image/jpeg"
-    fmt = _normalize_bedrock_image_format(guessed_mime)
-
     # data URL to bytes
     if image_url.startswith("data:"):
         try:
@@ -174,6 +171,18 @@ def _openai_image_part_to_bedrock(part: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("Invalid data URL in image_url.url") from e
         if ";base64" not in header:
             raise ValueError("Only base64 data URLs are supported for Bedrock")
+        meta = header[5:]  # strip 'data:'
+        mime = meta.split(";", 1)[0]
+        if not mime or "/" not in mime:
+            guessed = None
+            for token in meta.split(";")[1:]:
+                if token.startswith("name="):
+                    name = token[len("name=") :].strip().strip('"')
+                    guessed = mimetypes.guess_type(name)[0]
+                    if guessed:
+                        break
+            mime = guessed or "image/jpeg"
+        fmt = _normalize_bedrock_image_format(mime)
         return {"image": {"format": fmt, "source": {"bytes": base64.b64decode(b64)}}}
 
     else:
