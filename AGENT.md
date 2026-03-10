@@ -1,7 +1,7 @@
 # AGENT.md
 
 ## Commands
-- Install: `uv pip install -e ".[dev]"` or `poetry install --with dev`
+- Install (matches CI): `uv sync --all-extras`
 - Run tests: `uv run pytest tests/`
 - Run single test: `uv run pytest tests/path_to_test.py::test_name`
 - Skip LLM tests: `uv run pytest tests/ -k 'not llm and not openai'`

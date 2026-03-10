@@ -62,8 +62,8 @@ By participating in this project, you agree to abide by our code of conduct: tre
 
 5. **Install Dependencies**:
    ```bash
-   # Using uv (recommended)
-   uv pip install -e ".[dev,docs,test-docs]"
+   # Using uv (recommended, matches CI)
+   uv sync --all-extras
    
    # Using poetry
    poetry install --with dev,docs,test-docs
@@ -74,8 +74,7 @@ By participating in this project, you agree to abide by our code of conduct: tre
 
 6. **Set up Pre-commit**:
    ```bash
-   pip install pre-commit
-   pre-commit install
+   uv run pre-commit install
    ```
 
 ### Development Workflow
@@ -114,8 +113,8 @@ UV is a fast Python package installer and resolver. It's recommended for day-to-
 # Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install project and development dependencies
-uv pip install -e ".[dev,docs]"
+# Install project and development dependencies (matches CI)
+uv sync --all-extras
 
 # Adding a new dependency (example)
 uv pip install new-package
