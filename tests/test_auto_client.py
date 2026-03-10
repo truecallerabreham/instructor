@@ -116,6 +116,9 @@ def test_additional_kwargs_passed():
     if os.getenv("INSTRUCTOR_ENV") == "CI":
         pytest.skip("Skipping test on CI")
         return
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        pytest.skip("Skipping test (missing ANTHROPIC_API_KEY)")
+        return
 
     client = instructor.from_provider(
         "anthropic/claude-3-5-haiku-latest", max_tokens=10

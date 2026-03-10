@@ -7,11 +7,11 @@ from instructor.utils import is_async
 
 
 def test_patch_completes_successfully():
-    instructor.patch(OpenAI())
+    instructor.patch(OpenAI(api_key="sk-test"))
 
 
 def test_apatch_completes_successfully():
-    instructor.apatch(AsyncOpenAI())
+    instructor.apatch(AsyncOpenAI(api_key="sk-test"))
 
 
 def test_is_async_returns_true_if_function_is_async():
