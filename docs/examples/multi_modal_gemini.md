@@ -37,7 +37,8 @@ import google.generativeai as genai
 from pydantic import BaseModel
 
 
-client = instructor.from_provider("google/gemini-2.5-flash"),
+client = instructor.from_provider(
+    "google/gemini-2.5-flash",
     mode=instructor.Mode.JSON,  # (1)!
 )
 
@@ -63,9 +64,7 @@ resp = client.create(
 )
 
 print(resp)
-"""
-description = 'The main speaker is President John F. Kennedy, giving his State of the Union address to a joint session of Congress. He is speaking in the House of Representatives in Washington, D.C. on January 30th, 1961. He is thanking the members of Congress for their knowledge and inspiration.'
-"""
+# description='The main speaker is President John F. Kennedy, giving his State of the Union address to a joint session of Congress. He is speaking in the House of Representatives in Washington, D.C. on January 30th, 1961. He is thanking the members of Congress for their knowledge and inspiration.'
 ```
 
 1. Make sure to set the mode to `Mode.JSON` (replaces deprecated `GEMINI_JSON`), this is important because Tool Calling doesn't work with multi-modal inputs.
@@ -88,11 +87,11 @@ Secondly, we can also pass in a audio segment as a normal message as an inline o
 
 ```python
 import instructor
-import google.generativeai as genai
 from pydantic import BaseModel
 from pydub import AudioSegment
 
-client = instructor.from_provider("google/gemini-2.5-flash"),
+client = instructor.from_provider(
+    "google/gemini-2.5-flash",
     mode=instructor.Mode.JSON,  # (1)!
 )
 
@@ -124,9 +123,8 @@ resp = client.create(
 )
 
 print(resp)
-"""
-summary='President addresses the joint session of Congress,  reflecting on his first time taking the oath of federal office and the knowledge and inspiration gained.' exact_transcription="The President's state of the union address to a joint session of the Congress from the rostrum of the House of Representatives, Washington D.C. January 30th 1961 Speaker, Mr Vice President members of the Congress It is a pleasure to return from whence I came You are among my oldest friends in Washington And this house is my oldest home It was here it was here more than 14 years ago that I first took the oath of federal office It was here for 14 years that I gained both knowledge and inspiration from members of both"
-"""
+# summary='President addresses the joint session of Congress, reflecting on his first time taking the oath of federal office and the knowledge and inspiration gained.'
+# exact_transcription="The President's state of the union address to a joint session of the Congress from the rostrum of the House of Representatives, Washington D.C. January 30th 1961 ..."
 
 #> summary='President delivers a speech to a joint session of Congress,
 #> highlighting his history in the House of Representatives and thanking
@@ -158,7 +156,8 @@ import google.generativeai as genai
 from pydantic import BaseModel
 
 
-client = instructor.from_provider("google/gemini-2.5-flash"),
+client = instructor.from_provider(
+    "google/gemini-2.5-flash",
     mode=instructor.Mode.JSON,  # (1)!
 )
 
@@ -180,14 +179,12 @@ resp = client.create(
         {
             "role": "user",
             "content": content,
-        }
+        },
     ],
 )
 
 print(resp)
-"""
-description = 'President John F. Kennedy delivers his State of the Union address to the Congress on January 30, 1961. The speech was delivered at the rostrum of the House of Representatives in Washington, D.C.'
-"""
+# description='President John F. Kennedy delivers his State of the Union address to the Congress on January 30, 1961. The speech was delivered at the rostrum of the House of Representatives in Washington, D.C.'
 ```
 
 1. Make sure to set the mode to `Mode.JSON` (replaces deprecated `GEMINI_JSON`), this is important because Tool Calling doesn't work with multi-modal inputs.

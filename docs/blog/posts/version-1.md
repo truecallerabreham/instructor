@@ -61,8 +61,6 @@ Now, whenever you call `client.chat.completions.create` the `model` and `tempera
 When I first started working on this project, my goal was to ensure that we weren't introducing any new standards. Instead, our focus was on maintaining compatibility with existing ones. By creating our own client, we can seamlessly proxy OpenAI's `chat.completions.create` and Anthropic's `messages.create` methods. This approach allows us to provide a smooth upgrade path for your client, enabling support for all the latest models and features as they become available. Additionally, this strategy safeguards us against potential downstream changes.
 
 ```python
-import openai
-import anthropic
 import litellm
 import instructor
 from typing import TypeVar
@@ -76,9 +74,9 @@ client = instructor.from_litellm(litellm.completion)
 
 # all of these will route to the same underlying create function
 # allow you to add instructor to try it out, while easily removing it
-client.create(model="gpt-4", response_model=type[T]) -> T
-client.create(model="gpt-4", response_model=type[T]) -> T
-client.messages.create(model="gpt-4", response_model=type[T]) -> T
+# client.create(model="gpt-4", response_model=type[T]) -> T
+# client.create(model="gpt-4", response_model=type[T]) -> T
+# client.messages.create(model="gpt-4", response_model=type[T]) -> T
 ```
 
 ## Type are inferred correctly

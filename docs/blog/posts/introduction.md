@@ -174,24 +174,27 @@ The architecture resembles FastAPI. Most code can be written as Python functions
 import fastapi
 from pydantic import BaseModel
 
+
 class UserDetails(BaseModel):
     name: str
     age: int
 
+
 app = fastapi.FastAPI()
 
+
 @app.get("/user/{user_id}", response_model=UserDetails)
-async def get_user(user_id: int) -> UserDetails:
+async def get_user(_user_id: int) -> UserDetails:
     return ...
 ```
 
 ### Using Instructor as a Function
 
 ```python
-def extract_user(str) -> UserDetails:
+def extract_user(text: str) -> UserDetails:
     return client.chat.completions(
-           response_model=UserDetails,
-           messages=[]
+        response_model=UserDetails,
+        messages=[{"role": "user", "content": text}],
     )
 ```
 

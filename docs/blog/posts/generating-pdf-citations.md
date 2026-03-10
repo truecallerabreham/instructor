@@ -41,6 +41,19 @@ pip install "instructor[google-generativeai]" pymupdf
 Then let's import the necessary libraries:
 
 ```python
+import instructor
+import pymupdf
+from pydantic import BaseModel
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+
+
+class Citation(BaseModel):
+    page_number: int
+
+
+doc = pymupdf.open("./10k.pdf")
+print(doc.page_count)
 ```
 
 ## Defining Our Data Models
@@ -66,7 +79,6 @@ Next, we'll set up our Gemini client using Instructor:
 
 ```python
 client = instructor.from_provider("google/gemini-2.5-flash")
-)
 ```
 
 ## Processing the PDF

@@ -237,9 +237,7 @@ from mistralai.client import MistralClient
 
 client = MistralClient()
 
-patched_chat = instructor.from_openai(
-    create=client.chat, mode=instructor.Mode.TOOLS
-)
+patched_chat = instructor.from_openai(create=client.chat, mode=instructor.Mode.TOOLS)
 
 
 class UserDetails(BaseModel):

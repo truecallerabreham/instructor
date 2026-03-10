@@ -157,7 +157,7 @@ Handle validation failures with appropriate error types:
 
 ```python
 import instructor
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 
 class User(BaseModel):

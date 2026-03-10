@@ -19,8 +19,8 @@ This cookbook shows how to use Langfuse to trace and monitor model calls made wi
 
 First, let's start by installing the necessary dependencies.
 
-```python
-pip install langfuse instructor
+```bash
+uv pip install langfuse instructor
 ```
 
 It is easy to use instructor with Langfuse. We use the [Langfuse OpenAI Integration](https://langfuse.com/docs/integrations/openai) and simply patch the client with instructor. This works with both synchronous and asynchronous clients.
@@ -28,16 +28,16 @@ It is easy to use instructor with Langfuse. We use the [Langfuse OpenAI Integrat
 ### Langfuse-Instructor integration with synchronous OpenAI client
 
 ```python
-import instructor
-from langfuse.openai import openai
-from pydantic import BaseModel
 import os
+
+import instructor
+from pydantic import BaseModel
 
 # Set your API keys Here
 os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-..."
 os.environ["LANGFUSE_SECRET_KEY"] = "sk-..."
 os.environ["LANGFUSE_HOST"] = "https://us.cloud.langfuse.com"
-os.environ["OPENAI_API_KEY] = "sk-..."
+os.environ["OPENAI_API_KEY"] = "sk-..."
 
 # Patch Langfuse wrapper of synchronous OpenAI client with instructor
 client = instructor.from_provider("openai/gpt-5-nano")
@@ -58,12 +58,10 @@ weather_info = client.create(
 )
 
 print(weather_info.model_dump_json(indent=2))
-"""
-{
-  "city": "Paris",
-  "temperature": 18
-}
-"""
+# {
+#   "city": "Paris",
+#   "temperature": 18
+# }
 ```
 
 Once we've run this request succesfully, we'll see that we have a trace avaliable in the Langfuse dashboard for you to look at.
@@ -71,17 +69,16 @@ Once we've run this request succesfully, we'll see that we have a trace avaliabl
 ### Langfuse-Instructor integration with asychnronous OpenAI client
 
 ```python
-import instructor
-from langfuse.openai import openai
-from pydantic import BaseModel
-import os
 import asyncio
+import instructor
+import os
+from pydantic import BaseModel
 
 # Set your API keys Here
 os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-"
 os.environ["LANGFUSE_SECRET_KEY"] = "sk-"
 os.environ["LANGFUSE_HOST"] = "https://us.cloud.langfuse.com"
-os.environ["OPENAI_API_KEY] = "sk-..."
+os.environ["OPENAI_API_KEY"] = "sk-..."
 
 
 # Patch Langfuse wrapper of synchronous OpenAI client with instructor
@@ -104,16 +101,13 @@ async def main():
     )
 
     print(weather_info.model_dump_json(indent=2))
-    """
-    {
-    "city": "Paris",
-    "temperature": 18
-    }
-    """
+    # {
+    #   "city": "Paris",
+    #   "temperature": 18
+    # }
 
 
 asyncio.run(main())
-
 ```
 
 Here's a [public link](https://cloud.langfuse.com/project/cloramnkj0002jz088vzn1ja4/traces/0da3f599-b807-4e14-9888-cf68fa53d976?timestamp=2025-03-31T16:12:40.076Z&display=details) to the trace that we generated which you can view in Langfuse.
@@ -126,22 +120,20 @@ In this example, we first classify customer feedback into categories like `PRAIS
 from enum import Enum
 
 import asyncio
+import os
+
 import instructor
 
 from langfuse import Langfuse
-from langfuse.openai import AsyncOpenAI
 from langfuse.decorators import langfuse_context, observe
 
 from pydantic import BaseModel, Field, field_validator
-import os
 
 # Set your API keys Here
 os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-..."
 os.environ["LANGFUSE_SECRET_KEY"] = "sk-..."
 os.environ["LANGFUSE_HOST"] = "https://us.cloud.langfuse.com"
-os.environ["OPENAI_API_KEY] = "sk-..."
-
-
+os.environ["OPENAI_API_KEY"] = "sk-..."
 
 client = instructor.from_provider("openai/gpt-5-nano", async_client=True)
 
@@ -255,20 +247,18 @@ for classification in feedback_classifications:
     print(f"Relevance Score: {classification['relevance_score']}")
 
 
-"""
-Feedback: I have a question about my recent order.
-Classification: ['QUESTION']
-Relevance Score: 0.0
-Feedback: Could you add more features to your app?
-Classification: ['SUGGESTION']
-Relevance Score: 0.0
-Feedback: The chat bot on your website does not work.
-Classification: ['BUG']
-Relevance Score: 0.9
-Feedback: Your customer service is exceptional!
-Classification: ['PRAISE']
-Relevance Score: 0.9
-"""
+# Feedback: I have a question about my recent order.
+# Classification: ['QUESTION']
+# Relevance Score: 0.0
+# Feedback: Could you add more features to your app?
+# Classification: ['SUGGESTION']
+# Relevance Score: 0.0
+# Feedback: The chat bot on your website does not work.
+# Classification: ['BUG']
+# Relevance Score: 0.9
+# Feedback: Your customer service is exceptional!
+# Classification: ['PRAISE']
+# Relevance Score: 0.9
 ```
 
 We can see that with Langfuse, we were able to generate these different completions and view them with our own UI. Click here to see the [public trace](https://cloud.langfuse.com/project/cloramnkj0002jz088vzn1ja4/traces/ba27e7b1-e23e-4f50-87de-420cf038190f?timestamp=2025-03-31T16:12:57.041Z&display=details) for the 5 completions that we generated.

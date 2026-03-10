@@ -87,12 +87,12 @@ If we use a simple instructor prompt, even when we ask for the language to be co
 In this example, we'll do something very simple, asking for the language to be correct. And generating a base model that only asks for a summary. To test we will use the library `langdetect` to detect the language of the text. To challenge us even more, we'll limit ourselves using 3.5 rather than 4 in order to use a 'dumber' model.
 
 ```python
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from instructor import patch
 from openai import AsyncOpenAI
 from langdetect import detect
 
-docs = # To see the text, expand the notes above.
+docs = []  # To see the text, expand the notes above.
 
 # Patch the OpenAI client to enable response_model
 client = patch(AsyncOpenAI())
@@ -100,6 +100,7 @@ client = patch(AsyncOpenAI())
 
 class GeneratedSummary(BaseModel):
     summary: str
+
 
 async def summarize_text(text: str):
     response = await client.create(
@@ -132,18 +133,16 @@ if __name__ == "__main__":
             )
 
     asyncio.run(main())
-    """
-    Source: et, Summary: en, Match: False
-    Source: tl, Summary: tl, Match: True
-    Source: sw, Summary: en, Match: False
-    Source: tr, Summary: tr, Match: True
-    Source: vi, Summary: en, Match: False
-    Source: fr, Summary: fr, Match: True
-    Source: zh-cn, Summary: en, Match: False
-    Source: de, Summary: de, Match: True
-    Source: hi, Summary: en, Match: False
-    Source: ja, Summary: en, Match: False
-    """
+    # Source: et, Summary: en, Match: False
+    # Source: tl, Summary: tl, Match: True
+    # Source: sw, Summary: en, Match: False
+    # Source: tr, Summary: tr, Match: True
+    # Source: vi, Summary: en, Match: False
+    # Source: fr, Summary: fr, Match: True
+    # Source: zh-cn, Summary: en, Match: False
+    # Source: de, Summary: de, Match: True
+    # Source: hi, Summary: en, Match: False
+    # Source: ja, Summary: en, Match: False
 ```
 
 In this example, you'll notice that not all the languages are matching. Many of them respond in English, and so we get pretty terrible results. Only 3 out of 9 passed!
