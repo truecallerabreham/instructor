@@ -197,7 +197,9 @@ def test_gemini_tools_dispatches_to_gemini_parser(
     test_model.parse_gemini_tools = classmethod(parse_gemini_tools)  # type: ignore[method-assign]
     test_model.parse_vertexai_tools = classmethod(parse_vertexai_tools)  # type: ignore[method-assign]
 
-    response = test_model.from_response(object(), mode=instructor.Mode.GEMINI_TOOLS)
+    response = test_model.from_response(
+        cast(ChatCompletion, object()), mode=instructor.Mode.GEMINI_TOOLS
+    )
 
     assert response == "gemini"
     assert calls == ["gemini"]
@@ -231,7 +233,7 @@ def test_parse_gemini_tools_handles_dict_like_args(
 
     parsed = test_model.parse_gemini_tools(completion)
 
-    assert parsed.data == "Gemini says hi"
+    assert parsed.model_dump()["data"] == "Gemini says hi"
 
 
 def test_parse_gemini_tools_raises_when_tool_call_missing(

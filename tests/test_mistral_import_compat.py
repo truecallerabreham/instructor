@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import sys
 from types import ModuleType
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import instructor
@@ -34,8 +35,8 @@ def _install_fake_mistralai_modules(*, export_root_class: bool = False):
             self.chat = FakeChat()
 
     if export_root_class:
-        root.Mistral = FakeMistral
-    client_module.Mistral = FakeMistral
+        cast(Any, root).Mistral = FakeMistral
+    cast(Any, client_module).Mistral = FakeMistral
 
     return root, client_module, FakeMistral
 
@@ -47,9 +48,9 @@ def test_from_mistral_accepts_client_submodule_layout(monkeypatch) -> None:
 
     import instructor.providers.mistral.client as mistral_client
 
-    mistral_client = importlib.reload(mistral_client)
+    reloaded_client = cast(Any, importlib.reload(mistral_client))
 
-    patched = mistral_client.from_mistral(FakeMistral("test-key"))
+    patched = reloaded_client.from_mistral(FakeMistral("test-key"))
 
     assert isinstance(patched, instructor.Instructor)
 
