@@ -108,8 +108,8 @@ def test_update_genai_kwargs_with_custom_safety_settings():
             assert setting["threshold"] == HarmBlockThreshold.OFF
 
 
-def test_update_genai_kwargs_safety_settings_with_image_content_uses_image_categories():
-    """Test that image content switches to IMAGE_* harm categories when available."""
+def test_update_genai_kwargs_safety_settings_with_image_content_uses_text_categories():
+    """Test that image content still uses text harm categories for google.genai."""
     from google.genai import types
     from google.genai.types import HarmCategory
 
@@ -117,15 +117,12 @@ def test_update_genai_kwargs_safety_settings_with_image_content_uses_image_categ
     if hasattr(HarmCategory, "HARM_CATEGORY_JAILBREAK"):
         excluded_categories.add(HarmCategory.HARM_CATEGORY_JAILBREAK)
 
-    image_categories = [
+    text_categories = [
         c
         for c in HarmCategory
-        if c not in excluded_categories and c.name.startswith("HARM_CATEGORY_IMAGE_")
+        if c not in excluded_categories
+        and not c.name.startswith("HARM_CATEGORY_IMAGE_")
     ]
-
-    # Older SDKs may not expose separate image categories.
-    if not image_categories:
-        return
 
     kwargs = {
         "contents": [
@@ -141,27 +138,18 @@ def test_update_genai_kwargs_safety_settings_with_image_content_uses_image_categ
 
     assert "safety_settings" in result
     assert isinstance(result["safety_settings"], list)
-    assert len(result["safety_settings"]) == len(image_categories)
-    assert {s["category"] for s in result["safety_settings"]} == set(image_categories)
+    assert len(result["safety_settings"]) == len(text_categories)
+    assert {s["category"] for s in result["safety_settings"]} == set(text_categories)
 
 
-def test_update_genai_kwargs_maps_text_thresholds_to_image_categories():
-    """Test that text-based safety settings are applied to equivalent IMAGE_* categories."""
+def test_update_genai_kwargs_keeps_text_thresholds_for_image_content():
+    """Test that image requests keep using text-category safety thresholds."""
     from google.genai import types
     from google.genai.types import HarmCategory, HarmBlockThreshold
 
     excluded_categories = {HarmCategory.HARM_CATEGORY_UNSPECIFIED}
     if hasattr(HarmCategory, "HARM_CATEGORY_JAILBREAK"):
         excluded_categories.add(HarmCategory.HARM_CATEGORY_JAILBREAK)
-
-    image_categories = [
-        c
-        for c in HarmCategory
-        if c not in excluded_categories and c.name.startswith("HARM_CATEGORY_IMAGE_")
-    ]
-
-    if not image_categories or not hasattr(HarmCategory, "HARM_CATEGORY_IMAGE_HATE"):
-        return
 
     custom_safety = {
         HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
@@ -181,7 +169,7 @@ def test_update_genai_kwargs_maps_text_thresholds_to_image_categories():
     result = update_genai_kwargs(kwargs, base_config)
 
     for setting in result["safety_settings"]:
-        if setting["category"] == HarmCategory.HARM_CATEGORY_IMAGE_HATE:
+        if setting["category"] == HarmCategory.HARM_CATEGORY_HATE_SPEECH:
             assert setting["threshold"] == HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
 
 

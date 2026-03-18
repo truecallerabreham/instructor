@@ -1,8 +1,12 @@
+import pytest
+
 from instructor.providers.gemini.utils import update_genai_kwargs
 
+pytest.importorskip("google.genai")
 
-def test_update_genai_kwargs_safety_settings_with_image_content_uses_image_categories():
-    """Image inputs should use IMAGE_* harm categories when available."""
+
+def test_update_genai_kwargs_safety_settings_with_image_content_uses_text_categories():
+    """Image inputs should still use text harm categories for google.genai."""
     from google.genai import types
     from google.genai.types import HarmCategory
 
@@ -10,15 +14,12 @@ def test_update_genai_kwargs_safety_settings_with_image_content_uses_image_categ
     if hasattr(HarmCategory, "HARM_CATEGORY_JAILBREAK"):
         excluded_categories.add(HarmCategory.HARM_CATEGORY_JAILBREAK)
 
-    image_categories = [
+    text_categories = [
         c
         for c in HarmCategory
-        if c not in excluded_categories and c.name.startswith("HARM_CATEGORY_IMAGE_")
+        if c not in excluded_categories
+        and not c.name.startswith("HARM_CATEGORY_IMAGE_")
     ]
-
-    # Older SDKs may not expose separate image categories.
-    if not image_categories:
-        return
 
     kwargs = {
         "contents": [
@@ -34,27 +35,18 @@ def test_update_genai_kwargs_safety_settings_with_image_content_uses_image_categ
 
     assert "safety_settings" in result
     assert isinstance(result["safety_settings"], list)
-    assert len(result["safety_settings"]) == len(image_categories)
-    assert {s["category"] for s in result["safety_settings"]} == set(image_categories)
+    assert len(result["safety_settings"]) == len(text_categories)
+    assert {s["category"] for s in result["safety_settings"]} == set(text_categories)
 
 
-def test_update_genai_kwargs_maps_text_thresholds_to_image_categories():
-    """Text thresholds should carry over to equivalent IMAGE_* categories."""
+def test_update_genai_kwargs_keeps_text_thresholds_for_image_content():
+    """Image requests should still honor text-category safety thresholds."""
     from google.genai import types
     from google.genai.types import HarmBlockThreshold, HarmCategory
 
     excluded_categories = {HarmCategory.HARM_CATEGORY_UNSPECIFIED}
     if hasattr(HarmCategory, "HARM_CATEGORY_JAILBREAK"):
         excluded_categories.add(HarmCategory.HARM_CATEGORY_JAILBREAK)
-
-    image_categories = [
-        c
-        for c in HarmCategory
-        if c not in excluded_categories and c.name.startswith("HARM_CATEGORY_IMAGE_")
-    ]
-
-    if not image_categories or not hasattr(HarmCategory, "HARM_CATEGORY_IMAGE_HATE"):
-        return
 
     custom_safety = {
         HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
@@ -74,13 +66,14 @@ def test_update_genai_kwargs_maps_text_thresholds_to_image_categories():
     result = update_genai_kwargs(kwargs, base_config)
 
     for setting in result["safety_settings"]:
-        if setting["category"] == HarmCategory.HARM_CATEGORY_IMAGE_HATE:
+        if setting["category"] == HarmCategory.HARM_CATEGORY_HATE_SPEECH:
             assert setting["threshold"] == HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
 
 
-def test_handle_genai_tools_autodetect_images_uses_image_categories():
-    """Autodetected image content should switch safety_settings to IMAGE_* categories."""
+def test_handle_genai_tools_autodetect_images_uses_text_categories():
+    """Autodetected image content should still use text harm categories."""
     from pydantic import BaseModel
+    from google.genai.types import HarmCategory
 
     from instructor.providers.gemini.utils import handle_genai_tools
 
@@ -105,7 +98,14 @@ def test_handle_genai_tools_autodetect_images_uses_image_categories():
 
     assert "config" in out
     assert out["config"].safety_settings is not None
-    assert any(
-        s.category.name.startswith("HARM_CATEGORY_IMAGE_")
-        for s in out["config"].safety_settings
-    )
+    expected_categories = {
+        category
+        for category in HarmCategory
+        if category != HarmCategory.HARM_CATEGORY_UNSPECIFIED
+        and not category.name.startswith("HARM_CATEGORY_IMAGE_")
+        and (
+            not hasattr(HarmCategory, "HARM_CATEGORY_JAILBREAK")
+            or category != HarmCategory.HARM_CATEGORY_JAILBREAK
+        )
+    }
+    assert {s.category for s in out["config"].safety_settings} == expected_categories

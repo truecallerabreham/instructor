@@ -1,4 +1,5 @@
 from typing import Any, TypeVar, cast
+from types import SimpleNamespace
 import pytest
 from anthropic.types import Message, Usage
 from openai.types.chat.chat_completion import ChatCompletion, Choice
@@ -12,7 +13,7 @@ from pydantic import BaseModel, ValidationError
 
 import instructor
 from instructor import OpenAISchema, openai_schema
-from instructor.core.exceptions import IncompleteOutputException
+from instructor.core.exceptions import IncompleteOutputException, ResponseParsingError
 from instructor.utils import disable_pydantic_error_url
 
 T = TypeVar("T")
@@ -167,6 +168,81 @@ def test_anthropic_no_exception(
         ),
     )
     assert test_model_instance.data == "Claude says hi"
+
+
+def test_gemini_tools_dispatches_to_gemini_parser(
+    test_model: type[OpenAISchema],
+) -> None:
+    calls: list[str] = []
+
+    def parse_gemini_tools(
+        cls: type[OpenAISchema],
+        completion: Any,
+        validation_context: Any = None,
+        strict: Any = None,
+    ) -> str:
+        del cls, completion, validation_context, strict
+        calls.append("gemini")
+        return "gemini"
+
+    def parse_vertexai_tools(
+        cls: type[OpenAISchema],
+        completion: Any,
+        validation_context: Any = None,
+    ) -> str:
+        del cls, completion, validation_context
+        calls.append("vertex")
+        return "vertex"
+
+    test_model.parse_gemini_tools = classmethod(parse_gemini_tools)  # type: ignore[method-assign]
+    test_model.parse_vertexai_tools = classmethod(parse_vertexai_tools)  # type: ignore[method-assign]
+
+    response = test_model.from_response(object(), mode=instructor.Mode.GEMINI_TOOLS)
+
+    assert response == "gemini"
+    assert calls == ["gemini"]
+
+
+def test_parse_gemini_tools_handles_dict_like_args(
+    test_model: type[OpenAISchema],
+) -> None:
+    class ProtoArgs:
+        def __init__(self, payload: dict[str, Any]):
+            self.payload = payload
+
+        def to_dict(self) -> dict[str, Any]:
+            return self.payload
+
+    completion = SimpleNamespace(
+        candidates=[
+            SimpleNamespace(
+                content=SimpleNamespace(
+                    parts=[
+                        SimpleNamespace(
+                            function_call=SimpleNamespace(
+                                args=ProtoArgs({"data": "Gemini says hi"})
+                            )
+                        )
+                    ]
+                )
+            )
+        ]
+    )
+
+    parsed = test_model.parse_gemini_tools(completion)
+
+    assert parsed.data == "Gemini says hi"
+
+
+def test_parse_gemini_tools_raises_when_tool_call_missing(
+    test_model: type[OpenAISchema],
+) -> None:
+    completion = SimpleNamespace(
+        candidates=[SimpleNamespace(content=SimpleNamespace(parts=[SimpleNamespace()]))]
+    )
+
+    with pytest.raises(ResponseParsingError, match="No tool call found"):
+        test_model.parse_gemini_tools(completion)
 
 
 @pytest.mark.parametrize(

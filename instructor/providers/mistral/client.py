@@ -2,9 +2,21 @@
 from __future__ import annotations
 
 
-from mistralai import Mistral
 import instructor
-from typing import overload, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, overload
+
+if TYPE_CHECKING:
+    from mistralai import Mistral
+
+
+def _import_mistral_class() -> type[Any]:
+    """Support both mistralai v1 and v2 import layouts."""
+    try:
+        from mistralai import Mistral as mistral_class
+    except ImportError:
+        from mistralai.client import Mistral as mistral_class
+
+    return mistral_class
 
 
 @overload
@@ -31,6 +43,7 @@ def from_mistral(
     use_async: bool = False,
     **kwargs: Any,
 ) -> instructor.Instructor | instructor.AsyncInstructor:
+    mistral_class = _import_mistral_class()
     valid_modes = {
         instructor.Mode.MISTRAL_TOOLS,
         instructor.Mode.MISTRAL_STRUCTURED_OUTPUTS,
@@ -45,11 +58,11 @@ def from_mistral(
             valid_modes=[str(m) for m in valid_modes],
         )
 
-    if not isinstance(client, Mistral):
+    if not isinstance(client, mistral_class):
         from ...core.exceptions import ClientError
 
         raise ClientError(
-            f"Client must be an instance of mistralai.Mistral. "
+            f"Client must be an instance of the mistralai Mistral client. "
             f"Got: {type(client).__name__}"
         )
 
