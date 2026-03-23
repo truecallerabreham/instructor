@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Final, Optional
+from typing import Any, Final
 
 import aiohttp
 import typer
@@ -56,7 +56,9 @@ def _read_json_source(source: str) -> Any:
 
 def _as_int(value: Any, *, path: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise VestaboardCliError(f"Expected an integer at {path}, got {type(value).__name__}.")
+        raise VestaboardCliError(
+            f"Expected an integer at {path}, got {type(value).__name__}."
+        )
     return value
 
 
@@ -77,7 +79,7 @@ def _parse_characters_payload(data: Any) -> list[list[int]]:
         raise VestaboardCliError("Expected a non-empty list of rows.")
 
     matrix: list[list[int]] = []
-    expected_cols: Optional[int] = None
+    expected_cols: int | None = None
     for r_idx, row in enumerate(data):
         if not isinstance(row, list) or not row:
             raise VestaboardCliError(f"Row {r_idx} must be a non-empty list.")
@@ -126,12 +128,14 @@ async def _http_json(
     method: str,
     url: str,
     headers: dict[str, str],
-    json_body: Optional[Any],
+    json_body: Any | None,
     timeout_s: float,
 ) -> tuple[int, Any]:
     timeout = aiohttp.ClientTimeout(total=timeout_s)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.request(method, url, headers=headers, json=json_body) as resp:
+        async with session.request(
+            method, url, headers=headers, json=json_body
+        ) as resp:
             status = resp.status
             content_type = resp.headers.get("Content-Type", "")
             text = await resp.text()
@@ -145,13 +149,17 @@ async def _http_json(
             return status, {"raw": text}
 
 
-def _require_token(token: Optional[str]) -> str:
-    token = token or os.getenv("VESTABOARD_TOKEN")
-    if not token:
+def _resolve_token(token: str | None) -> str | None:
+    return token or os.getenv("VESTABOARD_TOKEN")
+
+
+def _require_token(token: str | None) -> str:
+    resolved = _resolve_token(token)
+    if not resolved:
         raise VestaboardCliError(
             "Missing Vestaboard token. Set VESTABOARD_TOKEN or pass --token."
         )
-    return token
+    return resolved
 
 
 def _print_json(obj: Any) -> None:
@@ -162,7 +170,7 @@ def _print_json(obj: Any) -> None:
 @app.command("send-text", help="Send a plain text message to your Vestaboard.")
 def send_text(
     text: str = typer.Argument(..., help="Text to send to the board."),
-    token: Optional[str] = typer.Option(
+    token: str | None = typer.Option(
         None,
         "--token",
         help="Vestaboard Cloud API token. Defaults to VESTABOARD_TOKEN.",
@@ -181,22 +189,26 @@ def send_text(
         "--dry-run",
         help="Print the request body and exit without calling the API.",
     ),
-    timeout_s: float = typer.Option(15.0, "--timeout", help="Request timeout in seconds."),
+    timeout_s: float = typer.Option(
+        15.0, "--timeout", help="Request timeout in seconds."
+    ),
 ) -> None:
     """
     Sends `{"text": "...", "forced": false}` to `https://cloud.vestaboard.com/`.
     """
     try:
-        token_value = _require_token(token)
         url = _normalize_base_url(base_url)
         payload: dict[str, Any] = {"text": text}
         if forced:
             payload["forced"] = True
 
         if dry_run:
-            _print_json({"url": url, "headers": {"X-Vestaboard-Token": "***"}, "body": payload})
+            _print_json(
+                {"url": url, "headers": {"X-Vestaboard-Token": "***"}, "body": payload}
+            )
             return
 
+        token_value = _require_token(token)
         headers = {
             "X-Vestaboard-Token": token_value,
             "Content-Type": "application/json",
@@ -224,7 +236,7 @@ def send_matrix(
         ...,
         help="Path to JSON file with the matrix, or '-' to read JSON from stdin.",
     ),
-    token: Optional[str] = typer.Option(
+    token: str | None = typer.Option(
         None,
         "--token",
         help="Vestaboard Cloud API token. Defaults to VESTABOARD_TOKEN.",
@@ -253,7 +265,9 @@ def send_matrix(
         "--dry-run",
         help="Print the request body and exit without calling the API.",
     ),
-    timeout_s: float = typer.Option(15.0, "--timeout", help="Request timeout in seconds."),
+    timeout_s: float = typer.Option(
+        15.0, "--timeout", help="Request timeout in seconds."
+    ),
 ) -> None:
     """
     Sends either:
@@ -261,19 +275,23 @@ def send_matrix(
     - `[[...],[...],...]` with `--raw-array-body`
     """
     try:
-        token_value = _require_token(token)
         url = _normalize_base_url(base_url)
 
         data = _read_json_source(source)
         matrix = _parse_characters_payload(data)
         expected = NOTE_DIMENSIONS if note else FLAGSHIP_DIMENSIONS
-        _enforce_dimensions(matrix, expected=expected, no_dimension_check=no_dimension_check)
+        _enforce_dimensions(
+            matrix, expected=expected, no_dimension_check=no_dimension_check
+        )
 
         body: Any = matrix if raw_array_body else {"characters": matrix}
         if dry_run:
-            _print_json({"url": url, "headers": {"X-Vestaboard-Token": "***"}, "body": body})
+            _print_json(
+                {"url": url, "headers": {"X-Vestaboard-Token": "***"}, "body": body}
+            )
             return
 
+        token_value = _require_token(token)
         headers = {
             "X-Vestaboard-Token": token_value,
             "Content-Type": "application/json",
@@ -298,10 +316,12 @@ def send_matrix(
 @app.command("format", help="Format text into a character matrix using VBML.")
 def format_message(
     message: str = typer.Argument(..., help="Text to format into a character matrix."),
-    output: Optional[str] = typer.Option(
+    output: str | None = typer.Option(
         None, "--output", help="Write the resulting matrix JSON to a file."
     ),
-    timeout_s: float = typer.Option(15.0, "--timeout", help="Request timeout in seconds."),
+    timeout_s: float = typer.Option(
+        15.0, "--timeout", help="Request timeout in seconds."
+    ),
 ) -> None:
     """
     Calls `https://vbml.vestaboard.com/format` and returns a matrix of character codes.
@@ -329,4 +349,3 @@ def format_message(
     except VestaboardCliError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
-

@@ -18,7 +18,9 @@ app.add_typer(
 )
 app.add_typer(batch.app, name="batch", help="Manage OpenAI Batch jobs")
 app.add_typer(
-    vestaboard.app, name="vestaboard", help="Send messages to a Vestaboard via Cloud API"
+    vestaboard.app,
+    name="vestaboard",
+    help="Send messages to a Vestaboard via Cloud API",
 )
 
 

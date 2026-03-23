@@ -11,7 +11,10 @@ from instructor.cli.vestaboard import (
 
 
 def test_normalize_base_url_adds_trailing_slash() -> None:
-    assert _normalize_base_url("https://cloud.vestaboard.com") == "https://cloud.vestaboard.com/"
+    assert (
+        _normalize_base_url("https://cloud.vestaboard.com")
+        == "https://cloud.vestaboard.com/"
+    )
 
 
 def test_parse_characters_payload_accepts_wrapped_characters() -> None:
@@ -47,4 +50,3 @@ def test_enforce_dimensions_note() -> None:
 def test_enforce_dimensions_can_be_skipped() -> None:
     matrix = [[0, 0], [0, 0]]
     _enforce_dimensions(matrix, expected=FLAGSHIP_DIMENSIONS, no_dimension_check=True)
-
