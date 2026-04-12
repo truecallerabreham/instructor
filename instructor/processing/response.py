@@ -44,7 +44,7 @@ from openai.types.chat import ChatCompletion
 from pydantic import BaseModel
 from typing_extensions import ParamSpec
 
-from instructor.core.exceptions import InstructorError, ConfigurationError
+from ..core.exceptions import InstructorError, ConfigurationError
 
 from ..dsl.iterable import IterableBase
 from ..dsl.parallel import ParallelBase
