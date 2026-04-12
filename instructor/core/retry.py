@@ -157,22 +157,9 @@ def _build_streaming_reask_kwargs(
 ) -> dict[str, Any]:
     """Build a generic retry prompt when the provider-specific reask path cannot inspect a stream."""
     kwargs_copy = kwargs.copy()
-
     retry_prompt = _build_streaming_retry_prompt(exception)
 
-    if "contents" in kwargs_copy:
-        contents = kwargs_copy.get("contents")
-        if isinstance(contents, list):
-            contents_copy = contents.copy()
-        elif contents is None:
-            contents_copy = []
-        else:
-            contents_copy = list(contents)
-
-        contents_copy.append({"role": "user", "parts": [retry_prompt]})
-        kwargs_copy["contents"] = contents_copy
-        return kwargs_copy
-
+    # Cohere V1 uses chat_history + message (not messages/contents).
     if "chat_history" in kwargs_copy or "message" in kwargs_copy:
         chat_history = kwargs_copy.get("chat_history")
         if isinstance(chat_history, list):
@@ -183,27 +170,77 @@ def _build_streaming_reask_kwargs(
             chat_history_copy = list(chat_history)
 
         message = kwargs_copy.get("message")
-        if message is not None:
+        if message is not None and message != "":
             chat_history_copy.append({"role": "user", "message": message})
 
         kwargs_copy["chat_history"] = chat_history_copy
         kwargs_copy["message"] = retry_prompt
         return kwargs_copy
 
-    messages = list(extract_messages(kwargs_copy))
+    # Gemini/GenAI/VertexAI commonly use "contents".
+    if "contents" in kwargs_copy:
+        contents = kwargs_copy.get("contents")
+        if isinstance(contents, list):
+            contents_copy = contents.copy()
+        elif contents is None:
+            contents_copy = []
+        else:
+            contents_copy = list(contents)
+
+        # Preserve the contents item type when possible (optional deps).
+        sample = next((c for c in contents_copy if c is not None), None)
+        module = getattr(type(sample), "__module__", "") if sample is not None else ""
+
+        if module.startswith("google.genai."):
+            try:
+                from google.genai import types  # type: ignore[import-not-found]
+
+                contents_copy.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=retry_prompt)],
+                    )
+                )
+            except Exception:
+                contents_copy.append({"role": "user", "parts": [retry_prompt]})
+        elif module.startswith("vertexai."):
+            try:
+                import vertexai.generative_models as gm  # type: ignore[import-not-found]
+
+                contents_copy.append(
+                    gm.Content(role="user", parts=[gm.Part.from_text(retry_prompt)])
+                )
+            except Exception:
+                contents_copy.append({"role": "user", "parts": [retry_prompt]})
+        else:
+            # Gemini (dict) and safe fallback for unknown content types.
+            contents_copy.append({"role": "user", "parts": [retry_prompt]})
+
+        kwargs_copy["contents"] = contents_copy
+        return kwargs_copy
+
+    # Default: OpenAI-style messages.
+    messages = list(kwargs_copy.get("messages") or [])
     messages.append({"role": "user", "content": retry_prompt})
     kwargs_copy["messages"] = messages
     return kwargs_copy
 
 
-def _should_fallback_to_streaming_reask(exception: Exception, response: Any) -> bool:
+def _should_fallback_to_streaming_reask(
+    exception: Exception,
+    response: Any,  # noqa: ARG001
+) -> bool:
     """Return True when a provider reask handler failed because it inspected a stream."""
     if not isinstance(exception, AttributeError):
         return False
 
-    if getattr(exception, "name", None) not in {"choices", "output"}:
+    expected_attrs = {"choices", "output", "candidates", "parts", "message", "text"}
+    attr_name = getattr(exception, "name", None)
+    if attr_name not in expected_attrs:
         message = str(exception)
-        if "choices" not in message and "output" not in message:
+        if "has no attribute" not in message or not any(
+            f"has no attribute '{a}'" in message for a in expected_attrs
+        ):
             return False
 
     response_type = type(response).__name__.lower() if response is not None else ""
@@ -229,7 +266,8 @@ def _handle_reask_kwargs_with_streaming_fallback(
         if _should_fallback_to_streaming_reask(e, response):
             logger.debug(
                 "Provider reask handler could not inspect streaming response; "
-                "falling back to a generic retry prompt."
+                "falling back to a generic retry prompt.",
+                exc_info=e,
             )
             return _build_streaming_reask_kwargs(kwargs, exception)
         raise
@@ -341,7 +379,6 @@ def retry_sync(
                                 max_attempts=max_attempt_number,
                                 is_last_attempt=True,
                             )
-
                     kwargs = _handle_reask_kwargs_with_streaming_fallback(
                         kwargs=kwargs,
                         mode=mode,
@@ -520,7 +557,6 @@ async def retry_async(
                                 max_attempts=max_attempt_number,
                                 is_last_attempt=True,
                             )
-
                     kwargs = _handle_reask_kwargs_with_streaming_fallback(
                         kwargs=kwargs,
                         mode=mode,
