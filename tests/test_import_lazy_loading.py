@@ -54,3 +54,16 @@ assert "instructor.processing.response" in sys.modules
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_lazy_module_exports_resolve_submodules() -> None:
+    result = run_python(
+        """
+import instructor
+
+assert instructor.hooks.__name__ == "instructor.core.hooks"
+assert instructor.client.__name__ == "instructor.client"
+"""
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
