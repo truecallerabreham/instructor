@@ -28,7 +28,7 @@ _LAZY_ATTRS: dict[str, tuple[str, str | None]] = {
     "AsyncInstructor": (".core.client", "AsyncInstructor"),
     "from_openai": (".core.client", "from_openai"),
     "from_litellm": (".core.client", "from_litellm"),
-    "hooks": (".core", "hooks"),
+    "hooks": (".core.hooks", None),
     "Provider": (".utils.providers", "Provider"),
     "from_provider": (".auto_client", "from_provider"),
     "BatchProcessor": (".batch", "BatchProcessor"),
