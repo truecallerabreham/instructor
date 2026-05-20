@@ -14,6 +14,12 @@ class DummyCache:
     pass
 
 
+def _module(path: str) -> ModuleType:
+    module = ModuleType(path)
+    module.__path__ = []  # type: ignore[attr-defined]
+    return module
+
+
 def test_from_provider_requires_provider_prefix() -> None:
     with pytest.raises(ConfigurationError, match="Model string must be in format"):
         auto_client.from_provider("gpt-5")
@@ -22,6 +28,10 @@ def test_from_provider_requires_provider_prefix() -> None:
 def test_from_provider_rejects_unknown_provider() -> None:
     with pytest.raises(ConfigurationError, match="Unsupported provider: mystery"):
         auto_client.from_provider("mystery/model")
+
+
+def test_provider_builders_are_derived_from_supported_aliases() -> None:
+    assert set(auto_client._PROVIDER_BUILDERS) == set(auto_client.supported_providers)
 
 
 def test_from_provider_passes_cache_and_api_key_to_builder(
@@ -52,6 +62,126 @@ def test_from_provider_passes_cache_and_api_key_to_builder(
     assert captured["kwargs"]["cache"] is cache
     assert captured["kwargs"]["timeout"] == 30
     assert "api_key" not in captured["kwargs"]
+
+
+@pytest.mark.parametrize(
+    (
+        "builder_name",
+        "provider",
+        "sdk_modules",
+        "factory_module",
+        "factory_name",
+        "expected_default",
+    ),
+    [
+        (
+            "_build_mistral",
+            "mistral",
+            {"mistralai": ("Mistral",)},
+            "instructor.v2.providers.mistral.client",
+            "from_mistral",
+            Mode.TOOLS,
+        ),
+        (
+            "_build_perplexity",
+            "perplexity",
+            {"openai": ("OpenAI", "AsyncOpenAI")},
+            "instructor.v2.providers.perplexity.client",
+            "from_perplexity",
+            Mode.MD_JSON,
+        ),
+        (
+            "_build_groq",
+            "groq",
+            {"groq": ("Groq", "AsyncGroq")},
+            "instructor.v2.providers.groq.client",
+            "from_groq",
+            Mode.TOOLS,
+        ),
+        (
+            "_build_writer",
+            "writer",
+            {"writerai": ("Writer", "AsyncWriter")},
+            "instructor.v2.providers.writer.client",
+            "from_writer",
+            Mode.TOOLS,
+        ),
+        (
+            "_build_cerebras",
+            "cerebras",
+            {
+                "cerebras": (),
+                "cerebras.cloud": (),
+                "cerebras.cloud.sdk": ("Cerebras", "AsyncCerebras"),
+            },
+            "instructor.v2.providers.cerebras.client",
+            "from_cerebras",
+            Mode.TOOLS,
+        ),
+        (
+            "_build_fireworks",
+            "fireworks",
+            {
+                "fireworks": (),
+                "fireworks.client": ("Fireworks", "AsyncFireworks"),
+            },
+            "instructor.v2.providers.fireworks.client",
+            "from_fireworks",
+            Mode.TOOLS,
+        ),
+    ],
+)
+def test_builders_forward_requested_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    builder_name: str,
+    provider: str,
+    sdk_modules: dict[str, tuple[str, ...]],
+    factory_module: str,
+    factory_name: str,
+    expected_default: Mode,
+) -> None:
+    class FakeClient:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+    for module_path, class_names in sdk_modules.items():
+        module = _module(module_path)
+        for class_name in class_names:
+            setattr(module, class_name, FakeClient)
+        monkeypatch.setitem(__import__("sys").modules, module_path, module)
+
+    factory_calls: list[dict[str, Any]] = []
+    fake_factory_module = _module(factory_module)
+
+    def fake_factory(_client: Any, **kwargs: Any) -> dict[str, Any]:
+        factory_calls.append(kwargs)
+        return kwargs
+
+    setattr(fake_factory_module, factory_name, fake_factory)
+    monkeypatch.setitem(__import__("sys").modules, factory_module, fake_factory_module)
+
+    builder = getattr(auto_client, builder_name)
+    builder(
+        provider=provider,
+        model_name="test-model",
+        async_client=False,
+        mode=Mode.MD_JSON,
+        api_key="test-key",
+        kwargs={},
+        provider_info={"provider": provider, "operation": "initialize"},
+    )
+    builder(
+        provider=provider,
+        model_name="test-model",
+        async_client=False,
+        mode=None,
+        api_key="test-key",
+        kwargs={},
+        provider_info={"provider": provider, "operation": "initialize"},
+    )
+
+    assert factory_calls[0]["mode"] == Mode.MD_JSON
+    assert factory_calls[1]["mode"] == expected_default
 
 
 def test_build_openai_compatible_requires_api_key(

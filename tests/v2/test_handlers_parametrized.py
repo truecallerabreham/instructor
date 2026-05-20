@@ -18,32 +18,15 @@ from pydantic import ValidationError
 
 from instructor import Mode, Provider
 from instructor.processing.function_calls import ResponseSchema
+from instructor.v2.core.provider_specs import PROVIDER_SPECS
 from instructor.v2.core.registry import mode_registry
 from tests.v2.provider_matrix import PROVIDER_HANDLER_MODES
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_HANDLER_MODULE_PATHS: dict[Provider, Path] = {
-    Provider.OPENAI: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.ANYSCALE: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.TOGETHER: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.DATABRICKS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.DEEPSEEK: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.ANTHROPIC: _PROJECT_ROOT / "instructor/v2/providers/anthropic/handlers.py",
-    Provider.GENAI: _PROJECT_ROOT / "instructor/v2/providers/genai/handlers.py",
-    Provider.GEMINI: _PROJECT_ROOT / "instructor/v2/providers/gemini/handlers.py",
-    Provider.VERTEXAI: _PROJECT_ROOT / "instructor/v2/providers/vertexai/handlers.py",
-    Provider.COHERE: _PROJECT_ROOT / "instructor/v2/providers/cohere/handlers.py",
-    Provider.PERPLEXITY: _PROJECT_ROOT
-    / "instructor/v2/providers/perplexity/handlers.py",
-    Provider.XAI: _PROJECT_ROOT / "instructor/v2/providers/xai/handlers.py",
-    Provider.GROQ: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.MISTRAL: _PROJECT_ROOT / "instructor/v2/providers/mistral/handlers.py",
-    Provider.FIREWORKS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.BEDROCK: _PROJECT_ROOT / "instructor/v2/providers/bedrock/handlers.py",
-    Provider.CEREBRAS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.WRITER: _PROJECT_ROOT / "instructor/v2/providers/writer/handlers.py",
-    Provider.OPENROUTER: _PROJECT_ROOT
-    / "instructor/v2/providers/openrouter/handlers.py",
+_HANDLER_MODULE_PATHS = {
+    provider: _PROJECT_ROOT / f"{spec.handler_module.replace('.', '/')}.py"
+    for provider, spec in PROVIDER_SPECS.items()
+    if spec.handler_module is not None
 }
 _HANDLERS_LOADED: set[Provider] = set()
 

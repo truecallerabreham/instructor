@@ -8,6 +8,7 @@ from instructor.v2.core.mode import Mode
 from instructor.models import KnownModelName
 from instructor.cache import BaseCache
 from instructor.v2.core.provider_specs import ALIAS_TO_PROVIDER
+from instructor.v2.core.providers import Provider
 import warnings
 import logging
 
@@ -730,7 +731,7 @@ def _build_mistral(
     provider: str,
     model_name: str,
     async_client: bool,
-    mode: Mode | None,  # noqa: ARG001
+    mode: Mode | None,
     api_key: str | None,
     kwargs: dict[str, Any],
     provider_info: dict[str, str],
@@ -751,9 +752,20 @@ def _build_mistral(
             )
 
         if async_client:
-            result = from_mistral(client, model=model_name, use_async=True, **kwargs)
+            result = from_mistral(
+                client,
+                model=model_name,
+                mode=mode if mode else Mode.TOOLS,
+                use_async=True,
+                **kwargs,
+            )
         else:
-            result = from_mistral(client, model=model_name, **kwargs)
+            result = from_mistral(
+                client,
+                model=model_name,
+                mode=mode if mode else Mode.TOOLS,
+                **kwargs,
+            )
         logger.info(
             "Client initialized",
             extra={**provider_info, "status": "success"},
@@ -831,7 +843,7 @@ def _build_perplexity(
     provider: str,
     model_name: str,
     async_client: bool,
-    mode: Mode | None,  # noqa: ARG001
+    mode: Mode | None,
     api_key: str | None,
     kwargs: dict[str, Any],
     provider_info: dict[str, str],
@@ -855,7 +867,12 @@ def _build_perplexity(
             if async_client
             else openai.OpenAI(api_key=api_key, base_url="https://api.perplexity.ai")
         )
-        result = from_perplexity(client, model=model_name, **kwargs)
+        result = from_perplexity(
+            client,
+            model=model_name,
+            mode=mode if mode else Mode.MD_JSON,
+            **kwargs,
+        )
         logger.info(
             "Client initialized",
             extra={**provider_info, "status": "success"},
@@ -884,7 +901,7 @@ def _build_groq(
     provider: str,
     model_name: str,
     async_client: bool,
-    mode: Mode | None,  # noqa: ARG001
+    mode: Mode | None,
     api_key: str | None,
     kwargs: dict[str, Any],
     provider_info: dict[str, str],
@@ -898,7 +915,12 @@ def _build_groq(
             if async_client
             else groq.Groq(api_key=api_key)
         )
-        result = from_groq(client, model=model_name, **kwargs)
+        result = from_groq(
+            client,
+            model=model_name,
+            mode=mode if mode else Mode.TOOLS,
+            **kwargs,
+        )
         logger.info(
             "Client initialized",
             extra={**provider_info, "status": "success"},
@@ -927,7 +949,7 @@ def _build_writer(
     provider: str,
     model_name: str,
     async_client: bool,
-    mode: Mode | None,  # noqa: ARG001
+    mode: Mode | None,
     api_key: str | None,
     kwargs: dict[str, Any],
     provider_info: dict[str, str],
@@ -939,7 +961,12 @@ def _build_writer(
         client = (
             AsyncWriter(api_key=api_key) if async_client else Writer(api_key=api_key)
         )
-        result = from_writer(client, model=model_name, **kwargs)
+        result = from_writer(
+            client,
+            model=model_name,
+            mode=mode if mode else Mode.TOOLS,
+            **kwargs,
+        )
         logger.info(
             "Client initialized",
             extra={**provider_info, "status": "success"},
@@ -1053,7 +1080,7 @@ def _build_cerebras(
     provider: str,
     model_name: str,
     async_client: bool,
-    mode: Mode | None,  # noqa: ARG001
+    mode: Mode | None,
     api_key: str | None,
     kwargs: dict[str, Any],
     provider_info: dict[str, str],
@@ -1067,7 +1094,12 @@ def _build_cerebras(
             if async_client
             else Cerebras(api_key=api_key)
         )
-        result = from_cerebras(client, model=model_name, **kwargs)
+        result = from_cerebras(
+            client,
+            model=model_name,
+            mode=mode if mode else Mode.TOOLS,
+            **kwargs,
+        )
         logger.info(
             "Client initialized",
             extra={**provider_info, "status": "success"},
@@ -1096,7 +1128,7 @@ def _build_fireworks(
     provider: str,
     model_name: str,
     async_client: bool,
-    mode: Mode | None,  # noqa: ARG001
+    mode: Mode | None,
     api_key: str | None,
     kwargs: dict[str, Any],
     provider_info: dict[str, str],
@@ -1110,7 +1142,12 @@ def _build_fireworks(
             if async_client
             else Fireworks(api_key=api_key)
         )
-        result = from_fireworks(client, model=model_name, **kwargs)
+        result = from_fireworks(
+            client,
+            model=model_name,
+            mode=mode if mode else Mode.TOOLS,
+            **kwargs,
+        )
         logger.info(
             "Client initialized",
             extra={**provider_info, "status": "success"},
@@ -1581,28 +1618,34 @@ def _build_litellm(
 
 ProviderBuilder = Callable[..., InstructorType]
 
+_PROVIDER_BUILDERS_BY_PROVIDER: dict[Provider, ProviderBuilder] = {
+    Provider.OPENAI: _build_openai,
+    Provider.ANYSCALE: _build_anyscale,
+    Provider.TOGETHER: _build_together,
+    Provider.AZURE_OPENAI: _build_azure_openai,
+    Provider.DATABRICKS: _build_databricks,
+    Provider.ANTHROPIC: _build_anthropic,
+    Provider.GENAI: _build_google,
+    Provider.GEMINI: _build_gemini,
+    Provider.MISTRAL: _build_mistral,
+    Provider.COHERE: _build_cohere,
+    Provider.PERPLEXITY: _build_perplexity,
+    Provider.GROQ: _build_groq,
+    Provider.WRITER: _build_writer,
+    Provider.BEDROCK: _build_bedrock,
+    Provider.CEREBRAS: _build_cerebras,
+    Provider.FIREWORKS: _build_fireworks,
+    Provider.VERTEXAI: _build_vertexai,
+    Provider.GENERATIVE_AI: _build_generative_ai,
+    Provider.OLLAMA: _build_ollama,
+    Provider.DEEPSEEK: _build_deepseek,
+    Provider.XAI: _build_xai,
+    Provider.OPENROUTER: _build_openrouter,
+    Provider.LITELLM: _build_litellm,
+}
+
 _PROVIDER_BUILDERS: dict[str, ProviderBuilder] = {
-    "openai": _build_openai,
-    "anyscale": _build_anyscale,
-    "together": _build_together,
-    "azure_openai": _build_azure_openai,
-    "databricks": _build_databricks,
-    "anthropic": _build_anthropic,
-    "google": _build_google,
-    "gemini": _build_gemini,
-    "mistral": _build_mistral,
-    "cohere": _build_cohere,
-    "perplexity": _build_perplexity,
-    "groq": _build_groq,
-    "writer": _build_writer,
-    "bedrock": _build_bedrock,
-    "cerebras": _build_cerebras,
-    "fireworks": _build_fireworks,
-    "vertexai": _build_vertexai,
-    "generative-ai": _build_generative_ai,
-    "ollama": _build_ollama,
-    "deepseek": _build_deepseek,
-    "xai": _build_xai,
-    "openrouter": _build_openrouter,
-    "litellm": _build_litellm,
+    alias: _PROVIDER_BUILDERS_BY_PROVIDER[provider]
+    for alias, provider in ALIAS_TO_PROVIDER.items()
+    if provider in _PROVIDER_BUILDERS_BY_PROVIDER
 }
