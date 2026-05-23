@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import importlib
-from typing import Any, Literal, overload
+import os
+from typing import Any, Literal, cast, overload
 
 from instructor.v2.core.client import AsyncInstructor, Instructor
 from instructor.v2.core.mode import Mode
@@ -97,4 +98,32 @@ def from_gemini(
     )
 
 
-__all__ = ["from_gemini"]
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    from instructor.v2.core.errors import ConfigurationError
+
+    if genai is None:
+        raise ConfigurationError(
+            "The google-generativeai package is required to use the Gemini provider. "
+            "Install it with `pip install google-generativeai`."
+        )
+    client_sdk = cast(Any, genai)
+    resolved_key = api_key or os.environ.get("GOOGLE_API_KEY")
+    if resolved_key:
+        client_sdk.configure(api_key=resolved_key)
+    return from_gemini(
+        client_sdk.GenerativeModel(model_name),
+        mode=mode or Mode.MD_JSON,
+        use_async=async_client,
+        **kwargs,
+    )
+
+
+__all__ = ["build_from_model", "from_gemini"]

@@ -160,3 +160,26 @@ def from_fireworks(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    """Construct the native Fireworks client for `from_provider`."""
+    if Fireworks is None or AsyncFireworks is None:
+        from instructor.v2.core.errors import ConfigurationError
+
+        raise ConfigurationError(
+            "The fireworks-ai package is required to use the Fireworks provider. "
+            "Install it with `pip install fireworks-ai`."
+        )
+    client = (
+        AsyncFireworks(api_key=api_key) if async_client else Fireworks(api_key=api_key)
+    )
+    return from_fireworks(client, model=model_name, mode=mode or Mode.TOOLS, **kwargs)

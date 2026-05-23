@@ -150,3 +150,26 @@ def from_cerebras(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    """Construct the native Cerebras client for `from_provider`."""
+    if Cerebras is None or AsyncCerebras is None:
+        from instructor.v2.core.errors import ConfigurationError
+
+        raise ConfigurationError(
+            "The cerebras package is required to use the Cerebras provider. "
+            "Install it with `pip install cerebras`."
+        )
+    client = (
+        AsyncCerebras(api_key=api_key) if async_client else Cerebras(api_key=api_key)
+    )
+    return from_cerebras(client, model=model_name, mode=mode or Mode.TOOLS, **kwargs)

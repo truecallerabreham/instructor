@@ -27,3 +27,5 @@ jobs:
         run: uv run ty check instructor/
       - name: Run type check with ty (tests)
         run: uv run ty check --config-file ty-tests.toml tests
+      - name: Run public surface inference check with Pyright
+        run: uv run --with 'pyright==1.1.408' pyright tests/typing/test_public_surface.py

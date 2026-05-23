@@ -146,3 +146,26 @@ def from_groq(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    """Construct the native Groq client for `from_provider`."""
+    if groq is None:
+        from instructor.v2.core.errors import ConfigurationError
+
+        raise ConfigurationError(
+            "The groq package is required to use the Groq provider. "
+            "Install it with `pip install groq`."
+        )
+    client = (
+        groq.AsyncGroq(api_key=api_key) if async_client else groq.Groq(api_key=api_key)
+    )
+    return from_groq(client, model=model_name, mode=mode or Mode.TOOLS, **kwargs)

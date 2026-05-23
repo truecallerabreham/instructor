@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from instructor.v2.core.client import AsyncInstructor, Instructor
@@ -135,4 +136,44 @@ def from_bedrock(
     )
 
 
-__all__ = ["from_bedrock"]
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,  # noqa: ARG001
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    from instructor.v2.core.errors import ConfigurationError
+
+    try:
+        import boto3
+    except ImportError:
+        raise ConfigurationError(
+            "The boto3 package is required to use the AWS Bedrock provider. "
+            "Install it with `pip install boto3`."
+        ) from None
+    aws_kwargs = {
+        key: kwargs.pop(key, os.environ.get(key.upper()))
+        for key in ("aws_access_key_id", "aws_secret_access_key", "aws_session_token")
+        if key in kwargs or key.upper() in os.environ
+    }
+    aws_kwargs["region_name"] = kwargs.pop(
+        "region", os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    )
+    selected_mode = mode or (
+        Mode.TOOLS
+        if "anthropic" in model_name.lower() or "claude" in model_name.lower()
+        else Mode.MD_JSON
+    )
+    return from_bedrock(
+        boto3.client("bedrock-runtime", **aws_kwargs),
+        model=model_name,
+        mode=selected_mode,
+        async_client=async_client,
+        **kwargs,
+    )
+
+
+__all__ = ["build_from_model", "from_bedrock"]

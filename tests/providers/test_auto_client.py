@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import ModuleType
+
 import pytest
 from instructor.auto_client import from_provider
 from instructor.core.exceptions import (
@@ -55,20 +57,27 @@ def should_skip_provider_exception(exc: Exception) -> bool:
     """Return True for provider failures caused by local environment setup."""
     if isinstance(exc, (ClientError, ConfigurationError, ImportError)):
         return True
-    if isinstance(exc, InstructorRetryException):
-        message = str(exc).lower()
-        return any(
-            marker in message
-            for marker in (
-                "api key",
-                "authentication",
-                "connection",
-                "connect",
-                "quota",
-                "rate limit",
-                "resource_exhausted",
-            )
+    message = str(exc).lower()
+    if any(
+        marker in message
+        for marker in (
+            "api key",
+            "api_key",
+            "authentication",
+            "credentials",
+            "project id is required",
+            "client must be instantiated",
+            "token",
+            "connection",
+            "connect",
+            "quota",
+            "rate limit",
+            "resource_exhausted",
         )
+    ):
+        return True
+    if isinstance(exc, InstructorRetryException):
+        return False
     return False
 
 
@@ -160,18 +169,19 @@ def test_provider_dispatch_uses_registered_builder(monkeypatch):
         calls.append(kwargs)
         return result
 
-    monkeypatch.setitem(auto_client._PROVIDER_BUILDERS, "openai", builder)
+    module = ModuleType("test_builder")
+    module.build_from_model = builder  # type: ignore[attr-defined]
+    monkeypatch.setattr(auto_client.importlib, "import_module", lambda _path: module)
 
     assert from_provider("openai/gpt-4", api_key="test-key", extra="value") is result
     assert calls == [
         {
-            "provider": "openai",
+            "provider": auto_client.ALIAS_TO_PROVIDER["openai"],
             "model_name": "gpt-4",
             "async_client": False,
             "mode": None,
             "api_key": "test-key",
             "kwargs": {"extra": "value"},
-            "provider_info": {"provider": "openai", "operation": "initialize"},
         }
     ]
 
@@ -221,7 +231,9 @@ def test_openai_provider_base_url_handling(async_client, base_url, expected_base
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        with patch("instructor.from_openai") as mock_from_openai:
+        with patch(
+            "instructor.v2.providers.openai.client.from_openai"
+        ) as mock_from_openai:
             mock_instructor = MagicMock()
             mock_from_openai.return_value = mock_instructor
 
@@ -259,7 +271,9 @@ def test_databricks_provider_uses_environment_configuration():
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        with patch("instructor.from_openai") as mock_from_openai:
+        with patch(
+            "instructor.v2.providers.openai.client.from_databricks"
+        ) as mock_from_openai:
             mock_instructor = MagicMock()
             mock_from_openai.return_value = mock_instructor
 
@@ -293,7 +307,9 @@ def test_databricks_provider_respects_custom_base_url():
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        with patch("instructor.from_openai") as mock_from_openai:
+        with patch(
+            "instructor.v2.providers.openai.client.from_databricks"
+        ) as mock_from_openai:
             mock_instructor = MagicMock()
             mock_from_openai.return_value = mock_instructor
 
@@ -327,7 +343,9 @@ def test_databricks_provider_async_client():
         mock_client = MagicMock()
         mock_async_openai_class.return_value = mock_client
 
-        with patch("instructor.from_openai") as mock_from_openai:
+        with patch(
+            "instructor.v2.providers.openai.client.from_databricks"
+        ) as mock_from_openai:
             mock_instructor = MagicMock()
             mock_from_openai.return_value = mock_instructor
 
@@ -360,7 +378,9 @@ def test_databricks_provider_requires_token():
 
     with patch("openai.OpenAI") as mock_openai_class:
         mock_openai_class.return_value = MagicMock()
-        with patch("instructor.from_openai") as mock_from_openai:
+        with patch(
+            "instructor.v2.providers.openai.client.from_databricks"
+        ) as mock_from_openai:
             mock_from_openai.return_value = MagicMock()
             with patch.dict(
                 os.environ,
@@ -381,7 +401,9 @@ def test_databricks_provider_requires_host():
 
     with patch("openai.OpenAI") as mock_openai_class:
         mock_openai_class.return_value = MagicMock()
-        with patch("instructor.from_openai") as mock_from_openai:
+        with patch(
+            "instructor.v2.providers.openai.client.from_databricks"
+        ) as mock_from_openai:
             mock_from_openai.return_value = MagicMock()
             with patch.dict(
                 os.environ,
@@ -397,60 +419,50 @@ def test_databricks_provider_requires_host():
 def test_genai_mode_parameter_passed_to_provider():
     """Test that mode parameter is correctly passed to provider functions."""
     from unittest.mock import patch, MagicMock
-    from types import ModuleType
-    import sys
     import instructor
 
-    mock_google = ModuleType("google")
-    mock_genai = ModuleType("google.genai")
-    mock_google.genai = mock_genai  # type: ignore[attr-defined]
+    with patch("instructor.v2.providers.genai.client.Client") as mock_genai_class:
+        mock_client = MagicMock()
+        mock_genai_class.return_value = mock_client
 
-    with patch.dict(sys.modules, {"google": mock_google, "google.genai": mock_genai}):
-        with patch("google.genai.Client", create=True) as mock_genai_class:
-            mock_client = MagicMock()
-            mock_genai_class.return_value = mock_client
+        with patch(
+            "instructor.v2.providers.genai.client.from_genai"
+        ) as mock_from_genai:
+            mock_instructor = MagicMock()
+            mock_from_genai.return_value = mock_instructor
 
-            with patch("instructor.from_genai", create=True) as mock_from_genai:
-                mock_instructor = MagicMock()
-                mock_from_genai.return_value = mock_instructor
+            from_provider(
+                "google/gemini-2.5-flash",
+                mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
+            )
 
-                from_provider(
-                    "google/gemini-2.5-flash",
-                    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
-                )
-
-                mock_from_genai.assert_called_once()
-                _, kwargs = mock_from_genai.call_args
-                assert "mode" in kwargs
-                assert kwargs["mode"] == instructor.Mode.GENAI_STRUCTURED_OUTPUTS
+            mock_from_genai.assert_called_once()
+            _, kwargs = mock_from_genai.call_args
+            assert "mode" in kwargs
+            assert kwargs["mode"] == instructor.Mode.GENAI_STRUCTURED_OUTPUTS
 
 
 def test_genai_mode_defaults_when_not_provided():
     """Test that GenAI provider uses generic TOOLS mode when mode is not provided."""
     from unittest.mock import patch, MagicMock
-    from types import ModuleType
-    import sys
     import instructor
 
-    mock_google = ModuleType("google")
-    mock_genai = ModuleType("google.genai")
-    mock_google.genai = mock_genai  # type: ignore[attr-defined]
+    with patch("instructor.v2.providers.genai.client.Client") as mock_genai_class:
+        mock_client = MagicMock()
+        mock_genai_class.return_value = mock_client
 
-    with patch.dict(sys.modules, {"google": mock_google, "google.genai": mock_genai}):
-        with patch("google.genai.Client", create=True) as mock_genai_class:
-            mock_client = MagicMock()
-            mock_genai_class.return_value = mock_client
+        with patch(
+            "instructor.v2.providers.genai.client.from_genai"
+        ) as mock_from_genai:
+            mock_instructor = MagicMock()
+            mock_from_genai.return_value = mock_instructor
 
-            with patch("instructor.from_genai", create=True) as mock_from_genai:
-                mock_instructor = MagicMock()
-                mock_from_genai.return_value = mock_instructor
+            from_provider("google/gemini-2.5-flash")
 
-                from_provider("google/gemini-2.5-flash")
-
-                mock_from_genai.assert_called_once()
-                _, kwargs = mock_from_genai.call_args
-                assert "mode" in kwargs
-                assert kwargs["mode"] == instructor.Mode.TOOLS
+            mock_from_genai.assert_called_once()
+            _, kwargs = mock_from_genai.call_args
+            assert "mode" in kwargs
+            assert kwargs["mode"] == instructor.Mode.TOOLS
 
 
 def test_google_provider_runtime_import_error_propagates():
@@ -461,11 +473,7 @@ def test_google_provider_runtime_import_error_propagates():
     This error should propagate instead of being caught and converted to
     ConfigurationError about missing google-genai package.
     """
-    from unittest.mock import patch, MagicMock
-    import sys
-
-    # Create mock module for google.genai
-    mock_genai_module = MagicMock()
+    from unittest.mock import patch
 
     # Simulate socksio ImportError during Client() initialization
     def client_init_raises(*_args, **_kwargs):
@@ -474,60 +482,38 @@ def test_google_provider_runtime_import_error_propagates():
             "Make sure to install httpx using `pip install httpx[socks]`."
         )
 
-    mock_genai_module.Client = client_init_raises
-
-    # Create a mock google module
-    mock_google = MagicMock()
-    mock_google.genai = mock_genai_module
-
-    # Patch sys.modules to use our mock modules
-    with patch.dict(
-        sys.modules,
-        {"google": mock_google, "google.genai": mock_genai_module},
+    with patch(
+        "instructor.v2.providers.genai.client.Client",
+        side_effect=client_init_raises,
     ):
-        mock_from_genai = MagicMock()
-        with patch.object(
-            __import__("instructor"), "from_genai", mock_from_genai, create=True
-        ):
-            with pytest.raises(ImportError) as excinfo:
-                from_provider("google/gemini-2.5-flash")
+        with pytest.raises(ImportError) as excinfo:
+            from_provider("google/gemini-2.5-flash")
 
-            # Should be the socksio error, NOT a ConfigurationError about google-genai
-            assert "socksio" in str(excinfo.value)
-            assert "google-genai" not in str(excinfo.value)
+        # Should be the socksio error, NOT a ConfigurationError about google-genai
+        assert "socksio" in str(excinfo.value)
+        assert "google-genai" not in str(excinfo.value)
 
 
 def test_vertexai_provider_uses_vertexai_sdk_path():
     """The deprecated vertexai provider still routes through the Vertex AI SDK."""
     from unittest.mock import MagicMock, patch
-    from types import ModuleType
-    import sys
     import warnings
 
-    mock_vertexai = ModuleType("vertexai")
-    mock_gener_models = ModuleType("vertexai.generative_models")
-    mock_vertexai.generative_models = mock_gener_models  # type: ignore[attr-defined]
-
-    with patch.dict(
-        sys.modules,
-        {
-            "vertexai": mock_vertexai,
-            "vertexai.generative_models": mock_gener_models,
-        },
-    ):
-        with patch("vertexai.init", create=True) as mock_init:
+    with patch("vertexai.init") as mock_init:
+        with patch(
+            "instructor.v2.providers.vertexai.client.gm.GenerativeModel"
+        ) as mock_model:
+            mock_model.return_value = MagicMock()
             with patch(
-                "vertexai.generative_models.GenerativeModel", create=True
-            ) as mock_model:
-                mock_model.return_value = MagicMock()
-                with patch("instructor.from_vertexai") as mock_from_vertexai:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", DeprecationWarning)
-                        from_provider(
-                            "vertexai/gemini-pro",
-                            project="demo-project",
-                            location="us-central1",
-                        )
+                "instructor.v2.providers.vertexai.client.from_vertexai"
+            ) as mock_from_vertexai:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    from_provider(
+                        "vertexai/gemini-pro",
+                        project="demo-project",
+                        location="us-central1",
+                    )
 
     mock_init.assert_called_once()
     mock_model.assert_called_once_with("gemini-pro")
@@ -540,11 +526,8 @@ def test_generative_ai_provider_runtime_import_error_propagates():
     Similar to test_google_provider_runtime_import_error_propagates but for
     the deprecated generative-ai provider.
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
     import warnings
-
-    # Create mock module for google.genai
-    mock_genai_module = MagicMock()
 
     # Simulate socksio ImportError during Client() initialization
     def client_init_raises(*_args, **_kwargs):
@@ -552,24 +535,14 @@ def test_generative_ai_provider_runtime_import_error_propagates():
             "Using SOCKS proxy, but the 'socksio' package is not installed."
         )
 
-    mock_genai_module.Client = client_init_raises
-
-    # Create a mock google module with genai attribute
-    mock_google = MagicMock()
-    mock_google.genai = mock_genai_module
-
-    with patch.dict(
-        "sys.modules",
-        {"google": mock_google, "google.genai": mock_genai_module},
+    with patch(
+        "instructor.v2.providers.genai.client.Client",
+        side_effect=client_init_raises,
     ):
-        mock_from_genai = MagicMock()
-        with patch.object(
-            __import__("instructor"), "from_genai", mock_from_genai, create=True
-        ):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                with pytest.raises(ImportError) as excinfo:
-                    from_provider("generative-ai/gemini-pro")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ImportError) as excinfo:
+                from_provider("generative-ai/gemini-pro")
 
             # Should be the socksio error, NOT a ConfigurationError
             assert "socksio" in str(excinfo.value)

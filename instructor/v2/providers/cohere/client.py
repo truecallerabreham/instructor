@@ -188,3 +188,28 @@ def from_cohere(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    """Construct the native Cohere client for `from_provider`."""
+    if cohere is None:
+        from instructor.v2.core.errors import ConfigurationError
+
+        raise ConfigurationError(
+            "The cohere package is required to use the Cohere provider. "
+            "Install it with `pip install cohere`."
+        )
+    client = (
+        cohere.AsyncClientV2(api_key=api_key)
+        if async_client
+        else cohere.ClientV2(api_key=api_key)
+    )
+    return from_cohere(client, mode=mode or Mode.TOOLS, model=model_name, **kwargs)

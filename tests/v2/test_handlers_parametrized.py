@@ -9,7 +9,6 @@ from __future__ import annotations
 import importlib.util
 import json
 from dataclasses import dataclass
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -18,44 +17,12 @@ from pydantic import ValidationError
 
 from instructor import Mode, Provider
 from instructor.processing.function_calls import ResponseSchema
-from instructor.v2.core.provider_specs import PROVIDER_SPECS
 from instructor.v2.core.registry import mode_registry
-from tests.v2.provider_matrix import PROVIDER_HANDLER_MODES
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_HANDLER_MODULE_PATHS = {
-    provider: _PROJECT_ROOT / f"{spec.handler_module.replace('.', '/')}.py"
-    for provider, spec in PROVIDER_SPECS.items()
-    if spec.handler_module is not None
-}
-_HANDLERS_LOADED: set[Provider] = set()
-
-
-def _ensure_handlers_loaded(provider: Provider) -> None:
-    if provider in _HANDLERS_LOADED:
-        return
-    provider_modes = PROVIDER_HANDLER_MODES.get(provider, [])
-    if provider_modes and all(
-        mode_registry.is_registered(provider, mode) for mode in provider_modes
-    ):
-        _HANDLERS_LOADED.add(provider)
-        return
-    handler_path = _HANDLER_MODULE_PATHS.get(provider)
-    if handler_path is None:
-        return
-    spec = importlib.util.spec_from_file_location(
-        f"tests.v2.handlers_{provider.value}",
-        handler_path,
-    )
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load handler module for {provider}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    _HANDLERS_LOADED.add(provider)
+from tests.v2.provider_matrix import PROVIDER_HANDLER_MODES, ensure_handlers_loaded
 
 
 def _get_handlers(provider: Provider, mode: Mode):
-    _ensure_handlers_loaded(provider)
+    ensure_handlers_loaded(provider)
     return mode_registry.get_handlers(provider, mode)
 
 

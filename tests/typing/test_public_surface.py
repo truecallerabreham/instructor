@@ -2,7 +2,8 @@ from __future__ import annotations
 
 # mypy: disable-error-code=unused-coroutine
 
-from collections.abc import AsyncGenerator, Coroutine, Generator
+from collections.abc import AsyncGenerator, Generator
+from types import CoroutineType
 from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import assert_type
@@ -86,34 +87,22 @@ class User(BaseModel):
 def check_response_helpers(
     sync_response: Response, async_response: AsyncResponse
 ) -> None:
-    assert_type(cast(User, sync_response.create(response_model=User)), User)
+    assert_type(sync_response.create(response_model=User), User)
     assert_type(sync_response.create(response_model=None), Any)
     assert_type(
-        cast(
-            tuple[User, Any],
-            sync_response.create_with_completion(response_model=User),
-        ),
-        tuple[User, Any],
+        sync_response.create_with_completion(response_model=User), tuple[User, Any]
     )
     assert_type(
         sync_response.create_with_completion(response_model=None), tuple[Any, Any]
     )
     assert_type(
-        cast(
-            Generator[User, None, None],
-            sync_response.create_iterable(response_model=User),
-        ),
-        Generator[User, None, None],
+        sync_response.create_iterable(response_model=User), Generator[User, None, None]
     )
     assert_type(
         sync_response.create_iterable(response_model=None), Generator[Any, None, None]
     )
     assert_type(
-        cast(
-            Generator[User, None, None],
-            sync_response.create_partial(response_model=User),
-        ),
-        Generator[User, None, None],
+        sync_response.create_partial(response_model=User), Generator[User, None, None]
     )
     assert_type(
         sync_response.create_partial(response_model=None), Generator[Any, None, None]
@@ -126,29 +115,19 @@ def check_response_helpers(
     iterable_coro = async_response.create_iterable(response_model=User)
     iterable_any_coro = async_response.create_iterable(response_model=None)
 
-    assert_type(cast(Coroutine[Any, Any, User], create_coro), Coroutine[Any, Any, User])
-    assert_type(
-        cast(Coroutine[Any, Any, Any], create_any_coro),
-        Coroutine[Any, Any, Any],
+    _create_coro = assert_type(create_coro, CoroutineType[Any, Any, User])
+    _create_any_coro = assert_type(create_any_coro, CoroutineType[Any, Any, Any])
+    _completion_coro = assert_type(
+        completion_coro, CoroutineType[Any, Any, tuple[User, Any]]
     )
-    assert_type(
-        cast(Coroutine[Any, Any, tuple[User, Any]], completion_coro),
-        Coroutine[Any, Any, tuple[User, Any]],
+    _completion_any_coro = assert_type(
+        completion_any_coro, CoroutineType[Any, Any, tuple[Any, Any]]
     )
-    assert_type(
-        cast(Coroutine[Any, Any, tuple[Any, Any]], completion_any_coro),
-        Coroutine[Any, Any, tuple[Any, Any]],
+    _iterable_coro = assert_type(
+        iterable_coro, CoroutineType[Any, Any, AsyncGenerator[User, None]]
     )
-    assert_type(
-        cast(Coroutine[Any, Any, AsyncGenerator[User, None]], iterable_coro),
-        Coroutine[Any, Any, AsyncGenerator[User, None]],
-    )
-    assert_type(
-        cast(
-            Coroutine[Any, Any, AsyncGenerator[Any, None]],
-            iterable_any_coro,
-        ),
-        Coroutine[Any, Any, AsyncGenerator[Any, None]],
+    _iterable_any_coro = assert_type(
+        iterable_any_coro, CoroutineType[Any, Any, AsyncGenerator[Any, None]]
     )
 
 
@@ -156,31 +135,19 @@ def check_client_stream_helpers(
     sync_client: Instructor, async_client: AsyncInstructor
 ) -> None:
     assert_type(
-        cast(
-            Generator[User, None, None],
-            sync_client.create_iterable(response_model=User, messages=[]),
-        ),
+        sync_client.create_iterable(response_model=User, messages=[]),
         Generator[User, None, None],
     )
     assert_type(
-        cast(
-            Generator[User, None, None],
-            sync_client.create_partial(response_model=User, messages=[]),
-        ),
+        sync_client.create_partial(response_model=User, messages=[]),
         Generator[User, None, None],
     )
     assert_type(
-        cast(
-            AsyncGenerator[User, None],
-            async_client.create_iterable(response_model=User, messages=[]),
-        ),
+        async_client.create_iterable(response_model=User, messages=[]),
         AsyncGenerator[User, None],
     )
     assert_type(
-        cast(
-            AsyncGenerator[User, None],
-            async_client.create_partial(response_model=User, messages=[]),
-        ),
+        async_client.create_partial(response_model=User, messages=[]),
         AsyncGenerator[User, None],
     )
 
@@ -272,20 +239,20 @@ def check_provider_factories(
     assert_type(from_bedrock(bedrock_client), Instructor)
     assert_type(from_bedrock(bedrock_client, async_client=True), AsyncInstructor)
     assert_type(from_cerebras(cerebras_sync), Instructor)
-    assert_type(cast(AsyncInstructor, from_cerebras(cerebras_async)), AsyncInstructor)
+    assert_type(from_cerebras(cerebras_async), AsyncInstructor)
     assert_type(from_cohere(cohere_sync), Instructor)
     assert_type(from_cohere(cohere_sync_v2), Instructor)
-    assert_type(cast(AsyncInstructor, from_cohere(cohere_async)), AsyncInstructor)
-    assert_type(cast(AsyncInstructor, from_cohere(cohere_async_v2)), AsyncInstructor)
+    assert_type(from_cohere(cohere_async), AsyncInstructor)
+    assert_type(from_cohere(cohere_async_v2), AsyncInstructor)
     assert_type(from_fireworks(fireworks_sync), Instructor)
     assert_type(from_groq(groq_sync), Instructor)
-    assert_type(cast(AsyncInstructor, from_groq(groq_async)), AsyncInstructor)
+    assert_type(from_groq(groq_async), AsyncInstructor)
     assert_type(from_openrouter(openai_sync), Instructor)
     assert_type(from_openrouter(openai_async), AsyncInstructor)
     assert_type(from_perplexity(openai_sync), Instructor)
     assert_type(from_perplexity(openai_async), AsyncInstructor)
     assert_type(from_writer(writer_sync), Instructor)
-    assert_type(cast(AsyncInstructor, from_writer(writer_async)), AsyncInstructor)
+    assert_type(from_writer(writer_async), AsyncInstructor)
     assert_type(from_xai(xai_sync), Instructor)
 
 

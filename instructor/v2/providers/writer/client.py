@@ -149,3 +149,24 @@ def from_writer(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    """Construct the native Writer client for `from_provider`."""
+    if Writer is None or AsyncWriter is None:
+        from instructor.v2.core.errors import ConfigurationError
+
+        raise ConfigurationError(
+            "The writerai package is required to use the Writer provider. "
+            "Install it with `pip install writer-sdk`."
+        )
+    client = AsyncWriter(api_key=api_key) if async_client else Writer(api_key=api_key)
+    return from_writer(client, model=model_name, mode=mode or Mode.TOOLS, **kwargs)

@@ -7,40 +7,16 @@ across all providers without requiring API keys.
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
-from typing import Any
 
 import pytest
 
 from instructor import Mode, Provider
 from instructor.v2.core.registry import mode_registry, normalize_mode
-from tests.v2.provider_matrix import legacy_config_dicts
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_HANDLER_MODULE_PATHS: dict[Provider, Path] = {
-    Provider.OPENAI: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.ANYSCALE: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.TOGETHER: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.DATABRICKS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.DEEPSEEK: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.ANTHROPIC: _PROJECT_ROOT / "instructor/v2/providers/anthropic/handlers.py",
-    Provider.GENAI: _PROJECT_ROOT / "instructor/v2/providers/genai/handlers.py",
-    Provider.GEMINI: _PROJECT_ROOT / "instructor/v2/providers/gemini/handlers.py",
-    Provider.COHERE: _PROJECT_ROOT / "instructor/v2/providers/cohere/handlers.py",
-    Provider.OPENROUTER: _PROJECT_ROOT
-    / "instructor/v2/providers/openrouter/handlers.py",
-    Provider.PERPLEXITY: _PROJECT_ROOT
-    / "instructor/v2/providers/perplexity/handlers.py",
-    Provider.XAI: _PROJECT_ROOT / "instructor/v2/providers/xai/handlers.py",
-    Provider.GROQ: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.MISTRAL: _PROJECT_ROOT / "instructor/v2/providers/mistral/handlers.py",
-    Provider.FIREWORKS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.CEREBRAS: _PROJECT_ROOT / "instructor/v2/providers/openai/handlers.py",
-    Provider.WRITER: _PROJECT_ROOT / "instructor/v2/providers/writer/handlers.py",
-    Provider.BEDROCK: _PROJECT_ROOT / "instructor/v2/providers/bedrock/handlers.py",
-    Provider.VERTEXAI: _PROJECT_ROOT / "instructor/v2/providers/vertexai/handlers.py",
-}
-_HANDLERS_LOADED: set[Provider] = set()
+from tests.v2.provider_matrix import (
+    TEST_PROVIDER_SPECS,
+    ensure_handlers_loaded,
+    handler_module_path,
+)
 
 
 def _clear_proxy_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -55,32 +31,7 @@ def _clear_proxy_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(key, raising=False)
 
 
-def _ensure_handlers_loaded(provider: Provider) -> None:
-    if provider in _HANDLERS_LOADED:
-        return
-    provider_modes = PROVIDER_CLIENT_CONFIGS.get(provider, {}).get(
-        "supported_modes", []
-    )
-    if provider_modes and all(
-        mode_registry.is_registered(provider, mode) for mode in provider_modes
-    ):
-        _HANDLERS_LOADED.add(provider)
-        return
-    handler_path = _HANDLER_MODULE_PATHS.get(provider)
-    if handler_path is None or not handler_path.exists():
-        return
-    spec = importlib.util.spec_from_file_location(
-        f"tests.v2.handlers_{provider.value}",
-        handler_path,
-    )
-    if spec is None or spec.loader is None:
-        return
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    _HANDLERS_LOADED.add(provider)
-
-
-PROVIDER_CLIENT_CONFIGS: dict[Provider, dict[str, Any]] = legacy_config_dicts()
+PROVIDER_CLIENT_CONFIGS = TEST_PROVIDER_SPECS
 
 
 def _dependency_missing(module: str) -> bool:
@@ -93,7 +44,8 @@ def _dependency_missing(module: str) -> bool:
 
 def _is_expected_missing_dependency(provider: Provider, exc: ImportError) -> bool:
     """Return True when an import failed because the provider SDK is unavailable."""
-    sdk_module = PROVIDER_CLIENT_CONFIGS[provider]["sdk_module"]
+    sdk_module = PROVIDER_CLIENT_CONFIGS[provider].sdk_module
+    assert sdk_module is not None
     expected_root = str(sdk_module).split(".")[0]
     missing_name = getattr(exc, "name", None)
     if missing_name:
@@ -114,7 +66,7 @@ def _get_provider_mode_params():
     """Generate (provider, mode) parameters for supported modes."""
     params = []
     for provider, config in PROVIDER_CLIENT_CONFIGS.items():
-        for mode in config["supported_modes"]:
+        for mode in config.supported_modes:
             params.append(
                 pytest.param(provider, mode, id=f"{provider.value}-{mode.value}")
             )
@@ -125,7 +77,7 @@ def _get_provider_unsupported_mode_params():
     """Generate (provider, mode) parameters for unsupported modes."""
     params = []
     for provider, config in PROVIDER_CLIENT_CONFIGS.items():
-        for mode in config["unsupported_modes"]:
+        for mode in config.unsupported_modes:
             params.append(
                 pytest.param(provider, mode, id=f"{provider.value}-{mode.value}")
             )
@@ -136,7 +88,7 @@ def _get_provider_legacy_mode_params():
     """Generate (provider, legacy_mode) parameters."""
     params = []
     for provider, config in PROVIDER_CLIENT_CONFIGS.items():
-        for legacy_mode in config["legacy_modes"].keys():
+        for legacy_mode in config.legacy_modes:
             params.append(
                 pytest.param(
                     provider,
@@ -155,7 +107,7 @@ def _get_provider_legacy_mode_params():
 @pytest.mark.parametrize("provider,mode", _get_provider_mode_params())
 def test_supported_mode_is_registered(provider: Provider, mode: Mode) -> None:
     """Test that all supported modes are registered in the registry."""
-    _ensure_handlers_loaded(provider)
+    ensure_handlers_loaded(provider)
     assert mode_registry.is_registered(provider, mode), (
         f"Mode {mode.value} should be registered for {provider.value}"
     )
@@ -172,18 +124,18 @@ def test_unsupported_mode_not_registered(provider: Provider, mode: Mode) -> None
 @pytest.mark.parametrize("provider", _get_provider_params())
 def test_get_modes_for_provider(provider: Provider) -> None:
     """Test getting all modes for a provider."""
-    _ensure_handlers_loaded(provider)
+    ensure_handlers_loaded(provider)
     config = PROVIDER_CLIENT_CONFIGS[provider]
     registered_modes = mode_registry.get_modes_for_provider(provider)
 
     # All supported modes should be registered
-    for mode in config["supported_modes"]:
+    for mode in config.supported_modes:
         assert mode in registered_modes, (
             f"Mode {mode.value} should be in registered modes for {provider.value}"
         )
 
     # Unsupported modes should not be registered
-    for mode in config["unsupported_modes"]:
+    for mode in config.unsupported_modes:
         assert mode not in registered_modes, (
             f"Mode {mode.value} should NOT be in registered modes for {provider.value}"
         )
@@ -192,7 +144,7 @@ def test_get_modes_for_provider(provider: Provider) -> None:
 @pytest.mark.parametrize("provider,mode", _get_provider_mode_params())
 def test_handlers_have_all_methods(provider: Provider, mode: Mode) -> None:
     """Test that all handlers have required methods."""
-    _ensure_handlers_loaded(provider)
+    ensure_handlers_loaded(provider)
     handlers = mode_registry.get_handlers(provider, mode)
 
     assert handlers.request_handler is not None
@@ -235,7 +187,8 @@ def test_legacy_mode_normalizes_to_registered_mode(
 def test_from_function_importable(provider: Provider) -> None:
     """Test that from_* function is importable from instructor.v2."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    from_function = config["from_function"]
+    from_function = config.from_function
+    assert from_function is not None
 
     # Import from instructor.v2
     module = __import__("instructor.v2", fromlist=[from_function])
@@ -250,16 +203,16 @@ def test_from_function_importable(provider: Provider) -> None:
 @pytest.mark.parametrize("provider", _get_provider_params())
 def test_handlers_importable(provider: Provider) -> None:
     """Test that handlers are importable."""
-    handler_path = _HANDLER_MODULE_PATHS.get(provider)
+    handler_path = handler_module_path(provider)
     assert handler_path is not None and handler_path.exists(), (
         f"Missing handler module path for {provider.value}"
     )
 
-    _ensure_handlers_loaded(provider)
+    ensure_handlers_loaded(provider)
 
     assert any(
         mode_registry.is_registered(provider, mode)
-        for mode in PROVIDER_CLIENT_CONFIGS[provider]["supported_modes"]
+        for mode in PROVIDER_CLIENT_CONFIGS[provider].supported_modes
     ), f"No registered handlers found for {provider.value}"
 
 
@@ -279,7 +232,7 @@ def test_unsupported_mode_raises_error(provider: Provider, mode: Mode) -> None:
 def test_parallel_tools_not_supported_unless_registered(provider: Provider) -> None:
     """Test that PARALLEL_TOOLS is not supported unless registered."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    is_supported = Mode.PARALLEL_TOOLS in config["supported_modes"]
+    is_supported = Mode.PARALLEL_TOOLS in config.supported_modes
     is_registered = mode_registry.is_registered(provider, Mode.PARALLEL_TOOLS)
 
     assert is_supported == is_registered, (
@@ -292,7 +245,7 @@ def test_parallel_tools_not_supported_unless_registered(provider: Provider) -> N
 def test_responses_tools_not_supported_unless_registered(provider: Provider) -> None:
     """Test that RESPONSES_TOOLS is not supported unless registered."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    is_supported = Mode.RESPONSES_TOOLS in config["supported_modes"]
+    is_supported = Mode.RESPONSES_TOOLS in config.supported_modes
     is_registered = mode_registry.is_registered(provider, Mode.RESPONSES_TOOLS)
 
     assert is_supported == is_registered, (
@@ -310,8 +263,10 @@ def test_responses_tools_not_supported_unless_registered(provider: Provider) -> 
 def test_from_function_raises_without_sdk(provider: Provider) -> None:
     """Test that from_* function raises error when SDK not installed."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    sdk_module = config["sdk_module"]
-    from_function = config["from_function"]
+    sdk_module = config.sdk_module
+    from_function = config.from_function
+    assert sdk_module is not None
+    assert from_function is not None
 
     if not _dependency_missing(sdk_module):
         pytest.skip(f"{sdk_module} is installed")
@@ -327,10 +282,7 @@ def test_from_function_raises_without_sdk(provider: Provider) -> None:
 
         from instructor.core.exceptions import ClientError
 
-        expected_message = config.get(
-            "missing_sdk_message",
-            f"{sdk_module.split('.')[0]} is not installed",
-        )
+        expected_message = config.missing_sdk_message
         with pytest.raises(ClientError, match=expected_message):
             from_function_obj("not a client")  # type: ignore[call-arg]
     except (ImportError, ModuleNotFoundError) as exc:
@@ -362,7 +314,8 @@ def test_string_based_initialization_delegates_to_from_provider(
 ) -> None:
     """Test that string-based initialization delegates to from_provider."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    from_function = config["from_function"]
+    from_function = config.from_function
+    assert from_function is not None
 
     # Import the from_* function
     module = __import__("instructor.v2", fromlist=[from_function])
@@ -392,7 +345,8 @@ def test_string_based_initialization_delegates_to_from_provider(
 def test_string_based_initialization_with_async_client(provider: Provider) -> None:
     """Test that string-based initialization supports async_client parameter."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    from_function = config["from_function"]
+    from_function = config.from_function
+    assert from_function is not None
 
     # Import the from_* function
     module = __import__("instructor.v2", fromlist=[from_function])
@@ -423,7 +377,8 @@ def test_string_based_initialization_with_async_client(provider: Provider) -> No
 def test_string_based_initialization_forwards_kwargs(provider: Provider) -> None:
     """Test that string-based initialization forwards all kwargs to from_provider."""
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    from_function = config["from_function"]
+    from_function = config.from_function
+    assert from_function is not None
 
     # Import the from_* function
     module = __import__("instructor.v2", fromlist=[from_function])
@@ -466,8 +421,10 @@ def test_client_based_initialization_still_works(
     from unittest.mock import patch
 
     config = PROVIDER_CLIENT_CONFIGS[provider]
-    from_function = config["from_function"]
-    sdk_module = config["sdk_module"]
+    from_function = config.from_function
+    sdk_module = config.sdk_module
+    assert from_function is not None
+    assert sdk_module is not None
 
     # Skip if SDK not installed
     if _dependency_missing(sdk_module):

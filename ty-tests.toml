@@ -5,5 +5,5 @@ exclude = [
     "tests/llm/",
     "tests/v2/",
     "tests/docs/",
+    "tests/typing/test_public_surface.py",
 ]
-

@@ -255,6 +255,8 @@ def from_xai(
 
     # Get handlers from registry
     handlers = mode_registry.get_handlers(Provider.XAI, mode)
+    sync_client = cast(SyncClient, client)
+    async_client = cast(AsyncClient, client)
 
     # Create async wrapper for xAI's unique API
     async def acreate(
@@ -280,7 +282,7 @@ def from_xai(
                 messages = _add_md_json_instructions(messages, prepared_model)
 
         x_messages = _convert_messages(messages)
-        chat = client.chat.create(model=model, messages=x_messages, **call_kwargs)
+        chat = async_client.chat.create(model=model, messages=x_messages, **call_kwargs)
 
         if response_model is None:
             resp = await chat.sample()  # type: ignore[misc]
@@ -446,7 +448,7 @@ def from_xai(
                 messages = _add_md_json_instructions(messages, prepared_model)
 
         x_messages = _convert_messages(messages)
-        chat = client.chat.create(model=model, messages=x_messages, **call_kwargs)
+        chat = sync_client.chat.create(model=model, messages=x_messages, **call_kwargs)
 
         if response_model is None:
             resp = chat.sample()  # type: ignore[misc]
@@ -605,3 +607,30 @@ def from_xai(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    from instructor.v2.core.errors import ConfigurationError
+
+    if SyncClient is None or AsyncClient is None:
+        raise ConfigurationError(
+            "The xAI provider needs the optional dependency `xai-sdk`. "
+            'Install it with `uv pip install "instructor[xai]"` '
+            '(or `pip install "instructor[xai]"`). '
+            "Note: xai-sdk requires Python 3.10+."
+        )
+    factory = AsyncClient if async_client else SyncClient
+    return from_xai(
+        factory(api_key=api_key),
+        mode=mode or Mode.TOOLS,
+        model=model_name,
+        **kwargs,
+    )

@@ -167,3 +167,29 @@ def from_anthropic(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    from instructor import __version__
+    from instructor.v2.core.errors import ConfigurationError
+
+    if anthropic is None:
+        raise ConfigurationError(
+            "The anthropic package is required to use the Anthropic provider. "
+            "Install it with `pip install anthropic`."
+        )
+    factory = anthropic.AsyncAnthropic if async_client else anthropic.Anthropic
+    client = factory(
+        api_key=api_key,
+        default_headers={"User-Agent": f"instructor/{__version__}"},
+    )
+    kwargs.setdefault("max_tokens", 4096)
+    return from_anthropic(client, model=model_name, mode=mode or Mode.TOOLS, **kwargs)

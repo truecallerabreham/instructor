@@ -11,6 +11,7 @@ Mistral has a unique API structure:
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from instructor.v2.core.client import AsyncInstructor, Instructor
@@ -183,3 +184,36 @@ def from_mistral(
             mode=mode,
             **kwargs,
         )
+
+
+def build_from_model(
+    *,
+    provider: Provider,  # noqa: ARG001
+    model_name: str,
+    async_client: bool,
+    mode: Mode | None,
+    api_key: str | None,
+    kwargs: dict[str, Any],
+) -> Instructor | AsyncInstructor:
+    """Construct the native Mistral client for `from_provider`."""
+    if Mistral is None:
+        from instructor.v2.core.errors import ConfigurationError
+
+        raise ConfigurationError(
+            "The mistralai package is required to use the Mistral provider. "
+            "Install it with `pip install mistralai`."
+        )
+    api_key = api_key or os.environ.get("MISTRAL_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "MISTRAL_API_KEY is not set. "
+            "Set it with `export MISTRAL_API_KEY=<your-api-key>`."
+        )
+    client = Mistral(api_key=api_key)
+    return from_mistral(
+        client,
+        model=model_name,
+        mode=mode or Mode.TOOLS,
+        use_async=async_client,
+        **kwargs,
+    )
