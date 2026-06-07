@@ -499,6 +499,7 @@ def test_vertexai_provider_uses_vertexai_sdk_path():
     from unittest.mock import MagicMock, patch
     import warnings
 
+    pytest.importorskip("vertexai")
     with patch("vertexai.init") as mock_init:
         with patch(
             "instructor.v2.providers.vertexai.client.gm.GenerativeModel"

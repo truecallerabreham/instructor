@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 from tenacity import (
     AsyncRetrying,
     Retrying,
+    RetryError,
     retry_if_exception_type,
     stop_after_attempt,
     stop_after_delay,
@@ -41,6 +42,47 @@ if TYPE_CHECKING:
 logger = logging.getLogger("instructor.v2.retry")
 
 T_Model = TypeVar("T_Model", bound=BaseModel)
+
+
+def _emit_completion_failure(
+    hooks: Hooks | None,
+    error: Exception,
+    *,
+    attempt_number: int,
+    max_attempts: int | None,
+    is_last_attempt: bool,
+) -> None:
+    if hooks is None:
+        return
+    metadata = {
+        "attempt_number": attempt_number,
+        "max_attempts": max_attempts,
+        "is_last_attempt": is_last_attempt,
+    }
+    hooks.emit_completion_error(error, **metadata)
+    if is_last_attempt:
+        hooks.emit_completion_last_attempt(error, **metadata)
+
+
+def _is_terminal_provider_failure(
+    error: Exception,
+    *,
+    attempt_number: int,
+    max_attempts: int | None,
+    built_in_policy: bool,
+) -> bool:
+    """Return whether the built-in retry policy is known to stop here."""
+    if max_attempts is None:
+        return False
+    return attempt_number >= max_attempts or (
+        built_in_policy and not isinstance(error, ValidationError)
+    )
+
+
+def _configured_max_attempts(retrying: Retrying | AsyncRetrying) -> int | None:
+    """Read a direct ``stop_after_attempt`` limit from a custom policy."""
+    value = getattr(retrying.stop, "max_attempt_number", None)
+    return value if isinstance(value, int) else None
 
 
 def _finalize_parsed_response(parsed: Any, response: Any) -> Any:
@@ -117,16 +159,32 @@ def retry_sync_v2(
         InstructorRetryException: If max retries exceeded
     """
     if response_model is None:
-        # No structured output, just call the API
-        return func(*args, **kwargs)
+        if hooks:
+            hooks.emit_completion_arguments(*args, **kwargs)
+        try:
+            response = func(*args, **kwargs)
+        except Exception as exc:
+            _emit_completion_failure(
+                hooks,
+                exc,
+                attempt_number=1,
+                max_attempts=1,
+                is_last_attempt=True,
+            )
+            raise
+        if hooks:
+            hooks.emit_completion_response(response)
+        return response
 
     # Validate and get handlers from registry
     RegistryValidationMixin.validate_mode_registration(provider, mode)
     handlers = mode_registry.get_handlers(provider, mode)
 
     # Setup retrying
+    built_in_policy = isinstance(max_retries, int)
     if isinstance(max_retries, int):
-        stop_condition = stop_after_attempt(max(max_retries, 1))
+        max_attempts = max(max_retries, 1)
+        stop_condition = stop_after_attempt(max_attempts)
         timeout = kwargs.get("timeout")
         if isinstance(timeout, (int, float)):
             stop_condition = stop_condition | stop_after_delay(timeout)
@@ -136,24 +194,45 @@ def retry_sync_v2(
             reraise=True,
         )
     else:
+        max_attempts = _configured_max_attempts(max_retries)
         max_retries_instance = max_retries
 
     failed_attempts: list[FailedAttempt] = []
     last_exception: Exception | None = None
+    last_completion_error: Exception | None = None
+    last_attempt_number = 0
+    last_attempt_emitted = False
     total_usage = _initialize_usage(provider)
 
     try:
         for attempt in max_retries_instance:
             with attempt:
+                last_attempt_number = attempt.retry_state.attempt_number
                 # Call API
                 if hooks:
-                    hooks.emit_completion_arguments(**kwargs)
+                    hooks.emit_completion_arguments(*args, **kwargs)
 
                 try:
                     response = func(*args, **kwargs)
                 except IncompleteOutputException:
                     raise
                 except Exception as e:
+                    last_exception = e
+                    last_completion_error = e
+                    is_last_attempt = _is_terminal_provider_failure(
+                        e,
+                        attempt_number=last_attempt_number,
+                        max_attempts=max_attempts,
+                        built_in_policy=built_in_policy,
+                    )
+                    _emit_completion_failure(
+                        hooks,
+                        e,
+                        attempt_number=last_attempt_number,
+                        max_attempts=max_attempts,
+                        is_last_attempt=is_last_attempt,
+                    )
+                    last_attempt_emitted = is_last_attempt
                     logger.error(
                         f"API call failed on attempt "
                         f"{attempt.retry_state.attempt_number}: {e}"
@@ -209,17 +288,43 @@ def retry_sync_v2(
                     # Will retry with modified kwargs
                     raise
 
-    except IncompleteOutputException:
+    except IncompleteOutputException as exc:
+        _emit_completion_failure(
+            hooks,
+            exc,
+            attempt_number=max(last_attempt_number, 1),
+            max_attempts=max_attempts,
+            is_last_attempt=True,
+        )
         raise
     except Exception as e:
         # Max retries exceeded or non-validation error occurred
-        if last_exception is None:
+        if not isinstance(e, RetryError) or last_exception is None:
             last_exception = e
 
         logger.error(
             f"Max retries exceeded. Total attempts: {len(failed_attempts)}, "
             f"Last error: {last_exception}"
         )
+        if last_exception is not None and not last_attempt_emitted:
+            if (
+                not isinstance(last_exception, ValidationError)
+                and last_completion_error is not last_exception
+            ):
+                _emit_completion_failure(
+                    hooks,
+                    last_exception,
+                    attempt_number=max(last_attempt_number, 1),
+                    max_attempts=max_attempts,
+                    is_last_attempt=True,
+                )
+            elif hooks:
+                hooks.emit_completion_last_attempt(
+                    last_exception,
+                    attempt_number=max(last_attempt_number, 1),
+                    max_attempts=max_attempts,
+                    is_last_attempt=True,
+                )
 
         raise InstructorRetryException(
             str(last_exception),
@@ -333,16 +438,32 @@ async def retry_async_v2(
         InstructorRetryException: If max retries exceeded
     """
     if response_model is None:
-        # No structured output, just call the API
-        return await func(*args, **kwargs)
+        if hooks:
+            hooks.emit_completion_arguments(*args, **kwargs)
+        try:
+            response = await func(*args, **kwargs)
+        except Exception as exc:
+            _emit_completion_failure(
+                hooks,
+                exc,
+                attempt_number=1,
+                max_attempts=1,
+                is_last_attempt=True,
+            )
+            raise
+        if hooks:
+            hooks.emit_completion_response(response)
+        return response
 
     # Validate and get handlers from registry
     RegistryValidationMixin.validate_mode_registration(provider, mode)
     handlers = mode_registry.get_handlers(provider, mode)
 
     # Setup retrying
+    built_in_policy = isinstance(max_retries, int)
     if isinstance(max_retries, int):
-        stop_condition = stop_after_attempt(max(max_retries, 1))
+        max_attempts = max(max_retries, 1)
+        stop_condition = stop_after_attempt(max_attempts)
         timeout = kwargs.get("timeout")
         if isinstance(timeout, (int, float)):
             stop_condition = stop_condition | stop_after_delay(timeout)
@@ -352,24 +473,45 @@ async def retry_async_v2(
             reraise=True,
         )
     else:
+        max_attempts = _configured_max_attempts(max_retries)
         max_retries_instance = max_retries
 
     failed_attempts: list[FailedAttempt] = []
     last_exception: Exception | None = None
+    last_completion_error: Exception | None = None
+    last_attempt_number = 0
+    last_attempt_emitted = False
     total_usage = _initialize_usage(provider)
 
     try:
         async for attempt in max_retries_instance:
             with attempt:
+                last_attempt_number = attempt.retry_state.attempt_number
                 # Call API
                 if hooks:
-                    hooks.emit_completion_arguments(**kwargs)
+                    hooks.emit_completion_arguments(*args, **kwargs)
 
                 try:
                     response = await func(*args, **kwargs)
                 except IncompleteOutputException:
                     raise
                 except Exception as e:
+                    last_exception = e
+                    last_completion_error = e
+                    is_last_attempt = _is_terminal_provider_failure(
+                        e,
+                        attempt_number=last_attempt_number,
+                        max_attempts=max_attempts,
+                        built_in_policy=built_in_policy,
+                    )
+                    _emit_completion_failure(
+                        hooks,
+                        e,
+                        attempt_number=last_attempt_number,
+                        max_attempts=max_attempts,
+                        is_last_attempt=is_last_attempt,
+                    )
+                    last_attempt_emitted = is_last_attempt
                     logger.error(
                         f"API call failed on attempt "
                         f"{attempt.retry_state.attempt_number}: {e}"
@@ -425,17 +567,43 @@ async def retry_async_v2(
                     # Will retry with modified kwargs
                     raise
 
-    except IncompleteOutputException:
+    except IncompleteOutputException as exc:
+        _emit_completion_failure(
+            hooks,
+            exc,
+            attempt_number=max(last_attempt_number, 1),
+            max_attempts=max_attempts,
+            is_last_attempt=True,
+        )
         raise
     except Exception as e:
         # Max retries exceeded or non-validation error occurred
-        if last_exception is None:
+        if not isinstance(e, RetryError) or last_exception is None:
             last_exception = e
 
         logger.error(
             f"Max retries exceeded. Total attempts: {len(failed_attempts)}, "
             f"Last error: {last_exception}"
         )
+        if last_exception is not None and not last_attempt_emitted:
+            if (
+                not isinstance(last_exception, ValidationError)
+                and last_completion_error is not last_exception
+            ):
+                _emit_completion_failure(
+                    hooks,
+                    last_exception,
+                    attempt_number=max(last_attempt_number, 1),
+                    max_attempts=max_attempts,
+                    is_last_attempt=True,
+                )
+            elif hooks:
+                hooks.emit_completion_last_attempt(
+                    last_exception,
+                    attempt_number=max(last_attempt_number, 1),
+                    max_attempts=max_attempts,
+                    is_last_attempt=True,
+                )
 
         raise InstructorRetryException(
             str(last_exception),

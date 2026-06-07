@@ -9,9 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, overload
 
 from instructor.v2.core.client import AsyncInstructor, Instructor
+from instructor.v2.core.client_factory import create_instructor
 from instructor.v2.core.mode import Mode
 from instructor.v2.core.providers import Provider
-from instructor.v2.core.patch import patch_v2
 
 # Ensure handlers are registered (decorators auto-register on import)
 from instructor.v2.providers.writer import handlers  # noqa: F401
@@ -79,9 +79,6 @@ def from_writer(
         >>> # Or use MD_JSON mode for text extraction
         >>> instructor_client = from_writer(client, mode=Mode.MD_JSON)
     """
-    from instructor.v2.core.registry import mode_registry, normalize_mode
-
-    # Check if writerai SDK is installed
     if Writer is None or AsyncWriter is None:
         from instructor.v2.core.errors import ClientError
 
@@ -89,66 +86,15 @@ def from_writer(
             "writerai is not installed. Install it with: pip install writer-sdk"
         )
 
-    # Normalize provider-specific modes to generic modes
-    # WRITER_TOOLS -> TOOLS, WRITER_JSON -> MD_JSON
-    normalized_mode = normalize_mode(Provider.WRITER, mode)
-
-    # Validate mode is registered (use normalized mode for check)
-    if not mode_registry.is_registered(Provider.WRITER, normalized_mode):
-        from instructor.v2.core.errors import ModeError
-
-        available_modes = mode_registry.get_modes_for_provider(Provider.WRITER)
-        raise ModeError(
-            mode=mode.value,
-            provider=Provider.WRITER.value,
-            valid_modes=[m.value for m in available_modes],
-        )
-
-    # Use normalized mode for patching
-    mode = normalized_mode
-
-    # Validate client type
-    valid_client_types = (
-        Writer,
-        AsyncWriter,
-    )
-
-    if not isinstance(client, valid_client_types):
-        from instructor.v2.core.errors import ClientError
-
-        raise ClientError(
-            f"Client must be an instance of one of: {', '.join(t.__name__ for t in valid_client_types)}. "
-            f"Got: {type(client).__name__}"
-        )
-
-    # Get create function - Writer uses chat.chat instead of chat.completions.create
-    create = client.chat.chat
-
-    # Patch using v2 registry, passing the model for injection
-    patched_create = patch_v2(
-        func=create,
+    return create_instructor(
+        client,
         provider=Provider.WRITER,
         mode=mode,
-        default_model=model,
+        model=model,
+        sync_types=(Writer,),
+        async_types=(AsyncWriter,),
+        **kwargs,
     )
-
-    # Return sync or async instructor
-    if isinstance(client, Writer):
-        return Instructor(
-            client=client,
-            create=patched_create,
-            provider=Provider.WRITER,
-            mode=mode,
-            **kwargs,
-        )
-    else:
-        return AsyncInstructor(
-            client=client,
-            create=patched_create,
-            provider=Provider.WRITER,
-            mode=mode,
-            **kwargs,
-        )
 
 
 def build_from_model(

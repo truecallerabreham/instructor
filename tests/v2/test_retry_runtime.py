@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -14,6 +14,7 @@ from tenacity import (
 
 from instructor import Mode, Provider
 from instructor.v2.core.errors import InstructorRetryException
+from instructor.v2.core.hooks import Hooks
 from instructor.v2.core.retry import (
     _finalize_parsed_response,
     _initialize_usage,
@@ -55,6 +56,13 @@ def test_initialize_usage_returns_openai_usage_shape() -> None:
 
 
 def test_retry_sync_v2_returns_raw_result_when_no_response_model() -> None:
+    arguments: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+    hooks = Hooks()
+    hooks.on(
+        "completion:kwargs",
+        lambda *args, **kwargs: arguments.append((args, kwargs)),
+    )
+
     def fake_func(*args: Any, **kwargs: Any) -> str:
         return f"{args[0]}:{kwargs['suffix']}"
 
@@ -68,10 +76,291 @@ def test_retry_sync_v2_returns_raw_result_when_no_response_model() -> None:
         args=("hello",),
         kwargs={"suffix": "world"},
         strict=True,
-        hooks=None,
+        hooks=hooks,
     )
 
     assert result == "hello:world"
+    assert arguments == [(("hello",), {"suffix": "world"})]
+
+
+def test_retry_sync_v2_emits_raw_call_failure_hooks() -> None:
+    events: list[tuple[str, Exception, dict[str, Any]]] = []
+    hooks = Hooks()
+    hooks.on(
+        "completion:error",
+        lambda error, **metadata: events.append(("error", error, metadata)),
+    )
+    hooks.on(
+        "completion:last_attempt",
+        lambda error, **metadata: events.append(("last", error, metadata)),
+    )
+
+    def fail(**_kwargs: Any) -> None:
+        raise RuntimeError("provider failed")
+
+    with pytest.raises(RuntimeError, match="provider failed"):
+        retry_sync_v2(
+            func=fail,
+            response_model=None,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=1,
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert [event[0] for event in events] == ["error", "last"]
+    assert events[0][2] == {
+        "attempt_number": 1,
+        "max_attempts": 1,
+        "is_last_attempt": True,
+    }
+
+
+def test_retry_sync_v2_marks_non_retryable_provider_failure_as_last_attempt() -> None:
+    events: list[tuple[str, dict[str, Any]]] = []
+    hooks = Hooks()
+    hooks.on(
+        "completion:error",
+        lambda _error, **metadata: events.append(("error", metadata)),
+    )
+    hooks.on(
+        "completion:last_attempt",
+        lambda _error, **metadata: events.append(("last", metadata)),
+    )
+
+    def fail(**_kwargs: Any) -> None:
+        raise RuntimeError("provider failed")
+
+    with pytest.raises(InstructorRetryException, match="provider failed"):
+        retry_sync_v2(
+            func=fail,
+            response_model=Answer,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=2,
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert [(name, metadata["is_last_attempt"]) for name, metadata in events] == [
+        ("error", True),
+        ("last", True),
+    ]
+    assert events[-1][1]["attempt_number"] == 1
+    assert events[-1][1]["max_attempts"] == 2
+
+
+def test_retry_sync_v2_defers_last_attempt_for_custom_retry_policy() -> None:
+    events: list[tuple[str, bool]] = []
+    hooks = Hooks()
+    hooks.on(
+        "completion:error",
+        lambda _error, **metadata: events.append(
+            ("error", metadata["is_last_attempt"])
+        ),
+    )
+    hooks.on(
+        "completion:last_attempt",
+        lambda _error, **metadata: events.append(("last", metadata["is_last_attempt"])),
+    )
+    attempts = 0
+
+    def fail(**_kwargs: Any) -> None:
+        nonlocal attempts
+        attempts += 1
+        raise RuntimeError("provider failed")
+
+    with pytest.raises(InstructorRetryException, match="provider failed"):
+        retry_sync_v2(
+            func=fail,
+            response_model=Answer,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=Retrying(
+                stop=stop_after_attempt(2),
+                retry=retry_if_exception_type(RuntimeError),
+                reraise=True,
+            ),
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert attempts == 2
+    assert events == [("error", False), ("error", True), ("last", True)]
+
+
+def test_retry_sync_v2_preserves_provider_error_when_tenacity_wraps() -> None:
+    failures: list[Exception] = []
+    hooks = Hooks()
+    hooks.on("completion:last_attempt", lambda error: failures.append(error))
+
+    def fail(**_kwargs: Any) -> None:
+        raise RuntimeError("provider failed")
+
+    with pytest.raises(InstructorRetryException) as exc_info:
+        retry_sync_v2(
+            func=fail,
+            response_model=Answer,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=Retrying(
+                stop=stop_after_attempt(1),
+                retry=retry_if_exception_type(RuntimeError),
+            ),
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert str(exc_info.value) == "provider failed"
+    assert len(failures) == 1
+    assert isinstance(failures[0], RuntimeError)
+
+
+@pytest.mark.asyncio
+async def test_retry_async_v2_emits_raw_call_failure_hooks() -> None:
+    events: list[str] = []
+    hooks = Hooks()
+    hooks.on("completion:error", lambda _error, **_metadata: events.append("error"))
+    hooks.on(
+        "completion:last_attempt",
+        lambda _error, **_metadata: events.append("last"),
+    )
+
+    async def fail(**_kwargs: Any) -> None:
+        raise RuntimeError("provider failed")
+
+    with pytest.raises(RuntimeError, match="provider failed"):
+        await retry_async_v2(
+            func=fail,
+            response_model=None,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=1,
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert events == ["error", "last"]
+
+
+def test_retry_sync_v2_emits_post_response_failure_hooks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[tuple[str, Exception]] = []
+    hooks = Hooks()
+    hooks.on(
+        "completion:error", lambda error, **_metadata: events.append(("error", error))
+    )
+    hooks.on(
+        "completion:last_attempt",
+        lambda error, **_metadata: events.append(("last", error)),
+    )
+
+    monkeypatch.setattr(
+        "instructor.v2.core.retry.RegistryValidationMixin.validate_mode_registration",
+        lambda _provider, _mode: None,
+    )
+    monkeypatch.setattr(
+        "instructor.v2.core.retry.mode_registry.get_handlers",
+        lambda _provider, _mode: SimpleNamespace(
+            response_parser=lambda **_kwargs: (_ for _ in ()).throw(
+                ValueError("parser failed")
+            ),
+            reask_handler=lambda **kwargs: kwargs["kwargs"],
+        ),
+    )
+    monkeypatch.setattr(
+        "instructor.v2.core.retry.update_total_usage",
+        lambda **_kwargs: None,
+    )
+
+    with pytest.raises(InstructorRetryException) as exc_info:
+        retry_sync_v2(
+            func=lambda **_kwargs: object(),
+            response_model=Answer,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=2,
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert isinstance(exc_info.value.__cause__, ValueError)
+    assert [name for name, _error in events] == ["error", "last"]
+    assert all(str(error) == "parser failed" for _name, error in events)
+
+
+@pytest.mark.asyncio
+async def test_retry_async_v2_emits_post_response_failure_hooks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[tuple[str, Exception]] = []
+    hooks = Hooks()
+    hooks.on(
+        "completion:error", lambda error, **_metadata: events.append(("error", error))
+    )
+    hooks.on(
+        "completion:last_attempt",
+        lambda error, **_metadata: events.append(("last", error)),
+    )
+
+    monkeypatch.setattr(
+        "instructor.v2.core.retry.RegistryValidationMixin.validate_mode_registration",
+        lambda _provider, _mode: None,
+    )
+    monkeypatch.setattr(
+        "instructor.v2.core.retry.mode_registry.get_handlers",
+        lambda _provider, _mode: SimpleNamespace(
+            response_parser=lambda **_kwargs: (_ for _ in ()).throw(
+                ValueError("parser failed")
+            ),
+            reask_handler=lambda **kwargs: kwargs["kwargs"],
+        ),
+    )
+    monkeypatch.setattr(
+        "instructor.v2.core.retry.update_total_usage",
+        lambda **_kwargs: None,
+    )
+
+    async def response(**_kwargs: Any) -> object:
+        return object()
+
+    with pytest.raises(InstructorRetryException) as exc_info:
+        await retry_async_v2(
+            func=response,
+            response_model=Answer,
+            provider=Provider.OPENAI,
+            mode=Mode.TOOLS,
+            context=None,
+            max_retries=2,
+            args=(),
+            kwargs={},
+            strict=True,
+            hooks=hooks,
+        )
+
+    assert isinstance(exc_info.value.__cause__, ValueError)
+    assert [name for name, _error in events] == ["error", "last"]
+    assert all(str(error) == "parser failed" for _name, error in events)
 
 
 def test_retry_sync_v2_reasks_after_validation_error(
@@ -101,11 +390,12 @@ def test_retry_sync_v2_reasks_after_validation_error(
             "messages": [*kwargs["messages"], {"role": "user", "content": "second"}],
         }
 
-    hooks = SimpleNamespace(
-        emit_completion_arguments=lambda **kwargs: emitted["args"].append(kwargs),
-        emit_completion_response=lambda response: emitted["responses"].append(response),
-        emit_parse_error=lambda error: emitted["errors"].append(error),
+    hooks = Hooks()
+    hooks.on("completion:kwargs", lambda **kwargs: emitted["args"].append(kwargs))
+    hooks.on(
+        "completion:response", lambda response: emitted["responses"].append(response)
     )
+    hooks.on("parse:error", lambda error: emitted["errors"].append(error))
 
     def no_validate(_provider: Provider, _mode: Mode) -> None:
         return None
@@ -235,9 +525,10 @@ def test_retry_sync_v2_raises_instructor_retry_exception_after_exhaustion(
             hooks=None,
         )
 
-    error = exc_info.value
+    error = cast(InstructorRetryException, exc_info.value)
     assert error.n_attempts == 1
     assert error.last_completion == {"payload": "first"}
+    assert error.create_kwargs is not None
     assert error.create_kwargs["messages"][-1]["content"] == "first"
     assert len(error.failed_attempts or []) == 1
 
@@ -316,5 +607,6 @@ async def test_retry_async_v2_raises_retry_exception_after_validation_error(
             hooks=None,
         )
 
-    assert exc_info.value.n_attempts == 1
+    error = cast(InstructorRetryException, exc_info.value)
+    assert error.n_attempts == 1
     assert parser_calls == ["first"]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from types import SimpleNamespace
 from typing import Any
 
@@ -90,6 +91,24 @@ def test_advertised_stream_contract_extracts_payload(
 
     assert extractor is not None
     assert "answer" in "".join(extractor([_stream_chunk(provider, mode)]))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("provider", "mode"), _STREAM_CASES)
+async def test_advertised_async_stream_contract_extracts_payload(
+    provider: Provider, mode: Mode
+) -> None:
+    ensure_handlers_loaded(provider, skip_missing_dependency=True)
+    extractor = mode_registry.get_handlers(provider, mode).stream_extractor_async
+
+    async def chunks():
+        yield _stream_chunk(provider, mode)
+
+    assert extractor is not None
+    extracted: Any = extractor(chunks())
+    if inspect.isawaitable(extracted):
+        extracted = await extracted
+    assert "answer" in "".join([part async for part in extracted])
 
 
 def _media(provider: Provider, media_type: str) -> Image | Audio | PDF:

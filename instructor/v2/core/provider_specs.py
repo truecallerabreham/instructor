@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
+from typing import Literal
 
 from instructor.v2.core.mode import Mode
 from instructor.v2.core.providers import Provider
@@ -28,6 +29,22 @@ _NO_CAPABILITIES = ProviderCapabilities()
 
 
 @dataclass(frozen=True)
+class ClientSpec:
+    """Declarative native-client contract used by the shared factory runtime."""
+
+    sync_types: tuple[str, ...]
+    create: str
+    async_types: tuple[str, ...] = ()
+    async_create: str | None = None
+    stream: str | None = None
+    async_stream: str | None = None
+    falsey_model_fallback: bool = False
+    validation_order: Literal["dependency-first", "mode-first", "client-first"] = (
+        "dependency-first"
+    )
+
+
+@dataclass(frozen=True)
 class ProviderSpec:
     provider: Provider
     canonical_provider: Provider
@@ -45,6 +62,7 @@ class ProviderSpec:
     basic_modes: tuple[Mode, ...] = ()
     async_modes: tuple[Mode, ...] = ()
     missing_sdk_message: str | None = None
+    client: ClientSpec | None = None
 
     @property
     def model_builder_module(self) -> str | None:
@@ -70,6 +88,7 @@ def _spec(
     basic_modes: tuple[Mode, ...] = (),
     async_modes: tuple[Mode, ...] = (),
     missing_sdk_message: str | None = None,
+    client: ClientSpec | None = None,
 ) -> ProviderSpec:
     return ProviderSpec(
         provider=provider,
@@ -88,6 +107,7 @@ def _spec(
         basic_modes=basic_modes,
         async_modes=async_modes,
         missing_sdk_message=missing_sdk_message,
+        client=client,
     )
 
 
@@ -111,6 +131,11 @@ _OPENAI_COMPAT_CAPABILITIES = ProviderCapabilities(
     multimodal_inputs=_OPENAI_MULTIMODAL_INPUTS,
     explicit_parallel_tools=True,
 )
+_OPENAI_CLIENT = ClientSpec(
+    sync_types=("openai.OpenAI", "openai.AzureOpenAI"),
+    async_types=("openai.AsyncOpenAI", "openai.AsyncAzureOpenAI"),
+    create="chat.completions.create",
+)
 
 
 def _openai_compat_spec(
@@ -130,6 +155,7 @@ def _openai_compat_spec(
         client_module="instructor.v2.providers.openai.client",
         sdk_module="openai",
         capabilities=_OPENAI_COMPAT_CAPABILITIES,
+        client=_OPENAI_CLIENT,
     )
 
 
@@ -172,6 +198,7 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="openai/gpt-4o-mini",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
+            client=_OPENAI_CLIENT,
         ),
         Provider.ANYSCALE: _openai_compat_spec(
             Provider.ANYSCALE,
@@ -219,6 +246,7 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
                 multimodal_inputs=_OPENAI_MULTIMODAL_INPUTS,
                 explicit_parallel_tools=True,
             ),
+            client=_OPENAI_CLIENT,
         ),
         Provider.ANTHROPIC: _spec(
             Provider.ANTHROPIC,
@@ -249,6 +277,22 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="anthropic/claude-sonnet-4-6",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA),
+            missing_sdk_message=(
+                "anthropic is not installed. Install it with: pip install anthropic"
+            ),
+            client=ClientSpec(
+                sync_types=(
+                    "anthropic.Anthropic",
+                    "anthropic.AnthropicBedrock",
+                    "anthropic.AnthropicVertex",
+                ),
+                async_types=(
+                    "anthropic.AsyncAnthropic",
+                    "anthropic.AsyncAnthropicBedrock",
+                    "anthropic.AsyncAnthropicVertex",
+                ),
+                create="messages.create",
+            ),
         ),
         Provider.GENAI: _spec(
             Provider.GENAI,
@@ -272,6 +316,18 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="google/gemini-2.0-flash",
             basic_modes=(Mode.TOOLS, Mode.JSON),
             async_modes=(Mode.TOOLS, Mode.JSON),
+            missing_sdk_message=(
+                "google-genai is not installed. Install it with: pip install google-genai"
+            ),
+            client=ClientSpec(
+                sync_types=("google.genai.Client",),
+                create="models.generate_content",
+                async_create="aio.models.generate_content",
+                stream="models.generate_content_stream",
+                async_stream="aio.models.generate_content_stream",
+                falsey_model_fallback=True,
+                validation_order="client-first",
+            ),
         ),
         Provider.GENERATIVE_AI: _spec(
             Provider.GENERATIVE_AI,
@@ -311,6 +367,16 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             capabilities=ProviderCapabilities(
                 partial_stream_modes=(Mode.TOOLS, Mode.MD_JSON),
             ),
+            missing_sdk_message=(
+                "google-generativeai is not installed. Install it with: "
+                "pip install google-generativeai"
+            ),
+            client=ClientSpec(
+                sync_types=("google.generativeai.GenerativeModel",),
+                create="generate_content",
+                async_create="generate_content_async",
+                validation_order="mode-first",
+            ),
         ),
         Provider.COHERE: _spec(
             Provider.COHERE,
@@ -332,6 +398,16 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="cohere/command-a-03-2025",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
+            missing_sdk_message=(
+                "cohere is not installed. Install it with: pip install cohere"
+            ),
+            client=ClientSpec(
+                sync_types=("cohere.Client", "cohere.ClientV2"),
+                async_types=("cohere.AsyncClient", "cohere.AsyncClientV2"),
+                create="chat",
+                stream="chat_stream",
+                async_stream="chat_stream",
+            ),
         ),
         Provider.PERPLEXITY: _spec(
             Provider.PERPLEXITY,
@@ -352,6 +428,7 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             capabilities=ProviderCapabilities(
                 multimodal_inputs=_OPENAI_MULTIMODAL_INPUTS,
             ),
+            client=_OPENAI_CLIENT,
         ),
         Provider.XAI: _spec(
             Provider.XAI,
@@ -395,6 +472,14 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="groq/llama-3.3-70b-versatile",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
+            missing_sdk_message=(
+                "groq is not installed. Install it with: pip install groq"
+            ),
+            client=ClientSpec(
+                sync_types=("groq.Groq",),
+                async_types=("groq.AsyncGroq",),
+                create="chat.completions.create",
+            ),
         ),
         Provider.MISTRAL: _spec(
             Provider.MISTRAL,
@@ -417,6 +502,16 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="mistral/ministral-8b-latest",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
+            missing_sdk_message=(
+                "mistralai is not installed. Install it with: pip install mistralai"
+            ),
+            client=ClientSpec(
+                sync_types=("mistralai.Mistral",),
+                create="chat.complete",
+                async_create="chat.complete_async",
+                stream="chat.stream",
+                async_stream="chat.stream_async",
+            ),
         ),
         Provider.FIREWORKS: _spec(
             Provider.FIREWORKS,
@@ -439,6 +534,15 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="fireworks/accounts/fireworks/models/kimi-k2p5",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
+            missing_sdk_message=(
+                "fireworks is not installed. Install it with: pip install fireworks-ai"
+            ),
+            client=ClientSpec(
+                sync_types=("fireworks.client.Fireworks",),
+                async_types=("fireworks.client.AsyncFireworks",),
+                create="chat.completions.create",
+                async_create="chat.completions.acreate",
+            ),
         ),
         Provider.CEREBRAS: _spec(
             Provider.CEREBRAS,
@@ -467,7 +571,15 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="cerebras/gpt-oss-120b",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
-            missing_sdk_message="cerebras is not installed",
+            missing_sdk_message=(
+                "cerebras is not installed. Install it with: "
+                "pip install cerebras-cloud-sdk"
+            ),
+            client=ClientSpec(
+                sync_types=("cerebras.cloud.sdk.Cerebras",),
+                async_types=("cerebras.cloud.sdk.AsyncCerebras",),
+                create="chat.completions.create",
+            ),
         ),
         Provider.WRITER: _spec(
             Provider.WRITER,
@@ -490,6 +602,14 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="writer/palmyra-x5",
             basic_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.JSON_SCHEMA, Mode.MD_JSON),
+            missing_sdk_message=(
+                "writerai is not installed. Install it with: pip install writer-sdk"
+            ),
+            client=ClientSpec(
+                sync_types=("writerai.Writer",),
+                async_types=("writerai.AsyncWriter",),
+                create="chat.chat",
+            ),
         ),
         Provider.BEDROCK: _spec(
             Provider.BEDROCK,
@@ -511,6 +631,13 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             provider_string="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
             basic_modes=(Mode.TOOLS, Mode.MD_JSON),
             async_modes=(Mode.TOOLS, Mode.MD_JSON),
+            missing_sdk_message=(
+                "botocore is not installed. Install it with: pip install boto3"
+            ),
+            client=ClientSpec(
+                sync_types=("botocore.client.BaseClient",),
+                create="converse",
+            ),
         ),
         Provider.VERTEXAI: _spec(
             Provider.VERTEXAI,
@@ -529,6 +656,16 @@ PROVIDER_SPECS: Mapping[Provider, ProviderSpec] = MappingProxyType(
             capabilities=ProviderCapabilities(
                 partial_stream_modes=(Mode.TOOLS, Mode.MD_JSON),
                 explicit_parallel_tools=True,
+            ),
+            missing_sdk_message=(
+                "vertexai is not installed. Install it with: "
+                "pip install google-cloud-aiplatform"
+            ),
+            client=ClientSpec(
+                sync_types=("vertexai.generative_models.GenerativeModel",),
+                create="generate_content",
+                async_create="generate_content_async",
+                validation_order="mode-first",
             ),
         ),
         Provider.AZURE_OPENAI: _spec(
