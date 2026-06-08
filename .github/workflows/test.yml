@@ -186,14 +186,23 @@ jobs:
           || env.FIREWORKS_API_KEY != '' || env.WRITER_API_KEY != ''
           || env.PERPLEXITY_API_KEY != '' }}
         run: |
-          set +e
-          uv run pytest tests/llm/test_core_providers -v --asyncio-mode=auto -n auto -k "cohere or xai or mistral or cerebras or fireworks or writer or perplexity"
-          status=$?
-          set -e
-          if [ $status -eq 5 ]; then
-            echo "No tests collected; treating as success."
-            exit 0
-          fi
+          for attempt in 1 2 3; do
+            set +e
+            uv run pytest tests/llm/test_core_providers -v --asyncio-mode=auto -n auto -k "cohere or xai or mistral or cerebras or fireworks or writer or perplexity"
+            status=$?
+            set -e
+            if [ $status -eq 0 ]; then
+              exit 0
+            fi
+            if [ $status -eq 5 ]; then
+              echo "No tests collected; treating as success."
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Live provider suite failed on attempt $attempt; retrying."
+              sleep 5
+            fi
+          done
           exit $status
         env:
           INSTRUCTOR_ENV: CI
