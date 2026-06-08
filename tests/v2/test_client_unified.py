@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import inspect
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -237,7 +237,7 @@ def test_anthropic_beta_declares_beta_method_override(
         ),
     )
     captured = _capture_factory(monkeypatch, anthropic_client)
-    anthropic_client.from_anthropic(sync_type(), beta=True)
+    cast(Any, anthropic_client.from_anthropic)(sync_type(), beta=True)
     assert captured["create_path"] == "beta.messages.create"
     assert captured["async_create_path"] == "beta.messages.create"
 
@@ -254,7 +254,7 @@ def test_cohere_v2_declares_version_and_client_families(
         ),
     )
     captured = _capture_factory(monkeypatch, cohere_client)
-    cohere_client.from_cohere(v2())
+    cast(Any, cohere_client.from_cohere)(v2())
     assert captured["_cohere_client_version"] == "v2"
     assert captured["sync_types"] == (v1, v2)
     assert captured["async_types"] == (async_v1, async_v2)
