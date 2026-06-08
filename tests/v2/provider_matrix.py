@@ -93,7 +93,7 @@ def ensure_handlers_loaded(
     except (ImportError, ModuleNotFoundError) as exc:
         if skip_missing_dependency and _is_expected_missing_dependency(provider, exc):
             pytest.skip(
-                f"{provider.value} handlers require optional dependency "
+                f"{provider.value} handlers require optional dependency "  # ty: ignore[too-many-positional-arguments]
                 f"{PROVIDER_SPECS[provider].sdk_module}"
             )
         raise

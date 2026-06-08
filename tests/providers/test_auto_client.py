@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import ModuleType
+from typing import Any, cast
 
 import pytest
 from instructor.auto_client import from_provider
@@ -9,6 +10,7 @@ from instructor.core.exceptions import (
     ConfigurationError,
     InstructorRetryException,
 )
+from openai.types.chat import ChatCompletionUserMessageParam
 from pydantic import BaseModel
 
 
@@ -18,7 +20,7 @@ class User(BaseModel):
     age: int
 
 
-USER_EXTRACTION_PROMPT = {
+USER_EXTRACTION_PROMPT: ChatCompletionUserMessageParam = {
     "role": "user",
     "content": "Ivan is 28 and strays in Singapore. Extract it as a user object",
 }
@@ -84,7 +86,7 @@ def should_skip_provider_exception(exc: Exception) -> bool:
 def skip_or_raise_provider_exception(provider_string: str, exc: Exception) -> None:
     if should_skip_provider_exception(exc):
         pytest.skip(
-            f"Provider {provider_string} not available in this environment: {exc}"
+            f"Provider {provider_string} not available in this environment: {exc}"  # ty: ignore[too-many-positional-arguments]
         )
     raise exc
 
@@ -94,7 +96,9 @@ def test_user_extraction_sync(provider_string):
     """Test user extraction for each provider (sync)."""
 
     if should_skip_provider(provider_string):
-        pytest.skip(f"Skipping provider {provider_string} on CI")
+        pytest.skip(
+            f"Skipping provider {provider_string} on CI"  # ty: ignore[too-many-positional-arguments]
+        )
         return
 
     try:
@@ -120,7 +124,9 @@ async def test_user_extraction_async(provider_string):
     """Test user extraction for each provider (async)."""
 
     if should_skip_provider(provider_string):
-        pytest.skip(f"Skipping provider {provider_string} on CI")
+        pytest.skip(
+            f"Skipping provider {provider_string} on CI"  # ty: ignore[too-many-positional-arguments]
+        )
         return
 
     try:
@@ -169,8 +175,8 @@ def test_provider_dispatch_uses_registered_builder(monkeypatch):
         calls.append(kwargs)
         return result
 
-    module = ModuleType("test_builder")
-    module.build_from_model = builder  # type: ignore[attr-defined]
+    module = cast(Any, ModuleType("test_builder"))
+    module.build_from_model = builder
     monkeypatch.setattr(auto_client.importlib, "import_module", lambda _path: module)
 
     assert from_provider("openai/gpt-4", api_key="test-key", extra="value") is result
@@ -193,7 +199,9 @@ def test_additional_kwargs_passed():
     import os
 
     if os.getenv("INSTRUCTOR_ENV") == "CI" or not os.getenv("ANTHROPIC_API_KEY"):
-        pytest.skip("Skipping live Anthropic test without credentials")
+        pytest.skip(
+            "Skipping live Anthropic test without credentials"  # ty: ignore[too-many-positional-arguments]
+        )
         return
 
     client = instructor.from_provider("anthropic/claude-sonnet-4-6", max_tokens=10)

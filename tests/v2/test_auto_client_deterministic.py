@@ -49,15 +49,15 @@ def test_from_provider_passes_cache_and_api_key_to_builder(
         captured.update(kwargs)
         return "client"
 
-    builder_module = ModuleType("test_builder")
-    builder_module.build_from_model = fake_builder  # type: ignore[attr-defined]
+    builder_module = cast(Any, ModuleType("test_builder"))
+    builder_module.build_from_model = fake_builder
     monkeypatch.setattr(
         auto_client.importlib,
         "import_module",
         lambda _path: builder_module,
     )
 
-    result = auto_client.from_provider(
+    result = auto_client.from_provider(  # ty: ignore[no-matching-overload]
         "openai/gpt-5-nano",
         cache=cache,
         api_key="secret",
@@ -224,18 +224,18 @@ def test_build_openai_compatible_requires_api_key(
 def test_build_openai_does_not_mask_runtime_import_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    openai_module = ModuleType("openai")
+    openai_module = cast(Any, ModuleType("openai"))
 
     class FakeClient:
         def __init__(self, **_kwargs: Any) -> None:
             raise ImportError("Using SOCKS proxy, but socksio is not installed.")
 
-    openai_module.OpenAI = FakeClient  # type: ignore[attr-defined]
-    openai_module.AsyncOpenAI = FakeClient  # type: ignore[attr-defined]
-    openai_module.DEFAULT_MAX_RETRIES = 2  # type: ignore[attr-defined]
-    openai_module.NotGiven = object  # type: ignore[attr-defined]
-    openai_module.Timeout = float  # type: ignore[attr-defined]
-    openai_module.not_given = object()  # type: ignore[attr-defined]
+    openai_module.OpenAI = FakeClient
+    openai_module.AsyncOpenAI = FakeClient
+    openai_module.DEFAULT_MAX_RETRIES = 2
+    openai_module.NotGiven = object
+    openai_module.Timeout = float
+    openai_module.not_given = object()
 
     from instructor.v2.providers.openai import client as openai_client
 
@@ -257,16 +257,16 @@ def test_openai_builder_restores_default_max_retries_for_none(
     monkeypatch: pytest.MonkeyPatch,
     async_client: bool,
 ) -> None:
-    openai_module = ModuleType("openai")
+    openai_module = cast(Any, ModuleType("openai"))
     seen: dict[str, Any] = {}
 
     class FakeClient:
         def __init__(self, **kwargs: Any) -> None:
             seen["client_kwargs"] = kwargs
 
-    openai_module.OpenAI = FakeClient  # type: ignore[attr-defined]
-    openai_module.AsyncOpenAI = FakeClient  # type: ignore[attr-defined]
-    openai_module.DEFAULT_MAX_RETRIES = 7  # type: ignore[attr-defined]
+    openai_module.OpenAI = FakeClient
+    openai_module.AsyncOpenAI = FakeClient
+    openai_module.DEFAULT_MAX_RETRIES = 7
 
     from instructor.v2.providers.openai import client as openai_client
 
@@ -289,7 +289,7 @@ def test_openai_builders_keep_app_info_for_instructor_wrapper(
     async_client: bool,
     compatible: bool,
 ) -> None:
-    openai_module = ModuleType("openai")
+    openai_module = cast(Any, ModuleType("openai"))
     seen: dict[str, Any] = {}
 
     class FakeClient:
@@ -297,8 +297,8 @@ def test_openai_builders_keep_app_info_for_instructor_wrapper(
             assert "app_info" not in kwargs
             seen["client_kwargs"] = kwargs
 
-    openai_module.OpenAI = FakeClient  # type: ignore[attr-defined]
-    openai_module.AsyncOpenAI = FakeClient  # type: ignore[attr-defined]
+    openai_module.OpenAI = FakeClient
+    openai_module.AsyncOpenAI = FakeClient
 
     from instructor.v2.providers.openai import client as openai_client
 
@@ -338,15 +338,15 @@ def test_build_databricks_normalizes_base_url_and_forwards_client_kwargs(
     monkeypatch.setenv("DATABRICKS_TOKEN", "db-token")
     monkeypatch.setenv("DATABRICKS_HOST", "https://workspace.databricks.com")
 
-    openai_module = ModuleType("openai")
+    openai_module = cast(Any, ModuleType("openai"))
     seen: dict[str, Any] = {}
 
     class FakeOpenAI:
         def __init__(self, **kwargs: Any) -> None:
             seen["client_kwargs"] = kwargs
 
-    openai_module.OpenAI = FakeOpenAI  # type: ignore[attr-defined]
-    openai_module.AsyncOpenAI = FakeOpenAI  # type: ignore[attr-defined]
+    openai_module.OpenAI = FakeOpenAI
+    openai_module.AsyncOpenAI = FakeOpenAI
     from instructor.v2.providers.openai import client as openai_client
 
     monkeypatch.setattr(openai_client, "openai", openai_module)
@@ -384,14 +384,14 @@ def test_build_databricks_normalizes_base_url_and_forwards_client_kwargs(
 def test_build_bedrock_chooses_default_mode_from_model_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    boto3_module = ModuleType("boto3")
+    boto3_module = cast(Any, ModuleType("boto3"))
     boto3_calls: list[tuple[str, dict[str, Any]]] = []
 
     def fake_client(service_name: str, **kwargs: Any) -> object:
         boto3_calls.append((service_name, kwargs))
         return object()
 
-    boto3_module.client = fake_client  # type: ignore[attr-defined]
+    boto3_module.client = fake_client
     monkeypatch.setitem(__import__("sys").modules, "boto3", boto3_module)
 
     import instructor.v2.providers.bedrock.client as bedrock_client
@@ -431,14 +431,14 @@ def test_build_bedrock_chooses_default_mode_from_model_name(
 def test_build_ollama_uses_tool_mode_only_for_tool_capable_models(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    openai_module = ModuleType("openai")
+    openai_module = cast(Any, ModuleType("openai"))
 
     class FakeOpenAI:
         def __init__(self, **kwargs: Any) -> None:
             self.kwargs = kwargs
 
-    openai_module.OpenAI = FakeOpenAI  # type: ignore[attr-defined]
-    openai_module.AsyncOpenAI = FakeOpenAI  # type: ignore[attr-defined]
+    openai_module.OpenAI = FakeOpenAI
+    openai_module.AsyncOpenAI = FakeOpenAI
     import instructor.v2.providers.openai.client as openai_client_module
 
     monkeypatch.setattr(openai_client_module, "openai", openai_module)
@@ -449,8 +449,8 @@ def test_build_ollama_uses_tool_mode_only_for_tool_capable_models(
         def __init__(self, **kwargs: Any) -> None:
             client_kwargs.append(kwargs)
 
-    openai_module.OpenAI = CapturingOpenAI  # type: ignore[attr-defined]
-    openai_module.AsyncOpenAI = CapturingOpenAI  # type: ignore[attr-defined]
+    openai_module.OpenAI = CapturingOpenAI
+    openai_module.AsyncOpenAI = CapturingOpenAI
 
     def fake_from_openai(_client: Any, **kwargs: Any) -> dict[str, Any]:
         calls.append(kwargs)

@@ -9,7 +9,7 @@ from __future__ import annotations
 import importlib.util
 import os
 from collections.abc import Iterable
-from typing import Literal, Union, cast
+from typing import Literal, Union
 
 import pytest
 from pydantic import BaseModel
@@ -75,7 +75,9 @@ def test_mode_is_registered(provider: Provider, mode: Mode):
 
     # Skip if handler module doesn't exist or isn't registered
     if not mode_registry.is_registered(provider, mode):
-        pytest.skip(f"Mode {mode.value} not registered for {provider.value}")
+        pytest.skip(
+            f"Mode {mode.value} not registered for {provider.value}"  # ty: ignore[too-many-positional-arguments]
+        )
 
     handlers = mode_registry.get_handlers(provider, mode)
     assert handlers.request_handler is not None
@@ -99,7 +101,9 @@ def _skip_on_provider_quota(provider: Provider, exc: Exception) -> None:
         and isinstance(exc, InstructorRetryException)
         and "RESOURCE_EXHAUSTED" in str(exc)
     ):
-        pytest.skip("GenAI quota exhausted for this environment")
+        pytest.skip(
+            "GenAI quota exhausted for this environment"  # ty: ignore[too-many-positional-arguments]
+        )
     if (
         provider == Provider.OPENAI
         and isinstance(exc, InstructorRetryException)
@@ -107,7 +111,9 @@ def _skip_on_provider_quota(provider: Provider, exc: Exception) -> None:
     ):
         if os.environ.get("CI") or os.environ.get("INSTRUCTOR_STRICT_PROVIDER_TESTS"):
             return
-        pytest.skip("OpenAI connectivity is unavailable in this environment")
+        pytest.skip(
+            "OpenAI connectivity is unavailable in this environment"  # ty: ignore[too-many-positional-arguments]
+        )
 
 
 def _skip_if_provider_sdk_missing(provider: Provider) -> None:
@@ -123,7 +129,9 @@ def _skip_if_provider_sdk_missing(provider: Provider) -> None:
 
         installed = installed and SyncClient is not None
     if not installed:
-        pytest.skip(f"{sdk_module} is not installed or unusable")
+        pytest.skip(
+            f"{sdk_module} is not installed or unusable"  # ty: ignore[too-many-positional-arguments]
+        )
 
 
 def test_live_provider_matrix_skips_unusable_optional_sdk(
@@ -242,7 +250,7 @@ def test_anthropic_parallel_tools_extraction():
         max_tokens=1000,
     )
 
-    result = list(cast(Iterable[Union[Weather, GoogleSearch]], response))
+    result = list(response)
     assert len(result) >= 1
     assert all(isinstance(r, (Weather, GoogleSearch)) for r in result)
 
