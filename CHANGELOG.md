@@ -7,6 +7,13 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Multimodal (Audio)**: Raise explicit `ValueError` or `FileNotFoundError` from `Audio.from_url()` and `Audio.from_path()` instead of relying on bare `assert` statements that can disappear under `python -O`. ([#2361](https://github.com/567-labs/instructor/pull/2361))
+
+---
+
 ## [1.15.5] - 2026-06-28
 
 ### Fixed
