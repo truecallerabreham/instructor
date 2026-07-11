@@ -421,7 +421,7 @@ class AnthropicToolsHandler(AnthropicHandlerBase):
         response: Message,
         exception: Exception,
     ) -> dict[str, Any]:
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
         if response is None or not hasattr(response, "content"):
             kwargs["messages"].append(
                 {
@@ -687,7 +687,7 @@ class AnthropicJSONHandler(AnthropicHandlerBase):
         response: Message,
         exception: Exception,
     ) -> dict[str, Any]:
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
         text_blocks = [c for c in response.content if c.type == "text"]
         if not text_blocks:
             text_content = "No text content found in response"
@@ -862,7 +862,7 @@ class AnthropicStructuredOutputsHandler(AnthropicHandlerBase):
         exception: Exception,
     ) -> dict[str, Any]:
         # Use same reask logic as JSON mode
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
         text_blocks = [c for c in response.content if c.type == "text"]
         if not text_blocks:
             text_content = "No text content found in response"
