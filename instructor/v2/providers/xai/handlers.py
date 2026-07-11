@@ -86,7 +86,7 @@ def reask_xai_json(
     exception: Exception,
 ):
     """Handle reask for xAI JSON mode when validation fails."""
-    kwargs = kwargs.copy()
+    kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
     reask_msg = {
         "role": "user",
         "content": (
@@ -106,7 +106,7 @@ def reask_xai_tools(
     exception: Exception,
 ):
     """Handle reask for xAI tools mode when validation fails."""
-    kwargs = kwargs.copy()
+    kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
 
     assistant_msg = {
         "role": "assistant",
@@ -429,7 +429,7 @@ class XAIToolsHandler(XAIHandlerBase):
         exception: Exception,
     ) -> dict[str, Any]:
         """Handle reask for tools mode."""
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
 
         # Add assistant response to conversation history
         assistant_msg = {
@@ -610,7 +610,7 @@ class XAIJSONSchemaHandler(XAIHandlerBase):
         exception: Exception,
     ) -> dict[str, Any]:
         """Handle reask for JSON schema mode."""
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
         reask_msg = {
             "role": "user",
             "content": f"Validation Errors found:\n{exception}\nRecall the function correctly, fix the errors found in the following attempt:\n{response}",
@@ -743,7 +743,7 @@ class XAIMDJSONHandler(XAIHandlerBase):
         exception: Exception,
     ) -> dict[str, Any]:
         """Handle reask for MD_JSON mode."""
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, 'messages': list(kwargs['messages'])}
         reask_msg = {
             "role": "user",
             "content": f"Validation Errors found:\n{exception}\nRecall the function correctly, fix the errors found in the following attempt:\n{response}",
