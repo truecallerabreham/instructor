@@ -397,7 +397,7 @@ class XAIToolsHandler(XAIHandlerBase):
         kwargs: dict[str, Any],
     ) -> tuple[type[BaseModel] | None, dict[str, Any]]:
         """Prepare request with tool definitions for xAI."""
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
 
         if response_model is None:
             return None, new_kwargs
@@ -521,7 +521,7 @@ class XAIParallelToolsHandler(XAIHandlerBase):
         if response_model is None:
             return None, kwargs
 
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
         if new_kwargs.get("stream", False):
             from instructor.v2.core.errors import ConfigurationError
 
@@ -592,7 +592,7 @@ class XAIJSONSchemaHandler(XAIHandlerBase):
         if response_model is None:
             return None, kwargs
 
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
         schema = response_model.model_json_schema()
 
         # Store schema info for xAI SDK's parse() method
@@ -689,7 +689,7 @@ class XAIMDJSONHandler(XAIHandlerBase):
         if response_model is None:
             return None, kwargs
 
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
         schema = response_model.model_json_schema()
 
         message = dedent(
