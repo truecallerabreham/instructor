@@ -251,7 +251,7 @@ class MistralToolsHandler(MistralHandlerBase):
         kwargs: dict[str, Any],
     ) -> tuple[type[BaseModel] | None, dict[str, Any]]:
         """Prepare request with tool definitions."""
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
 
         if response_model is None:
             return None, new_kwargs
@@ -393,7 +393,7 @@ class MistralJSONSchemaHandler(MistralHandlerBase):
         if response_model is None:
             return None, kwargs
 
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
 
         # Use Mistral's helper to create response format
         from mistralai.extra import response_format_from_pydantic_model
@@ -485,7 +485,7 @@ class MistralMDJSONHandler(MistralHandlerBase):
         if response_model is None:
             return None, kwargs
 
-        new_kwargs = kwargs.copy()
+        new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
         schema = response_model.model_json_schema()
 
         message = dedent(
