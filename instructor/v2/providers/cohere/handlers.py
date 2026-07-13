@@ -68,7 +68,7 @@ def _convert_messages_to_cohere_v1(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 def _convert_messages_to_cohere_v2(kwargs: dict[str, Any]) -> dict[str, Any]:
     """Clean up kwargs for Cohere V2 format (OpenAI-compatible)."""
-    new_kwargs = kwargs.copy()
+    new_kwargs = {**kwargs, 'messages': [dict(m) for m in kwargs.get('messages', [])]}
     new_kwargs.pop("_cohere_client_version", None)
 
     # Rename model_name to model if needed
