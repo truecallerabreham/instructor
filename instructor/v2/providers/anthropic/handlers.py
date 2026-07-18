@@ -412,7 +412,7 @@ class AnthropicToolsHandler(AnthropicHandlerBase):
         response: Message,
         exception: Exception,
     ) -> dict[str, Any]:
-        kwargs = kwargs.copy()
+        kwargs = {**kwargs, "messages": list(kwargs["messages"])}
         if response is None or not hasattr(response, "content"):
             kwargs["messages"].append(
                 {
